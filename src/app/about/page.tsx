@@ -158,11 +158,11 @@ export default function AboutPage() {
                   Berkeley, UC Merced, UC Agriculture and Natural Resources,
                   USDA Albany Agricultural Research Station), industry partners
                   (Almond Board of California), and regional economic
-                  development organizations (BEAM Circular), supported by
-                   funding from Schmidt Sciences&apos; Virtual Institute on
-                   Feedstocks of the Future and the Virtual Institute for
-                   Scientific Software at the University of Washington
-                   Scientific Software Engineering Center, eScience Institute.
+                  development organizations (BEAM Circular), funded [in part] through 
+                  Schmidt Sciences&apos; Virtual Institute on Feedstocks of the Future, 
+                  with support from the Foundation for Food &amp; Agriculture Research, 
+                  and technical support from Schmidt Sciences&apos; Virtual Institute for 
+                  Scientific Software at the University of Washington.
                 </p>
 
                 <div className="mt-10 mb-8">

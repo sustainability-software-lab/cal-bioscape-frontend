@@ -7,7 +7,8 @@ import * as turf from '@turf/turf'; // Import TurfJS
 import SitingButton from './SitingButton';
 import SitingAnalysis from './SitingAnalysis';
 import SitingInventory from './SitingInventory'; // Import the new component
-import { FEEDSTOCK_TILESET_ID, INFRASTRUCTURE_LAYERS } from '@/lib/constants';
+import { INFRASTRUCTURE_LAYERS } from '@/lib/constants';
+import { TILESET_REGISTRY } from '@/lib/tileset-registry'; // Import centralized tileset registry
 import { layerLabelMappings } from '@/lib/labelMappings';
 
 // --- Configuration ---
@@ -1107,16 +1108,16 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
         // Add new vector source for Feedstock data
         map.current.addSource('feedstock-vector-source', {
           type: 'vector',
-          url: `mapbox://${FEEDSTOCK_TILESET_ID}`
+          url: `mapbox://${TILESET_REGISTRY.feedstock.tilesetId}`
         });
-        console.log("Added feedstock vector source");
+        console.log("Added feedstock vector source:", TILESET_REGISTRY.feedstock.tilesetId);
 
         // Add new vector layer for Feedstock data
         map.current.addLayer({
           id: 'feedstock-vector-layer', // New unique layer ID
           type: 'fill', // Using 'fill' as per instructions, adjust if needed
           source: 'feedstock-vector-source', // Reference the new vector source
-          'source-layer': 'cropland_land_iq_2023', // Corrected layer name within the tileset
+          'source-layer': TILESET_REGISTRY.feedstock.sourceLayer, // Use stable source layer name from registry
           // Initial filter: Only exclude 'U' code. Crop filtering is handled by useEffect.
           filter: ['!=', ['get', 'main_crop_code'], 'U'],
           paint: {
@@ -1219,7 +1220,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
         }
 
         // Add rail lines infrastructure layer
-        const railLinesTilesetUrl = 'mapbox://tylerhuntington222.b0rylacz';
+        const railLinesTilesetUrl = `mapbox://${TILESET_REGISTRY.railLines.tilesetId}`;
         console.log("Adding rail lines tileset with URL:", railLinesTilesetUrl);
         
         map.current.addSource('rail-lines-source', {
@@ -1234,7 +1235,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
             id: 'rail-lines-layer',
             type: 'line',
             source: 'rail-lines-source',
-            'source-layer': 'us_rail_lines_ftot-80b406',
+            'source-layer': TILESET_REGISTRY.railLines.sourceLayer,
             paint: {
               'line-color': '#008B8B', // Dark cyan color for rail lines
               'line-width': 2,
@@ -1253,7 +1254,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
         }
 
         // Add freight terminals transportation layer
-        const freightTerminalsTilesetUrl = 'mapbox://tylerhuntington222.6m4h969q';
+        const freightTerminalsTilesetUrl = `mapbox://${TILESET_REGISTRY.freightTerminals.tilesetId}`;
         console.log("Adding freight terminals tileset with URL:", freightTerminalsTilesetUrl);
         
         map.current.addSource('freight-terminals-source', {
@@ -1268,7 +1269,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
             id: 'freight-terminals-layer',
             type: 'circle',
             source: 'freight-terminals-source',
-            'source-layer': 'us_freight_terminals-d7i106',
+            'source-layer': TILESET_REGISTRY.freightTerminals.sourceLayer,
             paint: {
               'circle-color': '#4169E1', // Royal blue color for freight terminals
               'circle-radius': 6,
@@ -1286,7 +1287,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
         }
 
         // Add freight routes transportation layer
-        const freightRoutesTilesetUrl = 'mapbox://tylerhuntington222.5fm8q5sj';
+        const freightRoutesTilesetUrl = `mapbox://${TILESET_REGISTRY.freightRoutes.tilesetId}`;
         console.log("Adding freight routes tileset with URL:", freightRoutesTilesetUrl);
         
         map.current.addSource('freight-routes-source', {
@@ -1301,7 +1302,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
             id: 'freight-routes-layer',
             type: 'line',
             source: 'freight-routes-source',
-            'source-layer': 'us_freight_routes',
+            'source-layer': TILESET_REGISTRY.freightRoutes.sourceLayer,
             paint: {
               'line-color': '#9932CC', // Dark orchid color for freight routes
               'line-width': 2,
@@ -1317,7 +1318,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
         }
 
         // Add anaerobic digester infrastructure layer
-        const anaerobicDigesterTilesetUrl = 'mapbox://tylerhuntington222.8lsxssgz';
+        const anaerobicDigesterTilesetUrl = `mapbox://${TILESET_REGISTRY.anaerobicDigester.tilesetId}`;
         console.log("Adding anaerobic digester tileset with URL:", anaerobicDigesterTilesetUrl);
         
         map.current.addSource('anaerobic-digester-source', {
@@ -1332,7 +1333,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
             id: 'anaerobic-digester-layer',
             type: 'circle',
             source: 'anaerobic-digester-source',
-            'source-layer': 'agstar_ad_pts-12cpd6',
+            'source-layer': TILESET_REGISTRY.anaerobicDigester.sourceLayer,
             paint: {
               'circle-color': '#8B4513', // Saddle brown color for anaerobic digesters
               'circle-radius': 6,
@@ -1350,7 +1351,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
         }
 
         // Add biorefineries infrastructure layer
-        const biorefineriesTilesetUrl = 'mapbox://tylerhuntington222.current_biorefineries';
+        const biorefineriesTilesetUrl = `mapbox://${TILESET_REGISTRY.biorefineries.tilesetId}`;
         console.log("Adding biorefineries tileset with URL:", biorefineriesTilesetUrl);
         
         map.current.addSource('biorefineries-source', {
@@ -1365,7 +1366,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
             id: 'biorefineries-layer',
             type: 'circle',
             source: 'biorefineries-source',
-            'source-layer': 'current_biorefineries',
+            'source-layer': TILESET_REGISTRY.biorefineries.sourceLayer,
             paint: {
               'circle-color': '#9370DB', // Medium purple color for biorefineries
               'circle-radius': 6,
@@ -1383,7 +1384,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
         }
 
         // Add cement plants infrastructure layer
-        const cementPlantsTilesetUrl = 'mapbox://tylerhuntington222.4ffuy21y';
+        const cementPlantsTilesetUrl = `mapbox://${TILESET_REGISTRY.cementPlants.tilesetId}`;
         console.log("Adding cement plants tileset with URL:", cementPlantsTilesetUrl);
         
         map.current.addSource('cement-plants-source', {
@@ -1393,7 +1394,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
         console.log("Added cement plants vector source");
         
         // Add material recovery facilities infrastructure layer
-        const mrfTilesetUrl = 'mapbox://tylerhuntington222.7pptvxpd';
+        const mrfTilesetUrl = `mapbox://${TILESET_REGISTRY.mrf.tilesetId}`;
         console.log("Adding material recovery facilities tileset with URL:", mrfTilesetUrl);
         
         map.current.addSource('mrf-source', {
@@ -1403,7 +1404,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
         console.log("Added material recovery facilities vector source");
         
         // Add sustainable aviation fuel plants infrastructure layer
-        const safPlantsTilesetUrl = 'mapbox://tylerhuntington222.6x05ytem';
+        const safPlantsTilesetUrl = `mapbox://${TILESET_REGISTRY.safPlants.tilesetId}`;
         console.log("Adding sustainable aviation fuel plants tileset with URL:", safPlantsTilesetUrl);
         
         map.current.addSource('saf-plants-source', {
@@ -1413,7 +1414,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
         console.log("Added sustainable aviation fuel plants vector source");
         
         // Add biodiesel plants infrastructure layer
-        const biodieselPlantsTilesetUrl = 'mapbox://tylerhuntington222.3eyv4hdj';
+        const biodieselPlantsTilesetUrl = `mapbox://${TILESET_REGISTRY.biodieselPlants.tilesetId}`;
         console.log("Adding biodiesel plants tileset with URL:", biodieselPlantsTilesetUrl);
         
         map.current.addSource('biodiesel-plants-source', {
@@ -1423,7 +1424,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
         console.log("Added biodiesel plants vector source");
         
         // Add landfills with LFG projects infrastructure layer
-        const landfillLfgTilesetUrl = 'mapbox://tylerhuntington222.0pobnuqo';
+        const landfillLfgTilesetUrl = `mapbox://${TILESET_REGISTRY.landfillLfg.tilesetId}`;
         console.log("Adding landfills with LFG projects tileset with URL:", landfillLfgTilesetUrl);
         
         map.current.addSource('landfill-lfg-source', {
@@ -1433,7 +1434,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
         console.log("Added landfills with LFG projects vector source");
         
         // Add wastewater treatment plants infrastructure layer
-        const wastewaterTreatmentTilesetUrl = 'mapbox://tylerhuntington222.ck7dox5nd07jj2rsxw4kvp5sy-3vnad';
+        const wastewaterTreatmentTilesetUrl = `mapbox://${TILESET_REGISTRY.wastewaterTreatment.tilesetId}`;
         console.log("Adding wastewater treatment plants tileset with URL:", wastewaterTreatmentTilesetUrl);
         
         map.current.addSource('wastewater-treatment-source', {
@@ -1443,7 +1444,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
         console.log("Added wastewater treatment plants vector source");
         
         // Add waste to energy plants infrastructure layer
-        const wasteToEnergyTilesetUrl = 'mapbox://tylerhuntington222.W2E_points';
+        const wasteToEnergyTilesetUrl = `mapbox://${TILESET_REGISTRY.wasteToEnergy.tilesetId}`;
         console.log("Adding waste to energy plants tileset with URL:", wasteToEnergyTilesetUrl);
         
         map.current.addSource('waste-to-energy-source', {
@@ -1453,7 +1454,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
         console.log("Added waste to energy plants vector source");
         
         // Add combustion plants infrastructure layer
-        const combustionPlantsTilesetUrl = 'mapbox://tylerhuntington222.COMB_points';
+        const combustionPlantsTilesetUrl = `mapbox://${TILESET_REGISTRY.combustionPlants.tilesetId}`;
         console.log("Adding combustion plants tileset with URL:", combustionPlantsTilesetUrl);
         
         map.current.addSource('combustion-plants-source', {
@@ -1463,7 +1464,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
         console.log("Added combustion plants vector source");
         
         // Add petroleum pipelines infrastructure layer
-        const petroleumPipelinesTilesetUrl = 'mapbox://tylerhuntington222.b4obgo1f';
+        const petroleumPipelinesTilesetUrl = `mapbox://${TILESET_REGISTRY.petroleumPipelines.tilesetId}`;
         console.log("Adding petroleum pipelines tileset with URL:", petroleumPipelinesTilesetUrl);
         
         map.current.addSource('petroleum-pipelines-source', {
@@ -1473,7 +1474,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
         console.log("Added petroleum pipelines vector source");
         
         // Add crude oil pipelines infrastructure layer
-        const crudeOilPipelinesTilesetUrl = 'mapbox://tylerhuntington222.9llifnsy';
+        const crudeOilPipelinesTilesetUrl = `mapbox://${TILESET_REGISTRY.crudeOilPipelines.tilesetId}`;
         console.log("Adding crude oil pipelines tileset with URL:", crudeOilPipelinesTilesetUrl);
         
         map.current.addSource('crude-oil-pipelines-source', {
@@ -1483,7 +1484,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
         console.log("Added crude oil pipelines vector source");
         
         // Add natural gas pipelines infrastructure layer
-        const naturalGasPipelinesTilesetUrl = 'mapbox://tylerhuntington222.9iavmtjd';
+        const naturalGasPipelinesTilesetUrl = `mapbox://${TILESET_REGISTRY.naturalGasPipelines.tilesetId}`;
         console.log("Adding natural gas pipelines tileset with URL:", naturalGasPipelinesTilesetUrl);
         
         map.current.addSource('natural-gas-pipelines-source', {
@@ -1493,7 +1494,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
         console.log("Added natural gas pipelines vector source");
 
         // Add District Energy Systems infrastructure layer
-        const districtEnergySystemsTilesetUrl = 'mapbox://tylerhuntington222.DES_CBG_centroids';
+        const districtEnergySystemsTilesetUrl = `mapbox://${TILESET_REGISTRY.districtEnergySystems.tilesetId}`;
         console.log("Adding District Energy Systems tileset with URL:", districtEnergySystemsTilesetUrl);
         
         map.current.addSource('district-energy-systems-source', {
@@ -1503,7 +1504,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
         console.log("Added District Energy Systems vector source");
 
         // Add food processors infrastructure layer
-        const foodProcessorsTilesetUrl = 'mapbox://tylerhuntington222.4vo6hho9';
+        const foodProcessorsTilesetUrl = `mapbox://${TILESET_REGISTRY.foodProcessors.tilesetId}`;
         console.log("Adding food processors tileset with URL:", foodProcessorsTilesetUrl);
         
         map.current.addSource('food-processors-source', {
@@ -1513,7 +1514,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
         console.log("Added food processors vector source");
 
         // Add food retailers infrastructure layer
-        const foodRetailersTilesetUrl = 'mapbox://tylerhuntington222.69ucggu2';
+        const foodRetailersTilesetUrl = `mapbox://${TILESET_REGISTRY.foodRetailers.tilesetId}`;
         console.log("Adding food retailers tileset with URL:", foodRetailersTilesetUrl);
         
         map.current.addSource('food-retailers-source', {
@@ -1559,7 +1560,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
             id: 'saf-plants-layer',
             type: 'circle',
             source: 'saf-plants-source',
-            'source-layer': 'renewable_diesel_saf_plants-79er6d',
+            'source-layer': TILESET_REGISTRY.safPlants.sourceLayer,
             paint: {
               'circle-color': '#1E90FF', // Dodger blue color for SAF plants
               'circle-radius': 6,
@@ -1578,7 +1579,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
               try {
                 // Try to get features from the source
                 const features = map.current.querySourceFeatures('saf-plants-source', {
-                  sourceLayer: 'renewable_diesel_saf_plants-79er6d'
+                  sourceLayer: TILESET_REGISTRY.safPlants.sourceLayer
                 });
                 
                 if (features && features.length > 0) {
@@ -1628,7 +1629,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
             id: 'renewable-diesel-layer',
             type: 'circle',
             source: 'saf-plants-source', // Using the same source as SAF plants
-            'source-layer': 'renewable_diesel_saf_plants-79er6d',
+            'source-layer': TILESET_REGISTRY.renewableDiesel.sourceLayer,
             paint: {
               'circle-color': '#FF8C00', // Dark orange color for renewable diesel plants
               'circle-radius': 6,
@@ -1647,7 +1648,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
               try {
                 // Try to get features from the source
                 const features = map.current.querySourceFeatures('saf-plants-source', {
-                  sourceLayer: 'renewable_diesel_saf_plants-79er6d'
+                  sourceLayer: TILESET_REGISTRY.renewableDiesel.sourceLayer
                 });
                 
                 if (features && features.length > 0) {
@@ -1697,7 +1698,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
             id: 'cement-plants-layer',
             type: 'circle',
             source: 'cement-plants-source',
-            'source-layer': 'cement_facility_location-aiusqe', // Confirmed source layer name
+            'source-layer': TILESET_REGISTRY.cementPlants.sourceLayer,
             paint: {
               'circle-color': '#708090', // Slate gray color for cement plants
               'circle-radius': 6,
@@ -1744,7 +1745,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
             id: 'mrf-layer',
             type: 'circle',
             source: 'mrf-source',
-            'source-layer': 'us_mrf_pts-206gpg', // Correct source layer name
+            'source-layer': TILESET_REGISTRY.mrf.sourceLayer,
             paint: {
               'circle-color': '#20B2AA', // Light sea green color for MRF facilities
               'circle-radius': 6,
@@ -1789,7 +1790,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
             id: 'biodiesel-plants-layer',
             type: 'circle',
             source: 'biodiesel-plants-source',
-            'source-layer': 'biodiesel_plants-69v9v0',
+            'source-layer': TILESET_REGISTRY.biodieselPlants.sourceLayer,
             paint: {
               'circle-color': '#228B22', // Forest green color for biodiesel plants
               'circle-radius': 6,
@@ -1812,7 +1813,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
             id: 'landfill-lfg-layer',
             type: 'circle',
             source: 'landfill-lfg-source',
-            'source-layer': 'landfills_lmop_active_project-3cg3gl', // Source layer name from tileset ID
+            'source-layer': TILESET_REGISTRY.landfillLfg.sourceLayer,
             paint: {
               'circle-color': '#800080', // Purple color for landfills with LFG projects
               'circle-radius': 6,
@@ -1835,7 +1836,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
             id: 'wastewater-treatment-layer',
             type: 'circle',
             source: 'wastewater-treatment-source',
-            'source-layer': 'us_wwt_pts', // Source layer name provided
+            'source-layer': TILESET_REGISTRY.wastewaterTreatment.sourceLayer,
             paint: {
               'circle-color': '#00CED1', // Turquoise color for wastewater treatment plants
               'circle-radius': 6,
@@ -1858,7 +1859,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
             id: 'waste-to-energy-layer',
             type: 'circle',
             source: 'waste-to-energy-source',
-            'source-layer': 'W2E_points', // Source layer name from the tileset
+            'source-layer': TILESET_REGISTRY.wasteToEnergy.sourceLayer,
             paint: {
               'circle-color': '#FF6347', // Tomato color for waste to energy plants
               'circle-radius': 6,
@@ -1881,7 +1882,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
             id: 'combustion-plants-layer',
             type: 'circle',
             source: 'combustion-plants-source',
-            'source-layer': 'COMB_points', // Source layer name from the tileset ID
+            'source-layer': TILESET_REGISTRY.combustionPlants.sourceLayer,
             paint: {
               'circle-color': '#B22222', // FireBrick color for combustion plants
               'circle-radius': 6,
@@ -1904,7 +1905,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
             id: 'district-energy-systems-layer',
             type: 'circle',
             source: 'district-energy-systems-source',
-            'source-layer': 'DES_CBG_centroids',
+            'source-layer': TILESET_REGISTRY.districtEnergySystems.sourceLayer,
             paint: {
               'circle-color': '#32CD32', // LimeGreen color for District Energy Systems
               'circle-radius': 6,
@@ -1927,7 +1928,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
             id: 'food-processors-layer',
             type: 'circle',
             source: 'food-processors-source',
-            'source-layer': 'food_manufactureres_and_processors_epa',
+            'source-layer': TILESET_REGISTRY.foodProcessors.sourceLayer,
             paint: {
               'circle-color': '#FFD700', // Gold color for food processors
               'circle-radius': 6,
@@ -1950,7 +1951,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
             id: 'food-retailers-layer',
             type: 'circle',
             source: 'food-retailers-source',
-            'source-layer': 'food_wholesalers_and_retailers_epa',
+            'source-layer': TILESET_REGISTRY.foodRetailers.sourceLayer,
             paint: {
               'circle-color': '#FF69B4', // HotPink for food retailers
               'circle-radius': 6,
@@ -2042,7 +2043,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
             id: 'petroleum-pipelines-layer',
             type: 'line',
             source: 'petroleum-pipelines-source',
-            'source-layer': 'us_petrol_prod_pipelines_ftot-4f7wgo', // Source layer name provided
+            'source-layer': TILESET_REGISTRY.petroleumPipelines.sourceLayer,
             paint: {
               'line-color': '#FF4500', // OrangeRed color for petroleum pipelines
               'line-width': 2,
@@ -2063,7 +2064,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
             id: 'crude-oil-pipelines-layer',
             type: 'line',
             source: 'crude-oil-pipelines-source',
-            'source-layer': 'us_crude_pipeline_ftot-bhu6j4', // Source layer name provided
+            'source-layer': TILESET_REGISTRY.crudeOilPipelines.sourceLayer,
             paint: {
               'line-color': '#8B0000', // DarkRed color for crude oil pipelines
               'line-width': 2,
@@ -2084,7 +2085,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
             id: 'natural-gas-pipelines-layer',
             type: 'line',
             source: 'natural-gas-pipelines-source',
-            'source-layer': 'hifld_us_natural_gas_pipeline-4prihp', // Source layer name provided
+            'source-layer': TILESET_REGISTRY.naturalGasPipelines.sourceLayer,
             paint: {
               'line-color': '#4169E1', // RoyalBlue color for natural gas pipelines
               'line-width': 2,

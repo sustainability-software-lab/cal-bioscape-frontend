@@ -1,4 +1,8 @@
-export const FEEDSTOCK_TILESET_ID: string = 'tylerhuntington222.cropland_landiq_2023';
+// Import from tileset registry for centralized management
+import { TILESET_REGISTRY } from './tileset-registry';
+
+// Re-export for backward compatibility
+export const FEEDSTOCK_TILESET_ID: string = TILESET_REGISTRY.feedstock.tilesetId;
 
 // Crop residue factor mappings by crop type
 // Each entry contains: { wetTonsPerAcre, moistureContent, dryTonsPerAcre }
@@ -192,17 +196,18 @@ export const getCropResidueFactors = (cropName: string) => {
   return null;
 };
 
+// Re-export from tileset registry for backward compatibility
 export const INFRASTRUCTURE_LAYERS = {
   "power_plants": {
-    tilesetId: "tylerhuntington222.c7dnms77",
-    sourceLayer: "power_plants",
+    tilesetId: TILESET_REGISTRY.powerPlants.tilesetId,
+    sourceLayer: TILESET_REGISTRY.powerPlants.sourceLayer,
   },
   "food_banks": {
-    tilesetId: "tylerhuntington222.dlijw1br",
-    sourceLayer: "food_banks_epa",
+    tilesetId: TILESET_REGISTRY.foodBanks.tilesetId,
+    sourceLayer: TILESET_REGISTRY.foodBanks.sourceLayer,
   },
   "farmers_markets": {
-    tilesetId: "tylerhuntington222.c12trp3g",
-    sourceLayer: "farmers_markets_usda",
+    tilesetId: TILESET_REGISTRY.farmersMarkets.tilesetId,
+    sourceLayer: TILESET_REGISTRY.farmersMarkets.sourceLayer,
   },
 };
