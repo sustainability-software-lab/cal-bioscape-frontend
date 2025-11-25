@@ -1033,8 +1033,8 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
         renderWorldCopies: true, // Improve performance
         // Transform requests to support multiple Mapbox accounts
         transformRequest: (url) => {
-          // Extract the tileset ID from the URL (e.g., from https://api.mapbox.com/v4/user.tileset_id/...)
-          const match = url.match(/\/v4\/([^/]+)/);
+          // Extract the tileset ID from the URL (e.g., from https://api.mapbox.com/v4/user.tileset_id.json/...)
+          const match = url.match(/\/v4\/([^/]+?)(?=\.json|$)/);
           if (match && match[1]) {
             const tilesetId = match[1];
             
@@ -2882,20 +2882,20 @@ useEffect(() => {
   }, [mapLoaded]);
 
   return (
-    // Ensure the container has dimensions and relative positioning for the legend
-    <div
-      ref={mapContainer}
-      className="map-container"
-      style={{ 
-        width: '100%', 
-        height: '100%', 
-        position: 'relative',
-        margin: 0,
-        padding: 0,
-        overflow: 'hidden'
-      }}
-    >
-      {/* Show either the button or the panel */}
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+      <div
+        ref={mapContainer}
+        className="map-container"
+        style={{ 
+          width: '100%', 
+          height: '100%',
+          margin: 0,
+          padding: 0,
+          overflow: 'hidden'
+        }}
+      />
+      
+      {/* UI components are rendered outside the map container and positioned absolutely */}
       {!showSitingPanel ? (
         <SitingButton 
           onClick={toggleSitingMode} 
