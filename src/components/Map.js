@@ -16,6 +16,7 @@ import { layerLabelMappings } from '@/lib/labelMappings';
 // It's best practice to store this in an environment variable (e.g., .env.local)
 // and access it via process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN
 const MAPBOX_ACCESS_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || 'YOUR_MAPBOX_ACCESS_TOKEN'; // Use provided placeholder
+const MAPBOX_ACCESS_TOKEN_LEGACY = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN_LEGACY; // Legacy token for tylerhuntington222 tilesets
 
 if (!MAPBOX_ACCESS_TOKEN || MAPBOX_ACCESS_TOKEN === 'YOUR_MAPBOX_ACCESS_TOKEN') {
   console.warn(
@@ -239,41 +240,108 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
   const createPopupForFeature = useCallback((feature, lngLat, popupTitle, layerId) => {
     if (!map.current) return;
 
-    const coordinates = lngLat;
     const properties = feature.properties;
     const labels = layerLabelMappings[layerId] || {};
+    let content = '';
 
-    let contentLines = '';
-    const excludedKeys = ['id', 'layer', 'source', 'source-layer', 'tile-id'];
-    const nullValues = ['NA', 'N/A', 'null', '', ' '];
+    const formatAndBuildLine = (key, value) => {
+      if (value === null || value === undefined || value === 0 || String(value).trim() === '') return '';
 
-    for (const key in properties) {
-      const value = properties[key];
-      if (properties.hasOwnProperty(key) && !excludedKeys.includes(key.toLowerCase()) && value !== null && value !== undefined && value !== 0 && !nullValues.includes(String(value).trim())) {
-        const label = labels[key] || key.replace(/_/g, ' ').replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
-        let formattedValue = value;
+      let label = labels[key] || key.replace(/_/g, ' ').replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
+      let formattedValue = value;
+      let units = '';
 
-        if (isURL(formattedValue)) {
-            const url = formattedValue.startsWith('http') ? formattedValue : `https://${formattedValue}`;
-            formattedValue = `<a href="${url}" target="_blank" rel="noopener noreferrer">${formattedValue}</a>`;
-        } else if (label.toLowerCase().includes('phone')) {
-            formattedValue = formatPhoneNumber(formattedValue);
-        } else if (typeof formattedValue === 'number') {
-          formattedValue = formattedValue.toLocaleString();
+      // Special handling for labels with units in parentheses
+      const unitMatch = label.match(/\(([^)]+)\)/);
+      if (unitMatch && !key.toLowerCase().startsWith('pomace (')) {
+        units = unitMatch[1];
+        label = label.replace(unitMatch[0], '').trim();
+      }
+
+      if (isURL(formattedValue)) {
+        const url = formattedValue.startsWith('http') ? formattedValue : `https://${formattedValue}`;
+        formattedValue = `<a href="${url}" target="_blank" rel="noopener noreferrer">${formattedValue}</a>`;
+      } else if (label.toLowerCase().includes('phone')) {
+        formattedValue = formatPhoneNumber(formattedValue);
+      } else if (typeof formattedValue === 'number' || (typeof formattedValue === 'string' && !isNaN(Number(formattedValue)) && formattedValue.trim() !== '')) {
+        const num = Number(formattedValue);
+        formattedValue = num.toLocaleString();
+      }
+      
+      if (units) {
+        formattedValue += ` ${units}`;
+      } else if (layerId === 'tomato-processors') {
+        const tonsPerYearFields = ['pomace', 'vines', 'culls', 'sludge', 'residue', 'peel', 'seed', 'mold', 'green'];
+        if (tonsPerYearFields.some(field => key.toLowerCase().includes(field))) {
+          formattedValue += ' tonnes/year';
         }
+      }
 
-        contentLines += `<div style="margin-bottom: 3px; text-align: left;"><strong style="font-weight: bold;">${label}:</strong> ${formattedValue}</div>`;
+      return `<div style="margin-bottom: 3px; text-align: left;"><strong style="font-weight: bold;">${label}:</strong> ${formattedValue}</div>`;
+    };
+
+    if (layerId === 'tomato-processors') {
+      const displayOrder = [
+        'Address',
+        'City',
+        'County',
+        'Green',
+        'Mold',
+        'Peels only',
+        'Pomace',
+        'Pomace (peels)',
+        'Pomace (seeds)',
+        'Processing capacity for tomato paste (tons/hr)',
+        'Processing capacity of peeled/chopped (tons/hr)',
+        'Seeds',
+        'Vines'
+      ];
+      
+      // Manually build the content in the desired order
+      let nameContent = '';
+      if (properties.Name) {
+        // Use a generic key 'Name' for formatting, as it's not in the displayOrder
+        nameContent = formatAndBuildLine('Name', properties.Name);
+      }
+
+      let latLongContent = '';
+      if (properties['Lat/Long Info']) {
+        const [lat, long] = properties['Lat/Long Info'].split(',').map(coord => parseFloat(coord).toFixed(6));
+        latLongContent = `
+          <div style="margin-bottom: 3px; text-align: left;"><strong style="font-weight: bold;">Latitude:</strong> ${lat}</div>
+          <div style="margin-bottom: 3px; text-align: left;"><strong style="font-weight: bold;">Longitude:</strong> ${long}</div>
+        `;
+      }
+      
+      let otherContent = '';
+      displayOrder.forEach(key => {
+        if (properties.hasOwnProperty(key)) {
+          otherContent += formatAndBuildLine(key, properties[key]);
+        }
+      });
+      
+      content = nameContent + latLongContent + otherContent;
+
+    } else {
+      // Fallback for other layers, preserving original behavior
+      for (const key in properties) {
+        const excludedKeys = ['id', 'layer', 'source', 'source-layer', 'tile-id', 'Lat/Long Info'];
+        const nullValues = ['NA', 'N/A', 'null', '', ' '];
+
+        if (Object.prototype.hasOwnProperty.call(properties, key) && !excludedKeys.includes(key) && !nullValues.includes(String(properties[key]).trim())) {
+          content += formatAndBuildLine(key, properties[key]);
+        }
       }
     }
 
-    if (!contentLines) {
-      contentLines = '<div>No additional information available.</div>';
+    if (!content) {
+      content = '<div>No additional information available.</div>';
     }
 
     const popupHTML = `
       <div style="padding: 5px 15px 5px 5px; font-size: 0.9em;">
         <h4 style="font-size: 1.1em; font-weight: bold; margin: 0 0 8px 0; padding: 0; text-align: left;">${popupTitle}</h4>
-        ${contentLines}
+        ${content}
       </div>
     `;
 
@@ -287,17 +355,18 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
       maxWidth: '350px',
       className: 'facility-popup'
     })
-      .setLngLat(coordinates)
+      .setLngLat(lngLat)
       .setHTML(popupHTML)
       .addTo(map.current);
 
     currentPopup.current.on('close', () => {
       currentPopup.current = null;
-      setCurrentPopupLayer(null); // Reset the layer when the popup is closed
+      setCurrentPopupLayer(null);
     });
 
-    setCurrentPopupLayer(layerId); // Set the current popup layer
+    setCurrentPopupLayer(layerId);
   }, [formatPhoneNumber, isURL]);
+
 
   // Add interactivity (click and hover) to a layer
   const addLayerInteractivity = useCallback((layerId, popupTitle) => {
@@ -961,7 +1030,29 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
         zoom: 7, // Initial zoom level
         accessToken: MAPBOX_ACCESS_TOKEN === 'YOUR_MAPBOX_ACCESS_TOKEN' ? undefined : MAPBOX_ACCESS_TOKEN, // Pass token only if valid
         preserveDrawingBuffer: true, // Prevent refresh on state changes
-        renderWorldCopies: true // Improve performance
+        renderWorldCopies: true, // Improve performance
+        // Transform requests to support multiple Mapbox accounts
+        transformRequest: (url) => {
+          // Check if this is a request for a legacy tileset (tylerhuntington222)
+          // and if we have a legacy token configured
+          if (MAPBOX_ACCESS_TOKEN_LEGACY && url.includes('tylerhuntington222')) {
+            // Replace the access token in the URL with the legacy one
+            if (url.includes('access_token=')) {
+              return {
+                url: url.replace(/access_token=[^&]+/, `access_token=${MAPBOX_ACCESS_TOKEN_LEGACY}`)
+              };
+            } else {
+              // If no token exists yet, append the legacy one
+              const separator = url.includes('?') ? '&' : '?';
+              return {
+                url: `${url}${separator}access_token=${MAPBOX_ACCESS_TOKEN_LEGACY}`
+              };
+            }
+          }
+          
+          // For all other requests, use the default behavior (primary token)
+          return null;
+        }
       });
 
       // Add zoom and rotation controls to the map.
@@ -1513,6 +1604,16 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
         });
         console.log("Added food processors vector source");
 
+        // Add tomato processors infrastructure layer
+        const tomatoProcessorsTilesetUrl = `mapbox://${TILESET_REGISTRY.tomatoProcessors.tilesetId}`;
+        console.log("Adding tomato processors tileset with URL:", tomatoProcessorsTilesetUrl);
+        
+        map.current.addSource('tomato-processors-source', {
+          type: 'vector',
+          url: tomatoProcessorsTilesetUrl
+        });
+        console.log("Added tomato processors vector source");
+
         // Add food retailers infrastructure layer
         const foodRetailersTilesetUrl = `mapbox://${TILESET_REGISTRY.foodRetailers.tilesetId}`;
         console.log("Adding food retailers tileset with URL:", foodRetailersTilesetUrl);
@@ -1943,6 +2044,51 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
           console.log("Added food processors layer with correct source layer 'food_manufactureres_and_processors_epa'");
         } catch (error) {
           console.error("Failed to add food processors layer:", error);
+        }
+
+        // Add tomato processors layer
+        try {
+          map.current.addLayer({
+            id: 'tomato-processors-layer',
+            type: 'circle',
+            source: 'tomato-processors-source',
+            'source-layer': TILESET_REGISTRY.tomatoProcessors.sourceLayer,
+            paint: {
+              'circle-color': '#FF6347', // Tomato color
+              'circle-radius': 6,
+              'circle-opacity': 0.8,
+              'circle-stroke-color': '#FFFFFF',
+              'circle-stroke-width': 1
+            },
+            layout: {
+              'visibility': layerVisibility?.tomatoProcessors ? 'visible' : 'none'
+            }
+          });
+          
+          // Log source data to verify source layer name
+          map.current.on('sourcedata', function(e) {
+            if (e.sourceId === 'tomato-processors-source' && e.isSourceLoaded) {
+              try {
+                const features = map.current.querySourceFeatures('tomato-processors-source', {
+                  sourceLayer: TILESET_REGISTRY.tomatoProcessors.sourceLayer
+                });
+                console.log(`Found ${features.length} features in the tomato processors tileset`);
+                if (features.length > 0) {
+                  console.log('Sample tomato processor feature properties:', features[0].properties);
+                  map.current.off('sourcedata');
+                } else {
+                   // Debug: list available layers if possible or try to guess
+                   console.log('No features found in tomato processors source layer. Verifying source...');
+                }
+              } catch (err) {
+                console.error('Error examining tomato processors source features:', err);
+              }
+            }
+          });
+
+          console.log("Added tomato processors layer");
+        } catch (error) {
+          console.error("Failed to add tomato processors layer:", error);
         }
         
         // Add food retailers layer
@@ -2424,11 +2570,12 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
           'landfill-lfg-layer': 'Landfill LFG Project Details',
           'wastewater-treatment-layer': 'Wastewater Treatment Plant Details',
           'waste-to-energy-layer': 'Waste to Energy Plant Details',
-          'combustion-plants-layer': 'Combustion Plant Details',
-          'district-energy-systems-layer': 'District Energy System Details',
-          'food-processors-layer': 'Food Processor Details',
-          'food-retailers-layer': 'Food Retailer Details',
-          'power-plants-layer': 'Power Plant Details',
+    'combustion-plants-layer': 'Combustion Plant Details',
+    'district-energy-systems-layer': 'District Energy System Details',
+    'food-processors-layer': 'Food Processor Details',
+    'tomato-processors-layer': 'Tomato Processing Facility Details',
+    'food-retailers-layer': 'Food Retailer Details',
+    'power-plants-layer': 'Power Plant Details',
           'food-banks-layer': 'Food Bank Details',
           'farmers-markets-layer': 'Farmers Market Details',
         };
@@ -2588,6 +2735,7 @@ useEffect(() => {
     'combustion-plants-layer': layerVisibility?.combustionPlants,
     'district-energy-systems-layer': layerVisibility?.districtEnergySystems,
     'food-processors-layer': layerVisibility?.foodProcessors,
+    'tomato-processors-layer': layerVisibility?.tomatoProcessors,
     'food-retailers-layer': layerVisibility?.foodRetailers,
     'power-plants-layer': layerVisibility?.powerPlants,
     'food-banks-layer': layerVisibility?.foodBanks,

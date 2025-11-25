@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Card } from "@/components/ui/card";
 import {
   Accordion,
@@ -23,7 +23,11 @@ import {
   ORCHARD_VINEYARD_RESIDUES, 
   ROW_CROP_RESIDUES, 
   FIELD_CROP_RESIDUES, 
-  CROP_NAME_MAPPING
+  CROP_NAME_MAPPING,
+  FEEDSTOCK_CATEGORIES,
+  MOISTURE_CONTENT_LEVELS,
+  ENERGY_CONTENT_LEVELS,
+  getFeedstockCharacteristics
 } from '@/lib/constants';
 
 // Define a minimal type for the mapbox map instance to avoid using 'any'
@@ -115,9 +119,21 @@ const LayerControls: React.FC<LayerControlsProps> = ({
   const [isCropResiduesCollapsed, setIsCropResiduesCollapsed] = useState(false);
   const [isInfrastructureCollapsed, setIsInfrastructureCollapsed] = useState(false);
   const [isTransportationCollapsed, setIsTransportationCollapsed] = useState(false);
+  const [isFoodProcessorsCollapsed, setIsFoodProcessorsCollapsed] = useState(false);
   
   // Month range slider state
   const [monthRange, setMonthRange] = useState<[number, number]>([0, 11]); // January to December by default
+  
+  // New feedstock characteristic filter states
+  const [selectedFeedstockCategories, setSelectedFeedstockCategories] = useState<string[]>(
+    Object.values(FEEDSTOCK_CATEGORIES)
+  ); // All categories selected by default
+  const [selectedMoistureLevels, setSelectedMoistureLevels] = useState<string[]>(
+    Object.values(MOISTURE_CONTENT_LEVELS)
+  ); // All moisture levels selected by default
+  const [selectedEnergyLevels, setSelectedEnergyLevels] = useState<string[]>(
+    Object.values(ENERGY_CONTENT_LEVELS)
+  ); // All energy levels selected by default
   
   // Month names for the range slider
   const monthNames = [
@@ -131,8 +147,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
   // Helper function to handle month range change
   const handleMonthRangeChange = (value: [number, number]) => {
     setMonthRange(value);
-    // Apply seasonal filtering when month range changes
-    applySeasonalFilter(value);
+    // Filtering will be applied automatically via useEffect
   };
   
   // Define type for month abbreviations
@@ -186,6 +201,42 @@ const LayerControls: React.FC<LayerControlsProps> = ({
     return false; // Not available in any month within range
   };
   
+  // Comprehensive filter function that checks all selected filter criteria
+  const isCropMatchingFilters = useCallback((cropName: string): boolean => {
+    // Get standardized crop name
+    const standardizedName = CROP_NAME_MAPPING[cropName as keyof typeof CROP_NAME_MAPPING];
+    if (!standardizedName) return true; // If not found in mapping, show by default
+    
+    // Check seasonal availability
+    const seasonalMatch = isCropAvailableInRange(cropName, monthRange);
+    if (!seasonalMatch) return false;
+    
+    // Get feedstock characteristics
+    const characteristics = getFeedstockCharacteristics(cropName);
+    // If no characteristics defined, hide the crop (can't determine if it matches filters)
+    if (!characteristics) return false;
+    
+    // Check if crop matches selected feedstock categories
+    // If no categories selected (empty array), hide everything
+    if (selectedFeedstockCategories.length === 0) return false;
+    const categoryMatch = selectedFeedstockCategories.includes(characteristics.category);
+    if (!categoryMatch) return false;
+    
+    // Check if crop matches selected moisture levels
+    // If no moisture levels selected (empty array), hide everything
+    if (selectedMoistureLevels.length === 0) return false;
+    const moistureMatch = selectedMoistureLevels.includes(characteristics.moistureLevel);
+    if (!moistureMatch) return false;
+    
+    // Check if crop matches selected energy levels
+    // If no energy levels selected (empty array), hide everything
+    if (selectedEnergyLevels.length === 0) return false;
+    const energyMatch = selectedEnergyLevels.includes(characteristics.energyLevel);
+    if (!energyMatch) return false;
+    
+    return true; // Crop matches all filter criteria
+  }, [monthRange, selectedFeedstockCategories, selectedMoistureLevels, selectedEnergyLevels]);
+  
   // Function to apply seasonal filter based on month range
   const applySeasonalFilter = (range: [number, number]) => {
     setCropVisibility(prev => {
@@ -222,6 +273,74 @@ const LayerControls: React.FC<LayerControlsProps> = ({
       }
       
       return newState;
+    });
+  };
+  
+  // Comprehensive function to apply all filters (seasonal + characteristics)
+  const applyAllFilters = useCallback(() => {
+    setCropVisibility(prev => {
+      const newState = { ...prev };
+      
+      // Update visibility for each crop based on ALL filter criteria
+      allCropNames.forEach(cropName => {
+        newState[cropName] = isCropMatchingFilters(cropName);
+      });
+      
+      // Get visible crops after applying all filters
+      const visibleCrops = Object.keys(newState).filter(name => newState[name]);
+      
+      // Try to directly update the map filter for crop visibility
+      const mapInstance = getMapInstance();
+      if (mapInstance && mapInstance.getLayer('feedstock-vector-layer')) {
+        try {
+          // Make sure the layer is visible if the feedstock layer is enabled and there are visible crops
+          if (visibleCrops.length > 0 && localLayerVisibility.feedstock) {
+            mapInstance.setLayoutProperty('feedstock-vector-layer', 'visibility', 'visible');
+          }
+          
+          // Create a filter that shows only visible crops
+          const visibleCropFilter = ['match', ['get', 'main_crop_name'], visibleCrops, true, false];
+          // Combine with the existing base filter that excludes 'U' code
+          const combinedFilter = ['all', ['!=', ['get', 'main_crop_code'], 'U'], visibleCropFilter];
+          
+          // Apply the filter directly to the map
+          mapInstance.setFilter('feedstock-vector-layer', combinedFilter);
+          console.log(`Applied comprehensive filters (${visibleCrops.length} crops visible)`);
+        } catch (err) {
+          console.error('Error applying comprehensive filters:', err);
+        }
+      }
+      
+      return newState;
+    });
+  }, [isCropMatchingFilters, allCropNames, localLayerVisibility.feedstock]);
+  
+  // Handler functions for new filters
+  const handleFeedstockCategoryChange = (category: string, isChecked: boolean) => {
+    setSelectedFeedstockCategories(prev => {
+      const newSelection = isChecked 
+        ? [...prev, category]
+        : prev.filter(c => c !== category);
+      return newSelection;
+    });
+    // Apply filters will be called via useEffect
+  };
+  
+  const handleMoistureLevelChange = (level: string, isChecked: boolean) => {
+    setSelectedMoistureLevels(prev => {
+      const newSelection = isChecked 
+        ? [...prev, level]
+        : prev.filter(l => l !== level);
+      return newSelection;
+    });
+  };
+  
+  const handleEnergyLevelChange = (level: string, isChecked: boolean) => {
+    setSelectedEnergyLevels(prev => {
+      const newSelection = isChecked 
+        ? [...prev, level]
+        : prev.filter(l => l !== level);
+      return newSelection;
     });
   };
 
@@ -273,6 +392,16 @@ const LayerControls: React.FC<LayerControlsProps> = ({
   useEffect(() => {
     applySeasonalFilter(monthRange);
   }, []);
+  
+  // Apply all filters when any filter state changes
+  useEffect(() => {
+    // Wait a bit for the map to be ready on initial load
+    const timeoutId = setTimeout(() => {
+      applyAllFilters();
+    }, 100);
+    
+    return () => clearTimeout(timeoutId);
+  }, [applyAllFilters]);
   
   // Store a reference to the map instance when it becomes available
   useEffect(() => {
@@ -444,6 +573,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
     combustionPlants: 'combustion-plants-layer',
     districtEnergySystems: 'district-energy-systems-layer',
     foodProcessors: 'food-processors-layer',
+    tomatoProcessors: 'tomato-processors-layer',
     foodRetailers: 'food-retailers-layer',
     powerPlants: 'power-plants-layer',
     foodBanks: 'food-banks-layer',
@@ -619,7 +749,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                         const infrastructureLayers = [
                           'anaerobicDigester', 'biodieselPlants', 'biorefineries', 'safPlants',
                           'renewableDiesel', 'mrf', 'cementPlants', 'landfillLfg',
-                          'wastewaterTreatment', 'wasteToEnergy', 'combustionPlants', 'districtEnergySystems', 'foodProcessors', 'foodRetailers',
+                          'wastewaterTreatment', 'wasteToEnergy', 'combustionPlants', 'districtEnergySystems', 'foodProcessors', 'tomatoProcessors', 'foodRetailers',
                           'powerPlants', 'foodBanks', 'farmersMarkets'
                         ];
 
@@ -923,29 +1053,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                       </Label>
                     </div>
                     
-                    {/* Food Processors Layer Toggle - Under Infrastructure */}
-                    <div className="flex items-center space-x-2 pl-6 mt-2">
-                       <Checkbox
-                        id="foodProcessorsLayer"
-                        checked={localLayerVisibility?.foodProcessors ?? false}
-                        onCheckedChange={(checked: boolean | 'indeterminate') => directLayerToggle('foodProcessors', !!checked)}
-                      />
-                      <Label htmlFor="foodProcessorsLayer" className="flex items-center text-xs">
-                        <span
-                          style={{
-                            display: 'inline-block',
-                            width: '12px',
-                            height: '12px',
-                            backgroundColor: '#FFD700', /* Gold color for Food Processors */
-                            borderRadius: '50%',
-                            marginRight: '2px',
-                            flexShrink: 0,
-                          }}
-                        ></span>
-                        Food Processors
-                      </Label>
-                    </div>
-                    
+
                     {/* Food Retailers Layer Toggle - Under Infrastructure */}
                     <div className="flex items-center space-x-2 pl-6 mt-2">
                        <Checkbox
@@ -968,6 +1076,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                         Food Retailers
                       </Label>
                     </div>
+
                     {/* Power Plants Layer Toggle - Under Infrastructure */}
                     <div className="flex items-center space-x-2 pl-6 mt-2">
                       <Checkbox
@@ -1033,6 +1142,91 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                         ></span>
                         Farmers' Markets
                       </Label>
+                    </div>
+
+                    {/* Food Processors Group Layer Toggle - Under Infrastructure */}
+                    <div className="space-y-1 pl-6 mt-2">
+                      {/* Header Row with Master Checkbox and Collapse */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="foodProcessorsMaster"
+                            checked={
+                              (localLayerVisibility?.foodProcessors && localLayerVisibility?.tomatoProcessors) 
+                                ? true 
+                                : (localLayerVisibility?.foodProcessors || localLayerVisibility?.tomatoProcessors) 
+                                  ? 'indeterminate' 
+                                  : false
+                            }
+                            onCheckedChange={(checked: boolean | 'indeterminate') => {
+                              const isChecked = checked === true;
+                              // Toggle both subtypes
+                              directLayerToggle('foodProcessors', isChecked, true);
+                              directLayerToggle('tomatoProcessors', isChecked, true);
+                            }}
+                          />
+                          <Label htmlFor="foodProcessorsMaster" className="flex items-center text-xs font-medium">
+                            Food Processing Facilities
+                          </Label>
+                        </div>
+                        <button
+                          onClick={() => setIsFoodProcessorsCollapsed(!isFoodProcessorsCollapsed)}
+                          className="flex items-center p-1 hover:bg-gray-100 rounded"
+                        >
+                          <ChevronDown className={`text-muted-foreground size-3 shrink-0 transition-transform duration-200 ${isFoodProcessorsCollapsed ? '-rotate-90' : 'rotate-0'}`} />
+                        </button>
+                      </div>
+
+                      {/* Subtypes - Only show when not collapsed */}
+                      {!isFoodProcessorsCollapsed && (
+                        <div className="space-y-1">
+                          {/* Tomato Processors Layer Toggle - Subtype */}
+                          <div className="flex items-center space-x-2 pl-12">
+                             <Checkbox
+                              id="tomatoProcessorsLayer"
+                              checked={localLayerVisibility?.tomatoProcessors ?? false}
+                              onCheckedChange={(checked: boolean | 'indeterminate') => directLayerToggle('tomatoProcessors', !!checked)}
+                            />
+                            <Label htmlFor="tomatoProcessorsLayer" className="flex items-center text-xs">
+                              <span
+                                style={{
+                                  display: 'inline-block',
+                                  width: '10px',
+                                  height: '10px',
+                                  backgroundColor: '#FF6347', // Tomato color
+                                  borderRadius: '50%',
+                                  marginRight: '2px',
+                                  flexShrink: 0,
+                                }}
+                              ></span>
+                              Tomato Processors
+                            </Label>
+                          </div>
+
+                          {/* Other Food Processors Layer Toggle - Subtype */}
+                          <div className="flex items-center space-x-2 pl-12">
+                             <Checkbox
+                              id="foodProcessorsLayer"
+                              checked={localLayerVisibility?.foodProcessors ?? false}
+                              onCheckedChange={(checked: boolean | 'indeterminate') => directLayerToggle('foodProcessors', !!checked)}
+                            />
+                            <Label htmlFor="foodProcessorsLayer" className="flex items-center text-xs">
+                              <span
+                                style={{
+                                  display: 'inline-block',
+                                  width: '10px',
+                                  height: '10px',
+                                  backgroundColor: '#FFD700', /* Gold color for Food Processors */
+                                  borderRadius: '50%',
+                                  marginRight: '2px',
+                                  flexShrink: 0,
+                                }}
+                              ></span>
+                              Other Processors
+                            </Label>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </>
                 )}
@@ -1265,6 +1459,111 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                       }
                     </div>
                   </div>
+                </div>
+              </div>
+              
+              {/* Feedstock Type Category Filter */}
+              <div className="space-y-3 pt-4 border-t border-gray-200">
+                <div className="px-2">
+                  <Label className="text-sm font-medium flex items-center">
+                    Feedstock Type
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span>
+                            <Info className="h-4 w-4 ml-1 inline-block text-gray-500 cursor-help transition-colors hover:text-gray-700" />
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="right" className="max-w-xs">
+                          <p>Filter crops by the type of residue they produce. Select one or more categories to show only those feedstock types.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </Label>
+                </div>
+                <div className="px-2 space-y-2">
+                  {Object.values(FEEDSTOCK_CATEGORIES).map((category) => (
+                    <div key={category} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`category-${category}`}
+                        checked={selectedFeedstockCategories.includes(category)}
+                        onCheckedChange={(checked) => handleFeedstockCategoryChange(category, !!checked)}
+                      />
+                      <Label htmlFor={`category-${category}`} className="text-xs font-normal cursor-pointer">
+                        {category}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Moisture Content Filter */}
+              <div className="space-y-3 pt-4 border-t border-gray-200">
+                <div className="px-2">
+                  <Label className="text-sm font-medium flex items-center">
+                    Moisture Content
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span>
+                            <Info className="h-4 w-4 ml-1 inline-block text-gray-500 cursor-help transition-colors hover:text-gray-700" />
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="right" className="max-w-xs">
+                          <p>Filter by moisture content level. Low moisture feedstocks (&lt;15%) are ideal for thermal processes like pyrolysis. High moisture (&gt;30%) feedstocks are better for anaerobic digestion.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </Label>
+                </div>
+                <div className="px-2 space-y-2">
+                  {Object.values(MOISTURE_CONTENT_LEVELS).map((level) => (
+                    <div key={level} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`moisture-${level}`}
+                        checked={selectedMoistureLevels.includes(level)}
+                        onCheckedChange={(checked) => handleMoistureLevelChange(level, !!checked)}
+                      />
+                      <Label htmlFor={`moisture-${level}`} className="text-xs font-normal cursor-pointer">
+                        {level}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Energy Content Filter */}
+              <div className="space-y-3 pt-4 border-t border-gray-200">
+                <div className="px-2">
+                  <Label className="text-sm font-medium flex items-center">
+                    Energy Content
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span>
+                            <Info className="h-4 w-4 ml-1 inline-block text-gray-500 cursor-help transition-colors hover:text-gray-700" />
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="right" className="max-w-xs">
+                          <p>Filter by calorific value (energy content). Higher values (&gt;17 MJ/kg) are better for direct combustion and energy generation.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </Label>
+                </div>
+                <div className="px-2 space-y-2">
+                  {Object.values(ENERGY_CONTENT_LEVELS).map((level) => (
+                    <div key={level} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`energy-${level}`}
+                        checked={selectedEnergyLevels.includes(level)}
+                        onCheckedChange={(checked) => handleEnergyLevelChange(level, !!checked)}
+                      />
+                      <Label htmlFor={`energy-${level}`} className="text-xs font-normal cursor-pointer">
+                        {level}
+                      </Label>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
