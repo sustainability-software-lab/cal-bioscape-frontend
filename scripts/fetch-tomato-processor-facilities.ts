@@ -87,7 +87,7 @@ async function main() {
     });
 
     // Merge facilities data with attribute data, using "Name" from facilities and "Facility Name" from attributes
-    const mergedData = facilitiesObjects.map(facility => {
+    const mergedFeatures = facilitiesObjects.map(facility => {
       const facilityName = facility["Name"];
       // Perform case-insensitive comparison
       let attributeData = attributesMap.get(facilityName) || {};
@@ -102,11 +102,35 @@ async function main() {
         }
       }
       const merged = { ...facility, ...attributeData, pomace: attributeData["Pomace"] };
-      return merged;
-    });
+      
+      // Extract Lat/Long
+      const latLongStr = merged["Lat/Long Info"];
+      let coordinates = [0, 0]; // Default to 0,0 if missing
+      if (latLongStr && typeof latLongStr === 'string') {
+        const parts = latLongStr.split(',').map(s => parseFloat(s.trim()));
+        if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+          // GeoJSON uses [Longitude, Latitude]
+          coordinates = [parts[1], parts[0]];
+        }
+      }
+
+      return {
+        type: "Feature",
+        geometry: {
+          type: "Point",
+          coordinates: coordinates
+        },
+        properties: merged
+      };
+    }).filter(feature => feature.geometry.coordinates[0] !== 0 || feature.geometry.coordinates[1] !== 0);
+
+    const geoJson = {
+      type: "FeatureCollection",
+      features: mergedFeatures
+    };
 
     // Write the merged data to the output file
-    fs.writeFileSync(OUTPUT_FILE, JSON.stringify(mergedData, null, 2));
+    fs.writeFileSync(OUTPUT_FILE, JSON.stringify(geoJson, null, 2));
     console.log(`Data written to ${OUTPUT_FILE}`);
 
   } catch (error: any) {

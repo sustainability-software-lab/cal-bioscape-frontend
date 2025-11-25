@@ -16,6 +16,7 @@ export interface TilesetConfig {
   displayName: string;       // Human-readable name for UI
   category: 'feedstock' | 'infrastructure' | 'transportation';
   version: string;           // Date-based version (YYYY-MM)
+  accountType?: 'legacy' | 'default'; // Mapbox account type for token handling
 }
 
 /**
@@ -31,7 +32,8 @@ export const DEFAULT_TILESET_REGISTRY: Record<string, TilesetConfig> = {
     sourceLayer: 'cropland_land_iq_2023', // TODO: Backend should use stable name: cropland_land_iq
     displayName: 'Crop Residues',
     category: 'feedstock',
-    version: 'current'
+    version: 'current',
+    accountType: 'legacy'
   },
 
   // INFRASTRUCTURE LAYERS - Processing Facilities
@@ -40,7 +42,8 @@ export const DEFAULT_TILESET_REGISTRY: Record<string, TilesetConfig> = {
     sourceLayer: 'agstar_ad_pts-12cpd6', // TODO: Backend should use stable name: agstar_ad_pts
     displayName: 'Anaerobic Digesters',
     category: 'infrastructure',
-    version: 'current'
+    version: 'current',
+    accountType: 'legacy'
   },
   
   biorefineries: {
@@ -48,7 +51,8 @@ export const DEFAULT_TILESET_REGISTRY: Record<string, TilesetConfig> = {
     sourceLayer: 'current_biorefineries',
     displayName: 'Ethanol Biorefineries',
     category: 'infrastructure',
-    version: 'current'
+    version: 'current',
+    accountType: 'legacy'
   },
   
   safPlants: {
@@ -56,7 +60,8 @@ export const DEFAULT_TILESET_REGISTRY: Record<string, TilesetConfig> = {
     sourceLayer: 'renewable_diesel_saf_plants-79er6d', // TODO: Backend should use stable name: renewable_diesel_saf_plants
     displayName: 'SAF Plants',
     category: 'infrastructure',
-    version: 'current'
+    version: 'current',
+    accountType: 'legacy'
   },
   
   renewableDiesel: {
@@ -64,7 +69,8 @@ export const DEFAULT_TILESET_REGISTRY: Record<string, TilesetConfig> = {
     sourceLayer: 'renewable_diesel_saf_plants-79er6d', // TODO: Backend should use stable name: renewable_diesel_saf_plants
     displayName: 'Renewable Diesel Plants',
     category: 'infrastructure',
-    version: 'current'
+    version: 'current',
+    accountType: 'legacy'
   },
   
   mrf: {
@@ -72,7 +78,8 @@ export const DEFAULT_TILESET_REGISTRY: Record<string, TilesetConfig> = {
     sourceLayer: 'us_mrf_pts-206gpg', // TODO: Backend should use stable name: us_mrf_pts
     displayName: 'Material Recovery Facilities',
     category: 'infrastructure',
-    version: 'current'
+    version: 'current',
+    accountType: 'legacy'
   },
   
   cementPlants: {
@@ -80,7 +87,8 @@ export const DEFAULT_TILESET_REGISTRY: Record<string, TilesetConfig> = {
     sourceLayer: 'cement_facility_location-aiusqe', // TODO: Backend should use stable name: cement_facility_location
     displayName: 'Cement Plants',
     category: 'infrastructure',
-    version: 'current'
+    version: 'current',
+    accountType: 'legacy'
   },
   
   biodieselPlants: {
@@ -88,7 +96,8 @@ export const DEFAULT_TILESET_REGISTRY: Record<string, TilesetConfig> = {
     sourceLayer: 'biodiesel_plants-69v9v0', // TODO: Backend should use stable name: biodiesel_plants
     displayName: 'Biodiesel Plants',
     category: 'infrastructure',
-    version: 'current'
+    version: 'current',
+    accountType: 'legacy'
   },
   
   landfillLfg: {
@@ -96,7 +105,8 @@ export const DEFAULT_TILESET_REGISTRY: Record<string, TilesetConfig> = {
     sourceLayer: 'landfills_lmop_active_project-3cg3gl', // TODO: Backend should use stable name: landfills_lmop_active_project
     displayName: 'Landfills with LFG Projects',
     category: 'infrastructure',
-    version: 'current'
+    version: 'current',
+    accountType: 'legacy'
   },
   
   wastewaterTreatment: {
@@ -104,7 +114,8 @@ export const DEFAULT_TILESET_REGISTRY: Record<string, TilesetConfig> = {
     sourceLayer: 'us_wwt_pts',
     displayName: 'Wastewater Treatment Plants',
     category: 'infrastructure',
-    version: 'current'
+    version: 'current',
+    accountType: 'legacy'
   },
   
   wasteToEnergy: {
@@ -112,7 +123,8 @@ export const DEFAULT_TILESET_REGISTRY: Record<string, TilesetConfig> = {
     sourceLayer: 'W2E_points', // TODO: Backend should use stable name: waste_energy_points
     displayName: 'Waste to Energy Plants',
     category: 'infrastructure',
-    version: 'current'
+    version: 'current',
+    accountType: 'legacy'
   },
   
   combustionPlants: {
@@ -120,7 +132,8 @@ export const DEFAULT_TILESET_REGISTRY: Record<string, TilesetConfig> = {
     sourceLayer: 'COMB_points', // TODO: Backend should use stable name: combustion_points
     displayName: 'Combustion Plants',
     category: 'infrastructure',
-    version: 'current'
+    version: 'current',
+    accountType: 'legacy'
   },
   
   districtEnergySystems: {
@@ -128,15 +141,26 @@ export const DEFAULT_TILESET_REGISTRY: Record<string, TilesetConfig> = {
     sourceLayer: 'DES_CBG_centroids', // TODO: Backend should use stable name: district_energy_systems
     displayName: 'District Energy Systems',
     category: 'infrastructure',
-    version: 'current'
+    version: 'current',
+    accountType: 'legacy'
   },
   
   foodProcessors: {
     tilesetId: 'tylerhuntington222.4vo6hho9', // TODO: Update to sustainasoft.cal-bioscape-epa-food-processors-YYYY-MM
     sourceLayer: 'food_manufactureres_and_processors_epa',
-    displayName: 'Food Processors',
+    displayName: 'Food Processing Facilities',
     category: 'infrastructure',
-    version: 'current'
+    version: 'current',
+    accountType: 'legacy'
+  },
+
+  tomatoProcessors: {
+    tilesetId: 'sustainasoft.84ikw8pw', 
+    sourceLayer: 'tomato-processor-facilities-3srkr8',
+    displayName: 'Tomato Processing Facilities',
+    category: 'infrastructure',
+    version: 'current',
+    accountType: 'default'
   },
   
   foodRetailers: {
@@ -144,7 +168,8 @@ export const DEFAULT_TILESET_REGISTRY: Record<string, TilesetConfig> = {
     sourceLayer: 'food_wholesalers_and_retailers_epa',
     displayName: 'Food Retailers',
     category: 'infrastructure',
-    version: 'current'
+    version: 'current',
+    accountType: 'legacy'
   },
   
   powerPlants: {
@@ -152,7 +177,8 @@ export const DEFAULT_TILESET_REGISTRY: Record<string, TilesetConfig> = {
     sourceLayer: 'power_plants',
     displayName: 'Power Plants',
     category: 'infrastructure',
-    version: 'current'
+    version: 'current',
+    accountType: 'legacy'
   },
   
   foodBanks: {
@@ -160,7 +186,8 @@ export const DEFAULT_TILESET_REGISTRY: Record<string, TilesetConfig> = {
     sourceLayer: 'food_banks_epa',
     displayName: 'Food Banks',
     category: 'infrastructure',
-    version: 'current'
+    version: 'current',
+    accountType: 'legacy'
   },
   
   farmersMarkets: {
@@ -168,7 +195,8 @@ export const DEFAULT_TILESET_REGISTRY: Record<string, TilesetConfig> = {
     sourceLayer: 'farmers_markets_usda',
     displayName: 'Farmers Markets',
     category: 'infrastructure',
-    version: 'current'
+    version: 'current',
+    accountType: 'legacy'
   },
 
   // TRANSPORTATION LAYERS
@@ -177,7 +205,8 @@ export const DEFAULT_TILESET_REGISTRY: Record<string, TilesetConfig> = {
     sourceLayer: 'us_rail_lines_ftot-80b406', // TODO: Backend should use stable name: us_rail_lines_ftot
     displayName: 'Rail Lines',
     category: 'transportation',
-    version: 'current'
+    version: 'current',
+    accountType: 'legacy'
   },
   
   freightTerminals: {
@@ -185,7 +214,8 @@ export const DEFAULT_TILESET_REGISTRY: Record<string, TilesetConfig> = {
     sourceLayer: 'us_freight_terminals-d7i106', // TODO: Backend should use stable name: us_freight_terminals
     displayName: 'Freight Terminals',
     category: 'transportation',
-    version: 'current'
+    version: 'current',
+    accountType: 'legacy'
   },
   
   freightRoutes: {
@@ -193,7 +223,8 @@ export const DEFAULT_TILESET_REGISTRY: Record<string, TilesetConfig> = {
     sourceLayer: 'us_freight_routes',
     displayName: 'Freight Routes',
     category: 'transportation',
-    version: 'current'
+    version: 'current',
+    accountType: 'legacy'
   },
   
   petroleumPipelines: {
@@ -201,7 +232,8 @@ export const DEFAULT_TILESET_REGISTRY: Record<string, TilesetConfig> = {
     sourceLayer: 'us_petrol_prod_pipelines_ftot-4f7wgo', // TODO: Backend should use stable name: us_petrol_prod_pipelines_ftot
     displayName: 'Petroleum Pipelines',
     category: 'transportation',
-    version: 'current'
+    version: 'current',
+    accountType: 'legacy'
   },
   
   crudeOilPipelines: {
@@ -209,7 +241,8 @@ export const DEFAULT_TILESET_REGISTRY: Record<string, TilesetConfig> = {
     sourceLayer: 'us_crude_pipeline_ftot-bhu6j4', // TODO: Backend should use stable name: us_crude_pipeline_ftot
     displayName: 'Crude Oil Pipelines',
     category: 'transportation',
-    version: 'current'
+    version: 'current',
+    accountType: 'legacy'
   },
   
   naturalGasPipelines: {
@@ -217,7 +250,8 @@ export const DEFAULT_TILESET_REGISTRY: Record<string, TilesetConfig> = {
     sourceLayer: 'hifld_us_natural_gas_pipeline-4prihp', // TODO: Backend should use stable name: hifld_us_natural_gas_pipeline
     displayName: 'Natural Gas Pipelines',
     category: 'transportation',
-    version: 'current'
+    version: 'current',
+    accountType: 'legacy'
   }
 };
 

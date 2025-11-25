@@ -377,6 +377,7 @@ export interface TilesetConfig {
   displayName: string;         // Human-readable name for UI
   category: 'feedstock' | 'infrastructure' | 'transportation';
   version: string;             // Date-based version (YYYY-MM)
+  accountType?: 'legacy' | 'default'; // Mapbox account type for token handling
 }
 
 export const DEFAULT_TILESET_REGISTRY: Record<string, TilesetConfig> = {
@@ -385,7 +386,8 @@ export const DEFAULT_TILESET_REGISTRY: Record<string, TilesetConfig> = {
     sourceLayer: 'cropland_land_iq',
     displayName: 'Crop Residues',
     category: 'feedstock',
-    version: '2024-10'
+    version: '2024-10',
+    accountType: 'default' // or 'legacy'
   },
   wastewater: {
     tilesetId: 'sustainasoft.cal-bioscape-epa-wastewater-2024-10',
@@ -423,6 +425,22 @@ export const TILESET_REGISTRY: Record<string, TilesetConfig> =
 ```
 
 ---
+
+## Multi-Account Support
+
+The system supports serving tilesets from multiple Mapbox accounts (e.g., legacy and new accounts).
+
+### Configuration
+
+1.  **Registry**: Use the `accountType` field in `TilesetConfig`:
+    -   `'legacy'`: Uses the legacy Mapbox account (e.g., `tylerhuntington222`)
+    -   `'default'` (or undefined): Uses the primary Mapbox account
+
+2.  **Environment Variables**:
+    -   `NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN`: Token for the primary (new) account.
+    -   `NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN_LEGACY`: Token for the legacy account.
+
+The Map component automatically swaps tokens based on the URL and `accountType` logic.
 
 ## Contact & Support
 

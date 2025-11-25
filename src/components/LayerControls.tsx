@@ -119,6 +119,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
   const [isCropResiduesCollapsed, setIsCropResiduesCollapsed] = useState(false);
   const [isInfrastructureCollapsed, setIsInfrastructureCollapsed] = useState(false);
   const [isTransportationCollapsed, setIsTransportationCollapsed] = useState(false);
+  const [isFoodProcessorsCollapsed, setIsFoodProcessorsCollapsed] = useState(false);
   
   // Month range slider state
   const [monthRange, setMonthRange] = useState<[number, number]>([0, 11]); // January to December by default
@@ -572,6 +573,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
     combustionPlants: 'combustion-plants-layer',
     districtEnergySystems: 'district-energy-systems-layer',
     foodProcessors: 'food-processors-layer',
+    tomatoProcessors: 'tomato-processors-layer',
     foodRetailers: 'food-retailers-layer',
     powerPlants: 'power-plants-layer',
     foodBanks: 'food-banks-layer',
@@ -747,7 +749,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                         const infrastructureLayers = [
                           'anaerobicDigester', 'biodieselPlants', 'biorefineries', 'safPlants',
                           'renewableDiesel', 'mrf', 'cementPlants', 'landfillLfg',
-                          'wastewaterTreatment', 'wasteToEnergy', 'combustionPlants', 'districtEnergySystems', 'foodProcessors', 'foodRetailers',
+                          'wastewaterTreatment', 'wasteToEnergy', 'combustionPlants', 'districtEnergySystems', 'foodProcessors', 'tomatoProcessors', 'foodRetailers',
                           'powerPlants', 'foodBanks', 'farmersMarkets'
                         ];
 
@@ -1051,29 +1053,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                       </Label>
                     </div>
                     
-                    {/* Food Processors Layer Toggle - Under Infrastructure */}
-                    <div className="flex items-center space-x-2 pl-6 mt-2">
-                       <Checkbox
-                        id="foodProcessorsLayer"
-                        checked={localLayerVisibility?.foodProcessors ?? false}
-                        onCheckedChange={(checked: boolean | 'indeterminate') => directLayerToggle('foodProcessors', !!checked)}
-                      />
-                      <Label htmlFor="foodProcessorsLayer" className="flex items-center text-xs">
-                        <span
-                          style={{
-                            display: 'inline-block',
-                            width: '12px',
-                            height: '12px',
-                            backgroundColor: '#FFD700', /* Gold color for Food Processors */
-                            borderRadius: '50%',
-                            marginRight: '2px',
-                            flexShrink: 0,
-                          }}
-                        ></span>
-                        Food Processors
-                      </Label>
-                    </div>
-                    
+
                     {/* Food Retailers Layer Toggle - Under Infrastructure */}
                     <div className="flex items-center space-x-2 pl-6 mt-2">
                        <Checkbox
@@ -1096,6 +1076,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                         Food Retailers
                       </Label>
                     </div>
+
                     {/* Power Plants Layer Toggle - Under Infrastructure */}
                     <div className="flex items-center space-x-2 pl-6 mt-2">
                       <Checkbox
@@ -1161,6 +1142,91 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                         ></span>
                         Farmers' Markets
                       </Label>
+                    </div>
+
+                    {/* Food Processors Group Layer Toggle - Under Infrastructure */}
+                    <div className="space-y-1 pl-6 mt-2">
+                      {/* Header Row with Master Checkbox and Collapse */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="foodProcessorsMaster"
+                            checked={
+                              (localLayerVisibility?.foodProcessors && localLayerVisibility?.tomatoProcessors) 
+                                ? true 
+                                : (localLayerVisibility?.foodProcessors || localLayerVisibility?.tomatoProcessors) 
+                                  ? 'indeterminate' 
+                                  : false
+                            }
+                            onCheckedChange={(checked: boolean | 'indeterminate') => {
+                              const isChecked = checked === true;
+                              // Toggle both subtypes
+                              directLayerToggle('foodProcessors', isChecked, true);
+                              directLayerToggle('tomatoProcessors', isChecked, true);
+                            }}
+                          />
+                          <Label htmlFor="foodProcessorsMaster" className="flex items-center text-xs font-medium">
+                            Food Processing Facilities
+                          </Label>
+                        </div>
+                        <button
+                          onClick={() => setIsFoodProcessorsCollapsed(!isFoodProcessorsCollapsed)}
+                          className="flex items-center p-1 hover:bg-gray-100 rounded"
+                        >
+                          <ChevronDown className={`text-muted-foreground size-3 shrink-0 transition-transform duration-200 ${isFoodProcessorsCollapsed ? '-rotate-90' : 'rotate-0'}`} />
+                        </button>
+                      </div>
+
+                      {/* Subtypes - Only show when not collapsed */}
+                      {!isFoodProcessorsCollapsed && (
+                        <div className="space-y-1">
+                          {/* Tomato Processors Layer Toggle - Subtype */}
+                          <div className="flex items-center space-x-2 pl-12">
+                             <Checkbox
+                              id="tomatoProcessorsLayer"
+                              checked={localLayerVisibility?.tomatoProcessors ?? false}
+                              onCheckedChange={(checked: boolean | 'indeterminate') => directLayerToggle('tomatoProcessors', !!checked)}
+                            />
+                            <Label htmlFor="tomatoProcessorsLayer" className="flex items-center text-xs">
+                              <span
+                                style={{
+                                  display: 'inline-block',
+                                  width: '10px',
+                                  height: '10px',
+                                  backgroundColor: '#FF6347', // Tomato color
+                                  borderRadius: '50%',
+                                  marginRight: '2px',
+                                  flexShrink: 0,
+                                }}
+                              ></span>
+                              Tomato Processors
+                            </Label>
+                          </div>
+
+                          {/* Other Food Processors Layer Toggle - Subtype */}
+                          <div className="flex items-center space-x-2 pl-12">
+                             <Checkbox
+                              id="foodProcessorsLayer"
+                              checked={localLayerVisibility?.foodProcessors ?? false}
+                              onCheckedChange={(checked: boolean | 'indeterminate') => directLayerToggle('foodProcessors', !!checked)}
+                            />
+                            <Label htmlFor="foodProcessorsLayer" className="flex items-center text-xs">
+                              <span
+                                style={{
+                                  display: 'inline-block',
+                                  width: '10px',
+                                  height: '10px',
+                                  backgroundColor: '#FFD700', /* Gold color for Food Processors */
+                                  borderRadius: '50%',
+                                  marginRight: '2px',
+                                  flexShrink: 0,
+                                }}
+                              ></span>
+                              Other Processors
+                            </Label>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </>
                 )}
