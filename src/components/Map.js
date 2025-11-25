@@ -1032,7 +1032,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
         preserveDrawingBuffer: true, // Prevent refresh on state changes
         renderWorldCopies: true, // Improve performance
         // Transform requests to support multiple Mapbox accounts
-        transformRequest: (url, resourceType) => {
+        transformRequest: (url) => {
           // Check if this is a request for a legacy tileset (tylerhuntington222)
           // and if we have a legacy token configured
           if (MAPBOX_ACCESS_TOKEN_LEGACY && url.includes('tylerhuntington222')) {
