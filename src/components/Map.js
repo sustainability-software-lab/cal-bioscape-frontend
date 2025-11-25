@@ -1033,24 +1033,36 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
         renderWorldCopies: true, // Improve performance
         // Transform requests to support multiple Mapbox accounts
         transformRequest: (url) => {
-          // Check if this is a request for a legacy tileset (tylerhuntington222)
-          // and if we have a legacy token configured
-          if (MAPBOX_ACCESS_TOKEN_LEGACY && url.includes('tylerhuntington222')) {
-            // Replace the access token in the URL with the legacy one
-            if (url.includes('access_token=')) {
-              return {
-                url: url.replace(/access_token=[^&]+/, `access_token=${MAPBOX_ACCESS_TOKEN_LEGACY}`)
-              };
-            } else {
-              // If no token exists yet, append the legacy one
-              const separator = url.includes('?') ? '&' : '?';
-              return {
-                url: `${url}${separator}access_token=${MAPBOX_ACCESS_TOKEN_LEGACY}`
-              };
+          // Extract the tileset ID from the URL (e.g., from https://api.mapbox.com/v4/user.tileset_id/...)
+          const match = url.match(/\/v4\/([^/]+)/);
+          if (match && match[1]) {
+            const tilesetId = match[1];
+            
+            // Find the configuration for this tileset in the registry
+            const tilesetConfig = Object.values(TILESET_REGISTRY).find(
+              (config) => config.tilesetId === tilesetId
+            );
+
+            if (tilesetConfig && tilesetConfig.accountType === 'legacy' && MAPBOX_ACCESS_TOKEN_LEGACY) {
+              // This is a legacy tileset, so use the legacy token
+              console.log(`Using legacy token for tileset: ${tilesetId}`);
+              
+              if (url.includes('access_token=')) {
+                // Replace the existing access token
+                return {
+                  url: url.replace(/access_token=[^&]+/, `access_token=${MAPBOX_ACCESS_TOKEN_LEGACY}`)
+                };
+              } else {
+                // Append the legacy token if none exists
+                const separator = url.includes('?') ? '&' : '?';
+                return {
+                  url: `${url}${separator}access_token=${MAPBOX_ACCESS_TOKEN_LEGACY}`
+                };
+              }
             }
           }
           
-          // For all other requests, use the default behavior (primary token)
+          // For all other requests (non-legacy or no match), use the default behavior
           return null;
         }
       });
