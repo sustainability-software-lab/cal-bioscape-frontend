@@ -15,6 +15,7 @@ COPY . .
 
 # Expose Mapbox token to Next.js at build and runtime
 ARG MAPBOX_ACCESS_TOKEN_BUILD
+ARG MAPBOX_ACCESS_TOKEN_LEGACY_BUILD
 RUN echo "ARG check: length=${#MAPBOX_ACCESS_TOKEN_BUILD}, is empty: $([[ -z "$MAPBOX_ACCESS_TOKEN_BUILD" ]] && echo true || echo false), starts with space: $([[ "$MAPBOX_ACCESS_TOKEN_BUILD" =~ ^[[:space:]] ]] && echo true || echo false)" && \
     if [ -z "$MAPBOX_ACCESS_TOKEN_BUILD" ]; then \
       echo "ERROR: MAPBOX_ACCESS_TOKEN_BUILD is empty (secret not passed to build)" 1>&2; \
@@ -24,6 +25,7 @@ RUN echo "ARG check: length=${#MAPBOX_ACCESS_TOKEN_BUILD}, is empty: $([[ -z "$M
     fi
 
 ENV NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN=$MAPBOX_ACCESS_TOKEN_BUILD
+ENV NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN_LEGACY=$MAPBOX_ACCESS_TOKEN_LEGACY_BUILD
 RUN echo "ENV check: length=${#NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN}, is empty: $([[ -z "$NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN" ]] && echo true || echo false)" && \
     if [ -z "$NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN" ]; then \
       echo "ERROR: NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN is empty after ENV" 1>&2; \
