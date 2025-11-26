@@ -1033,16 +1033,22 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
         renderWorldCopies: true, // Improve performance
         // Transform requests to support multiple Mapbox accounts
         transformRequest: (url) => {
-          // Check if this is a request for a legacy tileset (tylerhuntington222)
-          // and if we have a legacy token configured
-          if (MAPBOX_ACCESS_TOKEN_LEGACY && url.includes('tylerhuntington222')) {
-            // Replace the access token in the URL with the legacy one
+          // Identify if the URL is for a legacy tileset by checking against the registry
+          const isLegacy = Object.values(TILESET_REGISTRY).some(
+            (config) => config.accountType === 'legacy' && url.includes(config.tilesetId)
+          );
+
+          if (isLegacy && MAPBOX_ACCESS_TOKEN_LEGACY) {
+            // This is a legacy tileset, so use the legacy token
+            console.log(`Using legacy token for URL: ${url}`);
+            
             if (url.includes('access_token=')) {
+              // Replace the existing access token
               return {
                 url: url.replace(/access_token=[^&]+/, `access_token=${MAPBOX_ACCESS_TOKEN_LEGACY}`)
               };
             } else {
-              // If no token exists yet, append the legacy one
+              // Append the legacy token if none exists
               const separator = url.includes('?') ? '&' : '?';
               return {
                 url: `${url}${separator}access_token=${MAPBOX_ACCESS_TOKEN_LEGACY}`
@@ -1050,7 +1056,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
             }
           }
           
-          // For all other requests, use the default behavior (primary token)
+          // For all other requests (non-legacy or no match), use the default behavior
           return null;
         }
       });
@@ -1361,6 +1367,8 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
             type: 'circle',
             source: 'freight-terminals-source',
             'source-layer': TILESET_REGISTRY.freightTerminals.sourceLayer,
+            minzoom: 0,
+            maxzoom: 22,
             paint: {
               'circle-color': '#4169E1', // Royal blue color for freight terminals
               'circle-radius': 6,
@@ -1425,6 +1433,8 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
             type: 'circle',
             source: 'anaerobic-digester-source',
             'source-layer': TILESET_REGISTRY.anaerobicDigester.sourceLayer,
+            minzoom: 0,
+            maxzoom: 22,
             paint: {
               'circle-color': '#8B4513', // Saddle brown color for anaerobic digesters
               'circle-radius': 6,
@@ -1458,6 +1468,8 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
             type: 'circle',
             source: 'biorefineries-source',
             'source-layer': TILESET_REGISTRY.biorefineries.sourceLayer,
+            minzoom: 0,
+            maxzoom: 22,
             paint: {
               'circle-color': '#9370DB', // Medium purple color for biorefineries
               'circle-radius': 6,
@@ -1662,6 +1674,8 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
             type: 'circle',
             source: 'saf-plants-source',
             'source-layer': TILESET_REGISTRY.safPlants.sourceLayer,
+            minzoom: 0,
+            maxzoom: 22,
             paint: {
               'circle-color': '#1E90FF', // Dodger blue color for SAF plants
               'circle-radius': 6,
@@ -1731,6 +1745,8 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
             type: 'circle',
             source: 'saf-plants-source', // Using the same source as SAF plants
             'source-layer': TILESET_REGISTRY.renewableDiesel.sourceLayer,
+            minzoom: 0,
+            maxzoom: 22,
             paint: {
               'circle-color': '#FF8C00', // Dark orange color for renewable diesel plants
               'circle-radius': 6,
@@ -1800,6 +1816,8 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
             type: 'circle',
             source: 'cement-plants-source',
             'source-layer': TILESET_REGISTRY.cementPlants.sourceLayer,
+            minzoom: 0,
+            maxzoom: 22,
             paint: {
               'circle-color': '#708090', // Slate gray color for cement plants
               'circle-radius': 6,
@@ -1847,6 +1865,8 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
             type: 'circle',
             source: 'mrf-source',
             'source-layer': TILESET_REGISTRY.mrf.sourceLayer,
+            minzoom: 0,
+            maxzoom: 22,
             paint: {
               'circle-color': '#20B2AA', // Light sea green color for MRF facilities
               'circle-radius': 6,
@@ -1892,6 +1912,8 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
             type: 'circle',
             source: 'biodiesel-plants-source',
             'source-layer': TILESET_REGISTRY.biodieselPlants.sourceLayer,
+            minzoom: 0,
+            maxzoom: 22,
             paint: {
               'circle-color': '#228B22', // Forest green color for biodiesel plants
               'circle-radius': 6,
@@ -1915,6 +1937,8 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
             type: 'circle',
             source: 'landfill-lfg-source',
             'source-layer': TILESET_REGISTRY.landfillLfg.sourceLayer,
+            minzoom: 0,
+            maxzoom: 22,
             paint: {
               'circle-color': '#800080', // Purple color for landfills with LFG projects
               'circle-radius': 6,
@@ -1938,6 +1962,8 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
             type: 'circle',
             source: 'wastewater-treatment-source',
             'source-layer': TILESET_REGISTRY.wastewaterTreatment.sourceLayer,
+            minzoom: 0,
+            maxzoom: 22,
             paint: {
               'circle-color': '#00CED1', // Turquoise color for wastewater treatment plants
               'circle-radius': 6,
@@ -1961,6 +1987,8 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
             type: 'circle',
             source: 'waste-to-energy-source',
             'source-layer': TILESET_REGISTRY.wasteToEnergy.sourceLayer,
+            minzoom: 0,
+            maxzoom: 22,
             paint: {
               'circle-color': '#FF6347', // Tomato color for waste to energy plants
               'circle-radius': 6,
@@ -1984,6 +2012,8 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
             type: 'circle',
             source: 'combustion-plants-source',
             'source-layer': TILESET_REGISTRY.combustionPlants.sourceLayer,
+            minzoom: 0,
+            maxzoom: 22,
             paint: {
               'circle-color': '#B22222', // FireBrick color for combustion plants
               'circle-radius': 6,
@@ -2007,6 +2037,8 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
             type: 'circle',
             source: 'district-energy-systems-source',
             'source-layer': TILESET_REGISTRY.districtEnergySystems.sourceLayer,
+            minzoom: 0,
+            maxzoom: 22,
             paint: {
               'circle-color': '#32CD32', // LimeGreen color for District Energy Systems
               'circle-radius': 6,
@@ -2030,6 +2062,8 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
             type: 'circle',
             source: 'food-processors-source',
             'source-layer': TILESET_REGISTRY.foodProcessors.sourceLayer,
+            minzoom: 0,
+            maxzoom: 22,
             paint: {
               'circle-color': '#FFD700', // Gold color for food processors
               'circle-radius': 6,
@@ -2053,6 +2087,8 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
             type: 'circle',
             source: 'tomato-processors-source',
             'source-layer': TILESET_REGISTRY.tomatoProcessors.sourceLayer,
+            minzoom: 0,
+            maxzoom: 22,
             paint: {
               'circle-color': '#FF6347', // Tomato color
               'circle-radius': 6,
@@ -2098,6 +2134,8 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
             type: 'circle',
             source: 'food-retailers-source',
             'source-layer': TILESET_REGISTRY.foodRetailers.sourceLayer,
+            minzoom: 0,
+            maxzoom: 22,
             paint: {
               'circle-color': '#FF69B4', // HotPink for food retailers
               'circle-radius': 6,
@@ -2121,6 +2159,8 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
             type: 'circle',
             source: 'power-plants-source',
             'source-layer': INFRASTRUCTURE_LAYERS.power_plants.sourceLayer,
+            minzoom: 0,
+            maxzoom: 22,
             paint: {
               'circle-color': '#FFD700', // Gold
               'circle-radius': 6,
@@ -2144,6 +2184,8 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
             type: 'circle',
             source: 'food-banks-source',
             'source-layer': INFRASTRUCTURE_LAYERS.food_banks.sourceLayer,
+            minzoom: 0,
+            maxzoom: 22,
             paint: {
               'circle-color': '#32CD32', // LimeGreen
               'circle-radius': 6,
@@ -2167,6 +2209,8 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
             type: 'circle',
             source: 'farmers-markets-source',
             'source-layer': INFRASTRUCTURE_LAYERS.farmers_markets.sourceLayer,
+            minzoom: 0,
+            maxzoom: 22,
             paint: {
               'circle-color': '#FF4500', // OrangeRed
               'circle-radius': 6,
@@ -2870,20 +2914,20 @@ useEffect(() => {
   }, [mapLoaded]);
 
   return (
-    // Ensure the container has dimensions and relative positioning for the legend
-    <div
-      ref={mapContainer}
-      className="map-container"
-      style={{ 
-        width: '100%', 
-        height: '100%', 
-        position: 'relative',
-        margin: 0,
-        padding: 0,
-        overflow: 'hidden'
-      }}
-    >
-      {/* Show either the button or the panel */}
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+      <div
+        ref={mapContainer}
+        className="map-container"
+        style={{ 
+          width: '100%', 
+          height: '100%',
+          margin: 0,
+          padding: 0,
+          overflow: 'hidden'
+        }}
+      />
+      
+      {/* UI components are rendered outside the map container and positioned absolutely */}
       {!showSitingPanel ? (
         <SitingButton 
           onClick={toggleSitingMode} 

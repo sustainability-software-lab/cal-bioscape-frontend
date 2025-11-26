@@ -12,12 +12,15 @@ steps:
       - '-c'
       - |
         echo -n "$${MAPBOX_ACCESS_TOKEN}" > /workspace/_token
+        echo -n "$${MAPBOX_ACCESS_TOKEN_LEGACY}" > /workspace/_token_legacy
         docker build --no-cache -t gcr.io/$PROJECT_ID/${_SERVICE_NAME}:$SHORT_SHA \
           -t gcr.io/$PROJECT_ID/${_SERVICE_NAME}:${_ENVIRONMENT}-latest \
           --build-arg MAPBOX_ACCESS_TOKEN_BUILD="$(cat /workspace/_token)" \
+          --build-arg MAPBOX_ACCESS_TOKEN_LEGACY_BUILD="$(cat /workspace/_token_legacy)" \
           --build-arg ENVIRONMENT=${_ENVIRONMENT} .
         rm -f /workspace/_token
-    secretEnv: ['MAPBOX_ACCESS_TOKEN']
+        rm -f /workspace/_token_legacy
+    secretEnv: ['MAPBOX_ACCESS_TOKEN', 'MAPBOX_ACCESS_TOKEN_LEGACY']
 
   # Push to registry with multiple tags
   - name: 'gcr.io/cloud-builders/docker'
@@ -59,3 +62,5 @@ availableSecrets:
   secretManager:
     - versionName: projects/$PROJECT_ID/secrets/mapbox-access-token/versions/latest
       env: 'MAPBOX_ACCESS_TOKEN'
+    - versionName: projects/$PROJECT_ID/secrets/mapbox-access-token-legacy/versions/latest
+      env: 'MAPBOX_ACCESS_TOKEN_LEGACY'
