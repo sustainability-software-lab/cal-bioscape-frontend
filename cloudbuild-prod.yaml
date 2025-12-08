@@ -49,18 +49,7 @@ steps:
       - '--allow-unauthenticated'
       - '--set-env-vars'
       - 'ENVIRONMENT=${_ENVIRONMENT}'
-
-  # Ensure 100% traffic goes to the latest revision
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: gcloud
-    args:
-      - 'run'
-      - 'services'
-      - 'update-traffic'
-      - '${_SERVICE_NAME}'
       - '--to-latest'
-      - '--region'
-      - '${_REGION}'
 
 images:
   - 'gcr.io/$PROJECT_ID/${_SERVICE_NAME}:$SHORT_SHA'
