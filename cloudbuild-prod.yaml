@@ -34,7 +34,7 @@ steps:
       - 'gcr.io/$PROJECT_ID/${_SERVICE_NAME}:${_ENVIRONMENT}-latest'
 
   # Deploy to Cloud Run
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:460.0.0'
     entrypoint: gcloud
     args:
       - 'run'
