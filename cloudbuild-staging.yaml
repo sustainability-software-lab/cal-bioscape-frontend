@@ -34,7 +34,7 @@ steps:
       - 'gcr.io/$PROJECT_ID/${_SERVICE_NAME}:${_ENVIRONMENT}-latest'
 
   # Deploy to Cloud Run
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:460.0.0'
     entrypoint: gcloud
     args:
       - 'run'
@@ -49,6 +49,18 @@ steps:
       - '--allow-unauthenticated'
       - '--set-env-vars'
       - 'ENVIRONMENT=${_ENVIRONMENT}'
+
+  # Ensure 100% traffic goes to the latest revision
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:460.0.0'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'services'
+      - 'update-traffic'
+      - '${_SERVICE_NAME}'
+      - '--to-latest'
+      - '--region'
+      - '${_REGION}'
 
 images:
   - 'gcr.io/$PROJECT_ID/${_SERVICE_NAME}:$SHORT_SHA'
