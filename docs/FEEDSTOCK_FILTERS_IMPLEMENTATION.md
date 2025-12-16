@@ -7,6 +7,22 @@ This document describes the newly implemented feedstock characteristic filters t
 ## Implementation Date
 November 21, 2025
 
+## Three-Tier Data Architecture Integration
+
+The feedstock filters work with the Three-Tier Data Architecture:
+
+| Tier | Data Source | Filter Usage |
+|------|-------------|--------------|
+| **Tier 1** | Vector Tiles | Filter by `residue_type` (direct tile query) |
+| **Tier 2** | `feedstock_definitions.json` | Filter by moisture, energy, processing (client-side join) |
+| **Tier 3** | Backend API | Not used for filtering (real-time data) |
+
+**How it works:**
+1. User selects filter criteria (e.g., "High Energy", "Low Moisture")
+2. Frontend looks up which `residue_type` values match the criteria using `feedstock_definitions.json`
+3. Frontend applies Mapbox filter on `residue_type` field in tiles
+4. Only matching polygons are displayed
+
 ## New Features
 
 ### 1. Feedstock Type Category Filter
@@ -133,6 +149,13 @@ Key references:
 - onnu.com: Characteristics of good feedstocks for pyrolysis
 - UC Agriculture & Natural Resources: Biochar feedstock profiles
 - CalRecycle: Organic feedstock profiles
+
+**Note**: As part of the Three-Tier Data Architecture, these characteristics are stored in the static `feedstock_definitions.json` file (Tier 2), NOT in the vector tiles. The frontend fetches this JSON once on load and uses it for:
+1. Client-side joins to display detailed feedstock information
+2. Determining which `residue_type` values match filter criteria
+3. O(1) lookups for any chemical composition data
+
+See `CROP_RESIDUE_FACTORS.md` for the complete `feedstock_definitions.json` template.
 
 ## Technical Implementation Details
 
