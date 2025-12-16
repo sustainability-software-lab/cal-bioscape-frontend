@@ -200,4 +200,8 @@ Result: All crops with either medium OR high energy content
 4. You'll see the three new filter sections (Feedstock Type, Moisture Content, Energy Content)
 5. Start experimenting with different combinations!
 
-For detailed technical information, see `FEEDSTOCK_FILTERS_IMPLEMENTATION.md`
+## Related Documentation
+
+- [FEEDSTOCK_FILTERS_IMPLEMENTATION.md](./FEEDSTOCK_FILTERS_IMPLEMENTATION.md) - Detailed implementation docs
+- [TILESET_SPECIFICATIONS.md](./TILESET_SPECIFICATIONS.md) - Complete tileset specifications
+- [CROP_RESIDUE_FACTORS.md](./CROP_RESIDUE_FACTORS.md) - Residue factors and JSON template

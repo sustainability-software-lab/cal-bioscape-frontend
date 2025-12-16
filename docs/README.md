@@ -17,27 +17,31 @@ The feedstock data implementation follows a three-tier architecture for optimal 
 - Chemical composition is constant per `residue_type` → stored in static JSON, not tiles
 - Transactional data requires real-time API access, not tile regeneration
 
-See `TILESET_SPECIFICATIONS.md` for complete details.
+See [TILESET_SPECIFICATIONS.md](./TILESET_SPECIFICATIONS.md) for complete details.
 
 ## Contents
 
 ### Naming Conventions
-- **NAMING_CONVENTION_FINAL.md** - Final naming convention established for the project
+- **[NAMING_CONVENTION_FINAL.md](./NAMING_CONVENTION_FINAL.md)** - Final naming convention established for the project
 
 ### Tileset Documentation
-- **TILESET_SPECIFICATIONS.md** - Comprehensive tileset specifications and technical details (includes Three-Tier Architecture)
-- **README_TILESET_SPECS.md** - Tileset specifications overview
-- **TILESET_QUICK_REFERENCE.md** - Quick reference guide for tilesets
-- **TILESET_UPDATE_GUIDE.md** - Guide for updating tilesets
-- **TILESET_IMPLEMENTATION_SUMMARY.md** - Summary of the tileset implementation
+- **[TILESET_SPECIFICATIONS.md](./TILESET_SPECIFICATIONS.md)** - Comprehensive tileset specifications and technical details (includes Three-Tier Architecture)
+- **[README_TILESET_SPECS.md](./README_TILESET_SPECS.md)** - Tileset specifications overview
+- **[TILESET_QUICK_REFERENCE.md](./TILESET_QUICK_REFERENCE.md)** - Quick reference guide for tilesets
+- **[TILESET_UPDATE_GUIDE.md](./TILESET_UPDATE_GUIDE.md)** - Guide for updating tilesets
+- **[TILESET_IMPLEMENTATION_SUMMARY.md](./TILESET_IMPLEMENTATION_SUMMARY.md)** - Summary of the tileset implementation
 
 ### Data and Factors
-- **CROP_RESIDUE_FACTORS.md** - Crop residue factors and `feedstock_definitions.json` template
+- **[CROP_RESIDUE_FACTORS.md](./CROP_RESIDUE_FACTORS.md)** - Crop residue factors and `feedstock_definitions.json` template
 
 ### Deployment and Infrastructure
-- **DEPLOYMENT_ARCHITECTURE.md** - Project deployment architecture documentation
-- **CLOUDBUILD.md** - Cloud Build configuration and setup documentation
-- **.cloudbuild-summary.md** - Cloud Build quick reference summary
+- **[DEPLOYMENT_ARCHITECTURE.md](./DEPLOYMENT_ARCHITECTURE.md)** - Project deployment architecture documentation
+- **[CLOUDBUILD.md](./CLOUDBUILD.md)** - Cloud Build configuration and setup documentation
+- **[.cloudbuild-summary.md](./.cloudbuild-summary.md)** - Cloud Build quick reference summary
+
+### Feedstock Filters
+- **[FEEDSTOCK_FILTERS_IMPLEMENTATION.md](./FEEDSTOCK_FILTERS_IMPLEMENTATION.md)** - Detailed feedstock filters implementation
+- **[FEEDSTOCK_FILTERS_QUICK_START.md](./FEEDSTOCK_FILTERS_QUICK_START.md)** - Quick start guide for feedstock filters
 
 ## Organization
 

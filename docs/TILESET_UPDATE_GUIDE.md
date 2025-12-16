@@ -464,6 +464,16 @@ The system supports serving tilesets from multiple Mapbox accounts (e.g., legacy
 
 The Map component automatically swaps tokens based on the URL and `accountType` logic.
 
+## Related Documentation
+
+- [TILESET_SPECIFICATIONS.md](./TILESET_SPECIFICATIONS.md) - Complete tileset specifications
+- [README_TILESET_SPECS.md](./README_TILESET_SPECS.md) - Specifications overview
+- [TILESET_QUICK_REFERENCE.md](./TILESET_QUICK_REFERENCE.md) - Quick reference guide
+- [TILESET_IMPLEMENTATION_SUMMARY.md](./TILESET_IMPLEMENTATION_SUMMARY.md) - Implementation summary
+- [CROP_RESIDUE_FACTORS.md](./CROP_RESIDUE_FACTORS.md) - Residue factors and JSON template
+
+---
+
 ## Contact & Support
 
 For questions or issues with tileset updates:

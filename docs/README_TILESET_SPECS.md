@@ -32,6 +32,17 @@ sustainasoft.cal-bioscape-{dataset-source}-{category}-{YYYY-MM}
 
 **Critical**: Source layer names remain **stable** across tileset versions. Only the tileset ID changes with each update.
 
+## Related Documentation
+
+- [TILESET_SPECIFICATIONS.md](./TILESET_SPECIFICATIONS.md) - Main specification document
+- [TILESET_QUICK_REFERENCE.md](./TILESET_QUICK_REFERENCE.md) - Quick lookup table
+- [TILESET_UPDATE_GUIDE.md](./TILESET_UPDATE_GUIDE.md) - Update procedures
+- [TILESET_IMPLEMENTATION_SUMMARY.md](./TILESET_IMPLEMENTATION_SUMMARY.md) - Implementation summary
+- [CROP_RESIDUE_FACTORS.md](./CROP_RESIDUE_FACTORS.md) - Residue factors and JSON template
+- [FEEDSTOCK_FILTERS_IMPLEMENTATION.md](./FEEDSTOCK_FILTERS_IMPLEMENTATION.md) - Filter implementation
+
+---
+
 ## Document Overview
 
 ### 1. [TILESET_SPECIFICATIONS.md](./TILESET_SPECIFICATIONS.md)
@@ -322,6 +333,12 @@ When updating tilesets (e.g., quarterly data refresh):
 4. Deploy to staging, then production
 
 For detailed procedures, see [TILESET_UPDATE_GUIDE.md](./TILESET_UPDATE_GUIDE.md).
+
+## See Also
+
+- [TILESET_SPECIFICATIONS.md](./TILESET_SPECIFICATIONS.md) - Complete tileset specifications
+- [TILESET_QUICK_REFERENCE.md](./TILESET_QUICK_REFERENCE.md) - Quick reference guide
+- [CROP_RESIDUE_FACTORS.md](./CROP_RESIDUE_FACTORS.md) - Residue factors and JSON template
 
 ## Contact
 

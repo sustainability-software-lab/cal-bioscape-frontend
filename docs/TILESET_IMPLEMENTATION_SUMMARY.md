@@ -263,10 +263,11 @@ const displayName = TILESET_REGISTRY.feedstock.displayName;
 
 ## 📚 Related Documentation
 
-- `TILESET_SPECIFICATIONS.md` - Complete tileset specifications for backend
-- `TILESET_UPDATE_GUIDE.md` - Step-by-step update procedures
-- `TILESET_QUICK_REFERENCE.md` - Quick lookup for all tilesets
-- `CROP_RESIDUE_FACTORS.md` - Crop residue calculation methodology
+- [TILESET_SPECIFICATIONS.md](./TILESET_SPECIFICATIONS.md) - Complete tileset specifications for backend
+- [TILESET_UPDATE_GUIDE.md](./TILESET_UPDATE_GUIDE.md) - Step-by-step update procedures
+- [TILESET_QUICK_REFERENCE.md](./TILESET_QUICK_REFERENCE.md) - Quick lookup for all tilesets
+- [CROP_RESIDUE_FACTORS.md](./CROP_RESIDUE_FACTORS.md) - Crop residue calculation methodology and `feedstock_definitions.json` template
+- [README_TILESET_SPECS.md](./README_TILESET_SPECS.md) - Tileset specifications overview
 
 ---
 
