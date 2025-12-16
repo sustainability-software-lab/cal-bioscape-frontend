@@ -1,5 +1,22 @@
 # Tileset Registry Implementation Summary
 
+## Three-Tier Data Architecture
+
+The feedstock data implementation follows a three-tier architecture for optimal performance:
+
+| Tier | Location | Content | Access Pattern |
+|------|----------|---------|----------------|
+| **Tier 1** | MapBox Vector Tiles | `feedstock_id`, `residue_type`, `total_yield`, geometry | Map rendering |
+| **Tier 2** | Static JSON (`feedstock_definitions.json`) | Compositional constants | O(1) client-side join by `residue_type` |
+| **Tier 3** | Backend API (FastAPI) | `cost_per_ton`, `availability_status` | Query params: `GET /api/feedstocks?id={uuid}` |
+
+**Key Design Decisions**:
+- Keep tiles "thin" (<500kb) - only visualization attributes
+- Chemical composition is constant per `residue_type` → use static JSON, not tiles or API
+- Transactional data requires real-time API access
+
+---
+
 ## ✅ What Was Implemented (Option A - Staged Rollout)
 
 ### 1. Created Centralized Tileset Registry
@@ -93,11 +110,27 @@ sustainasoft.cal-bioscape-{source}-{category}-{YYYY-MM}
 - `sustainasoft.cal-bioscape-epa-wastewater-2024-10`
 - `sustainasoft.cal-bioscape-ftot-raillines-2024-10`
 
-**Critical Requirement:**
+**Critical Requirements:**
 - **Source layer names MUST be stable** (no version suffixes)
 - Example: Use `cropland_land_iq` instead of `cropland_land_iq_2023`
+- **Feedstock tileset must follow Three-Tier Architecture** (Tier 1 fields only in tiles)
 
-**For Each Tileset:**
+**For Feedstock Tileset (Three-Tier Architecture):**
+1. Generate UUID for each polygon → `feedstock_id`
+2. Assign `residue_type` based on crop category (must match `feedstock_definitions.json` keys exactly)
+3. Calculate `total_yield = acres × dryTonsPerAcre`
+4. Include ONLY Tier 1 fields: `feedstock_id`, `residue_type`, `total_yield`, `main_crop_name`, `acres`, `county`
+5. **Do NOT include** chemical composition fields (moisture, ash, carbon, etc.) - these go in `feedstock_definitions.json`
+6. Upload to Mapbox under `sustainasoft` account
+7. Notify frontend team with tileset ID
+
+**For feedstock_definitions.json:**
+1. Create JSON file keyed by `residue_type`
+2. Include all compositional constants (moisture, ash, carbon, etc.)
+3. Upload to GCS Bucket / CDN
+4. Notify frontend team with URL
+
+**For Other Tilesets:**
 1. Generate tileset with new naming convention
 2. Use stable source layer name (see registry TODO comments for target names)
 3. Upload to Mapbox under `sustainasoft` account

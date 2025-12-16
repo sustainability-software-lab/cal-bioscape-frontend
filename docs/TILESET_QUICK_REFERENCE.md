@@ -2,7 +2,15 @@
 
 Quick lookup table for all tilesets in the Cal-Bioscape Siting Tool.
 
-**Version**: 1.2 | **Last Updated**: 2024-10-16
+**Version**: 2.0 | **Last Updated**: 2025-12-16
+
+## Three-Tier Data Architecture
+
+| Tier | Location | Purpose |
+|------|----------|---------|
+| **Tier 1** | MapBox Vector Tiles | Visualization only (`feedstock_id`, `residue_type`, `total_yield`) |
+| **Tier 2** | Static JSON (`feedstock_definitions.json`) | Compositional constants (keyed by `residue_type`) |
+| **Tier 3** | Backend API (FastAPI) | Real-time data (`cost_per_ton`, `availability_status`) |
 
 ## Naming Convention
 
@@ -14,13 +22,40 @@ All tilesets use the standardized format: `sustainasoft.cal-bioscape-{source}-{c
 
 ## Feedstock Data
 
-| Layer Name | Tileset ID | Source Layer | Geometry | Key Fields |
-|------------|-----------|--------------|----------|------------|
-| Crop Residues | `sustainasoft.cal-bioscape-landiq-cropland-2024-10` | `cropland_land_iq` | Polygon | `main_crop_name`, `acres`, `county`, `residue_wet_tons`*, `moisture_content`*, `ash_content`*, `carbon_pct`*, `energy_content_mj_kg`* + [19 more composition fields] |
+| Layer Name | Tileset ID | Source Layer | Geometry | Tier 1 Fields (in tiles) |
+|------------|-----------|--------------|----------|--------------------------|
+| Crop Residues | `sustainasoft.cal-bioscape-landiq-cropland-2024-10` | `cropland_land_iq` | Polygon | `feedstock_id` (UUID), `residue_type`, `total_yield`, `main_crop_name`, `acres`, `county` |
 
-\* Fields to be added by backend during tileset generation
+**Important**: Chemical composition fields (moisture_content, ash_content, carbon_pct, etc.) are NOT in the tileset. They are in `feedstock_definitions.json` keyed by `residue_type`.
 
-**Note**: See TILESET_SPECIFICATIONS.md for complete list of 23 new attributes to be added (Tier 1-3 analysis fields)
+### Static Lookup File: feedstock_definitions.json
+
+**Location**: GCS Bucket / CDN
+
+**Keys**: `residue_type` values (must match tiles exactly)
+- "Prunings"
+- "Stover"
+- "Straw & Stubble"
+- "Top Silage"
+- "Vines and Leaves"
+- "Stems & Leaf Meal"
+
+**Tier 2 Fields** (in JSON, NOT in tiles):
+- `moisture_content`, `ash_content`, `volatile_solids`, `fixed_carbon`
+- `carbon_pct`, `hydrogen_pct`, `nitrogen_pct`, `oxygen_pct`, `sulfur_pct`
+- `glucose_pct`, `xylose_pct`, `lignin_pct`, `energy_content_mj_kg`
+- `processing_suitability`
+
+### API Endpoints (Tier 3)
+
+```
+GET /api/feedstocks?id={feedstock_uuid}
+GET /api/feedstocks?min_yield=500&type=almond
+GET /api/feedstocks?county=Fresno&residue_type=Prunings
+```
+
+**Tier 3 Fields** (from API only):
+- `cost_per_ton`, `availability_status`, `contracted`, `last_updated`
 
 ---
 
@@ -96,28 +131,39 @@ All tilesets must use:
 
 ### Immediate (High Priority)
 
-1. **LandIQ Feedstock Tileset** - Add calculated residue and chemical composition attributes:
+1. **LandIQ Feedstock Tileset** - Generate with Three-Tier Architecture:
    
-   **Tier 1A - Residue Quantity (HIGHEST PRIORITY):**
-   - `residue_wet_tons` (Float) - Calculated from acres × factor
-   - `residue_dry_tons` (Float) - Calculated from acres × factor
-   - `residue_type` (String) - From residue tables
-   - `moisture_content` (Float, 0-1) - **MOST CRITICAL** for filtering
+   **Tier 1 - Vector Tile Fields (ONLY these in tileset):**
+   - `feedstock_id` (UUID) - Generate unique ID for each polygon
+   - `residue_type` (String) - Must match `feedstock_definitions.json` keys exactly
+   - `total_yield` (Float) - Calculated from `acres × dryTonsPerAcre`
+   - `main_crop_name` (String) - From source data
+   - `acres` (Float) - From source data
+   - `county` (String) - From source data
    
-   **Tier 1B - Proximate Analysis (HIGHEST PRIORITY):**
-   - `ash_content` (Float, %) - From biomass databases
-   - `volatile_solids` (Float, %) - From biomass databases
-   - `fixed_carbon` (Float, %) - From biomass databases
+   **Goal**: Keep tiles <500kb for fast rendering
    
-   **Tier 2 - Ultimate & Compositional (HIGH PRIORITY):**
-   - `carbon_pct`, `hydrogen_pct`, `nitrogen_pct`, `oxygen_pct`, `sulfur_pct` (Float, %)
-   - `glucose_pct`, `xylose_pct`, `lignin_pct` (Float, %)
-   - `energy_content_mj_kg` (Float, MJ/kg)
+2. **Create feedstock_definitions.json** - Static lookup file:
    
-   **Tier 3 - Additional Elements (OPTIONAL - if data available):**
-   - `phosphorus_pct`, `potassium_pct`, `silica_pct` (Float, %)
+   **Location**: Upload to GCS Bucket / CDN
    
-   See [CROP_RESIDUE_FACTORS.md](./CROP_RESIDUE_FACTORS.md) for calculation details and data sources.
+   **Content**: Chemical composition constants keyed by `residue_type`:
+   - Proximate Analysis: `moisture_content`, `ash_content`, `volatile_solids`, `fixed_carbon`
+   - Ultimate Analysis: `carbon_pct`, `hydrogen_pct`, `nitrogen_pct`, `oxygen_pct`, `sulfur_pct`
+   - Compositional Analysis: `glucose_pct`, `xylose_pct`, `lignin_pct`, `energy_content_mj_kg`
+   - Processing info: `processing_suitability` array
+   
+   See [CROP_RESIDUE_FACTORS.md](./CROP_RESIDUE_FACTORS.md) for composition data sources.
+
+3. **Backend API Endpoints** - FastAPI for Tier 3 data:
+   
+   **Pattern**: Use Query Parameters
+   ```
+   GET /api/feedstocks?id={feedstock_uuid}
+   GET /api/feedstocks?min_yield=500&type=almond
+   ```
+   
+   **Fields**: `cost_per_ton`, `availability_status`, `contracted`, `last_updated`
 
 ### Future (When Source Data Updated)
 
@@ -226,8 +272,9 @@ For detailed update procedures, see [TILESET_UPDATE_GUIDE.md](./TILESET_UPDATE_G
 ---
 
 ### Version History
+- **v2.0** (2025-12-16): **MAJOR UPDATE** - Implemented Three-Tier Data Architecture. Updated feedstock tileset fields to Tier 1 only (`feedstock_id`, `residue_type`, `total_yield`). Added documentation for `feedstock_definitions.json` static lookup and API endpoints.
 - **v1.2** (2024-10-16): Updated all tileset IDs to new standardized naming convention (`sustainasoft.cal-bioscape-*`). Stabilized source layer names across versions.
-- **v1.1** (2024-10-16): Updated to reflect 23 new chemical composition fields for LandIQ tileset (Tier 1-3 analysis data)
+- **v1.1** (2024-10-16): Updated to reflect 23 new chemical composition fields for LandIQ tileset (Tier 1-3 analysis data). **Note**: Superseded by v2.0 which moves these to static JSON.
 - **v1.0**: Initial quick reference guide
 
 For complete specifications, see [TILESET_SPECIFICATIONS.md](./TILESET_SPECIFICATIONS.md)

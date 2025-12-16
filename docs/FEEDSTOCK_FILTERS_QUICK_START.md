@@ -4,6 +4,13 @@
 
 Three new filter sections were added below the existing "Feedstock Seasonal Availability" slider in the Filters panel.
 
+## Data Architecture Note
+
+These filters work with the **Three-Tier Data Architecture**:
+- **Vector Tiles** contain `residue_type` for fast filtering
+- **feedstock_definitions.json** contains moisture/energy/processing data for each `residue_type`
+- Filters determine which `residue_type` values match, then query the tiles
+
 ## Location
 
 ```

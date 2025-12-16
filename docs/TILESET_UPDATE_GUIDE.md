@@ -5,10 +5,21 @@ This guide provides step-by-step procedures for updating tilesets in the Cal-Bio
 ## Overview
 
 The Cal-Bioscape Siting Tool uses a simplified tileset management system based on:
-1. **Standardized naming convention** with date-based versioning
-2. **Stable source layer names** across tileset versions
-3. **Centralized registry** in the frontend code
-4. **Optional environment variable overrides** for testing
+1. **Three-Tier Data Architecture** for feedstock data
+2. **Standardized naming convention** with date-based versioning
+3. **Stable source layer names** across tileset versions
+4. **Centralized registry** in the frontend code
+5. **Optional environment variable overrides** for testing
+
+## Three-Tier Data Architecture (Feedstock Data)
+
+| Tier | Location | Content | When to Update |
+|------|----------|---------|----------------|
+| **Tier 1** | MapBox Vector Tiles | `feedstock_id`, `residue_type`, `total_yield`, geometry | When geometries or yields change |
+| **Tier 2** | Static JSON (`feedstock_definitions.json`) | Compositional constants | Rarely (constants per residue_type) |
+| **Tier 3** | Backend API (FastAPI) | `cost_per_ton`, `availability_status` | Live updates (no tile regeneration needed) |
+
+**Key Insight**: Chemical composition data does NOT require tile regeneration. If you're only updating Tier 2/3 data, no tileset update is needed.
 
 ---
 
@@ -47,6 +58,17 @@ Follow the specifications in `TILESET_SPECIFICATIONS.md` to generate the tileset
 - All required feature attributes
 - Correct geometry types
 - Proper coordinate system (EPSG:4326 / WGS 84)
+
+**For Feedstock Tileset (Three-Tier Architecture):**
+Include ONLY Tier 1 fields:
+- `feedstock_id` (UUID) - Generate unique ID for each polygon
+- `residue_type` (String) - Must match `feedstock_definitions.json` keys exactly
+- `total_yield` (Float) - Calculate: `acres × dryTonsPerAcre`
+- `main_crop_name` (String) - From source data
+- `acres` (Float) - From source data
+- `county` (String) - From source data
+
+**Do NOT include** chemical composition fields (moisture, ash, carbon, etc.) - these are in `feedstock_definitions.json`.
 
 #### 1.3 Name the Tileset
 Use the standardized naming format with current year-month:

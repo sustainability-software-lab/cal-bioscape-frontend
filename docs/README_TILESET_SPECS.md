@@ -2,6 +2,21 @@
 
 This directory contains comprehensive specifications for all tilesets used in the Cal-Bioscape Siting Tool. These documents are intended for backend engineers who will be generating or updating tilesets when underlying data sources are refreshed.
 
+## Three-Tier Data Architecture
+
+Feedstock data is partitioned into three accessibility tiers for optimal performance and data freshness:
+
+| Tier | Location | Content | Update Frequency |
+|------|----------|---------|------------------|
+| **Tier 1** | MapBox Vector Tiles | Geometry + `feedstock_id` + `residue_type` + `total_yield` | When geometries/yields change |
+| **Tier 2** | Static JSON (`feedstock_definitions.json`) | Compositional constants (ash, moisture, carbon, etc.) | Rarely (constants per residue_type) |
+| **Tier 3** | Backend API (FastAPI) | Real-time data (`cost_per_ton`, `availability_status`) | Live updates |
+
+**Design Principles:**
+- Keep vector tiles "thin" (<500kb) for fast rendering
+- Chemical composition is constant per `residue_type` → use O(1) client-side joins
+- Transactional data requires real-time API access, not tile regeneration
+
 ## Tileset Naming Convention
 
 All tilesets follow a standardized naming format with date-based versioning:
@@ -80,95 +95,94 @@ For each tileset, the document specifies:
    - No self-intersecting polygons
    - Proper winding order (counter-clockwise for exterior rings)
 
+5. **Data Consistency (Critical)**
+   - The `residue_type` string in tiles MUST exactly match keys in `feedstock_definitions.json`
+   - Use the shared Enum definition to ensure consistency
+   - Example: If tile says "Almond" and JSON says "Almond Prunings", the client-side join fails
+
 ### Priority: LandIQ Feedstock Tileset
 
-The **most important enhancement** is adding calculated residue attributes to the LandIQ feedstock tileset:
+The LandIQ feedstock tileset follows the **Three-Tier Data Architecture**:
 
-#### Current Attributes (existing in tileset)
-- `main_crop_name` - Crop type name
-- `main_crop_code` - Crop code
-- `acres` - Field area
-- `county` - County name
-- `region` - Geographic region
-- `hydro_region` - Hydrologic region
+#### Tier 1: Vector Tile Attributes (ONLY these go in tiles)
 
-#### New Attributes to Add (calculated/looked up from databases)
+| Field | Type | Description | Required |
+|-------|------|-------------|----------|
+| `feedstock_id` | UUID | Unique identifier for API lookups and data joins | Yes |
+| `residue_type` | String | Must match `feedstock_definitions.json` keys exactly | Yes |
+| `total_yield` | Float | Calculated: `acres × dryTonsPerAcre` | Yes |
+| `main_crop_name` | String | Crop type name for display | Yes |
+| `acres` | Float | Field area | Yes |
+| `county` | String | County name | Yes |
 
-**Tier 1A: Residue Quantity (HIGHEST PRIORITY)**
-- `residue_wet_tons` - Total wet tons of residue for this field
-- `residue_dry_tons` - Total dry tons of residue for this field
-- `residue_type` - Type of residue (e.g., "Prunings", "Stover", "Vines and Leaves")
-- `moisture_content` - Moisture content as decimal (0-1)
+**Goal**: Keep tiles <500kb for fast rendering. Do NOT include chemical composition data.
 
-**Tier 1B: Proximate Analysis (HIGHEST PRIORITY)**
-- `ash_content` - Ash content as percentage (0-100)
-- `volatile_solids` - Volatile solids as percentage (0-100)
-- `fixed_carbon` - Fixed carbon as percentage (0-100)
+#### Tier 2: Static JSON File (feedstock_definitions.json)
 
-**Note**: Moisture content is the MOST CRITICAL attribute for filtering, as it has a massive effect on all downstream processing decisions.
+**Location**: Host on GCS Bucket/CDN
 
-**Tier 2: Ultimate & Compositional Analysis (HIGH PRIORITY)**
-- `carbon_pct` - Carbon percentage of dry residue
-- `hydrogen_pct` - Hydrogen percentage of dry residue
-- `nitrogen_pct` - Nitrogen percentage of dry residue
-- `oxygen_pct` - Oxygen percentage of dry residue
-- `sulfur_pct` - Sulfur percentage of dry residue
-- `glucose_pct` - Glucose percentage (compositional)
-- `xylose_pct` - Xylose percentage (compositional)
-- `lignin_pct` - Lignin percentage (compositional)
-- `energy_content_mj_kg` - Energy content in MJ/kg (dry basis)
+Chemical composition constants are **constant per `residue_type`** (e.g., all Almonds have ~3.2% Ash). These should NOT be in tiles or fetched via DB queries.
 
-**Tier 3: Additional Elemental Analysis (OPTIONAL - Lower Priority)**
-- `phosphorus_pct` - Phosphorus percentage (if data available)
-- `potassium_pct` - Potassium percentage (if data available)
-- `silica_pct` - Silica percentage (if data available)
-
-**Calculation Process:**
-1. Read the crop name from `main_crop_name`
-2. Look up standardized name in mapping table (CROP_RESIDUE_FACTORS.md)
-3. Find residue factors in appropriate table (Orchard/Row/Field crops)
-4. Calculate: `residue_wet_tons = acres × wetTonsPerAcre`
-5. Calculate: `residue_dry_tons = acres × dryTonsPerAcre`
-6. Look up chemical composition data from biomass databases (by residue type)
-7. Add all attributes to the feature
-
-**Example:**
-```javascript
-// Input feature
+```json
 {
-  "main_crop_name": "Almonds",
-  "acres": 150.5
-}
-
-// After processing (with residue factors & composition data)
-{
-  "main_crop_name": "Almonds",
-  "acres": 150.5,
-  // Tier 1A: Quantity
-  "residue_wet_tons": 376.25,
-  "residue_dry_tons": 225.75,
-  "residue_type": "Prunings",
-  "moisture_content": 0.40,
-  // Tier 1B: Proximate Analysis
-  "ash_content": 3.2,
-  "volatile_solids": 78.5,
-  "fixed_carbon": 18.3,
-  // Tier 2: Ultimate & Compositional
-  "carbon_pct": 48.5,
-  "hydrogen_pct": 6.1,
-  "nitrogen_pct": 0.8,
-  "oxygen_pct": 41.4,
-  "sulfur_pct": 0.1,
-  "glucose_pct": 42.0,
-  "xylose_pct": 18.5,
-  "lignin_pct": 22.0,
-  "energy_content_mj_kg": 18.2,
-  // Tier 3: Optional
-  "phosphorus_pct": null,
-  "potassium_pct": null,
-  "silica_pct": null
+  "Prunings": {
+    "moisture_content": 0.40,
+    "ash_content": 3.2,
+    "volatile_solids": 78.5,
+    "fixed_carbon": 18.3,
+    "carbon_pct": 48.5,
+    "hydrogen_pct": 6.1,
+    "nitrogen_pct": 0.8,
+    "oxygen_pct": 41.4,
+    "sulfur_pct": 0.1,
+    "glucose_pct": 42.0,
+    "xylose_pct": 18.5,
+    "lignin_pct": 22.0,
+    "energy_content_mj_kg": 18.2,
+    "processing_suitability": ["pyrolysis", "direct_combustion", "gasification"]
+  }
 }
 ```
+
+Frontend performs O(1) client-side joins using `residue_type` as the key.
+
+#### Tier 3: API Payload (FastAPI Backend)
+
+Real-time/transactional data fetched via API when needed:
+
+```
+GET /api/feedstocks?id={feedstock_uuid}
+GET /api/feedstocks?min_yield=500&type=almond
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `cost_per_ton` | Float | Current market cost (if known) |
+| `availability_status` | String | Current availability |
+| `contracted` | Boolean | Whether under contract |
+| `last_updated` | DateTime | Last update timestamp |
+
+**Tileset Generation Process:**
+1. Read the crop name from `main_crop_name`
+2. Generate UUID for `feedstock_id`
+3. Look up standardized name in mapping table (CROP_RESIDUE_FACTORS.md)
+4. Assign `residue_type` based on crop category
+5. Calculate: `total_yield = acres × dryTonsPerAcre`
+6. Include ONLY Tier 1 fields in the tileset
+
+**Example Output (Tile Feature):**
+```json
+{
+  "feedstock_id": "550e8400-e29b-41d4-a716-446655440000",
+  "residue_type": "Prunings",
+  "total_yield": 225.75,
+  "main_crop_name": "Almonds",
+  "acres": 150.5,
+  "county": "Fresno"
+}
+```
+
+**Note**: All chemical composition fields (ash_content, moisture_content, carbon_pct, etc.) are in `feedstock_definitions.json`, NOT in the tileset.
 
 ## Tileset Inventory
 
@@ -318,11 +332,12 @@ For questions or clarifications:
 
 ---
 
-**Document Version**: 1.2  
-**Last Updated**: 2024-10-16  
+**Document Version**: 2.0  
+**Last Updated**: 2025-12-16  
 **Status**: Production Ready
 
 ### Version History
+- **v2.0** (2025-12-16): **MAJOR UPDATE** - Implemented Three-Tier Data Architecture. Vector tiles now contain only visualization attributes (`feedstock_id`, `residue_type`, `total_yield`). Chemical composition moved to static `feedstock_definitions.json`. Real-time data via FastAPI. Added `feedstock_id` UUID as critical join key. Defined shared `ResidueType` Enum for data consistency.
 - **v1.2** (2024-10-16): Updated to reflect new standardized naming convention (`sustainasoft.cal-bioscape-*`), stable source layer names, and tileset registry management system. Added reference to TILESET_UPDATE_GUIDE.md.
-- **v1.1** (2024-10-16): Added 23 chemical composition fields (Proximate, Ultimate, Compositional, Elemental analysis) to LandIQ tileset requirements per backend engineer feedback
+- **v1.1** (2024-10-16): Added 23 chemical composition fields (Proximate, Ultimate, Compositional, Elemental analysis) to LandIQ tileset requirements per backend engineer feedback. **Note**: Superseded by v2.0 which moves these to static JSON.
 - **v1.0**: Initial documentation release
