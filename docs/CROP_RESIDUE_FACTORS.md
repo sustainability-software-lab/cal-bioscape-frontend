@@ -2,6 +2,16 @@
 
 This document provides complete crop residue factor data for calculating residue yields from agricultural cropland. Backend engineers should use these tables when generating the LandIQ feedstock tileset and the `feedstock_definitions.json` static lookup file.
 
+## Related Documentation
+
+- [TILESET_SPECIFICATIONS.md](./TILESET_SPECIFICATIONS.md) - Complete tileset specifications
+- [README_TILESET_SPECS.md](./README_TILESET_SPECS.md) - Specifications overview
+- [TILESET_QUICK_REFERENCE.md](./TILESET_QUICK_REFERENCE.md) - Quick reference guide
+- [TILESET_UPDATE_GUIDE.md](./TILESET_UPDATE_GUIDE.md) - Update procedures
+- [FEEDSTOCK_FILTERS_IMPLEMENTATION.md](./FEEDSTOCK_FILTERS_IMPLEMENTATION.md) - Filter implementation
+
+---
+
 ## Table of Contents
 
 1. [Three-Tier Data Architecture](#three-tier-data-architecture)

@@ -264,7 +264,7 @@ The `total_yield` field should be calculated during tileset generation:
 total_yield = acres × dryTonsPerAcre
 ```
 
-Refer to `CROP_RESIDUE_FACTORS.md` for the `dryTonsPerAcre` values by crop type.
+Refer to [CROP_RESIDUE_FACTORS.md](./CROP_RESIDUE_FACTORS.md) for the `dryTonsPerAcre` values by crop type.
 
 ### Data Sources
 
@@ -1023,6 +1023,14 @@ When updating tilesets, also update:
 4. Any relevant README or deployment documentation
 
 **Note**: The `tileset-registry.ts` file is the single source of truth for tileset configurations. Only update the version identifier portion of the tileset ID (YYYY-MM) when regenerating tilesets.
+
+### Related Documentation
+
+- [README_TILESET_SPECS.md](./README_TILESET_SPECS.md) - Tileset specifications overview for backend engineers
+- [TILESET_QUICK_REFERENCE.md](./TILESET_QUICK_REFERENCE.md) - Quick lookup table for all tilesets
+- [TILESET_UPDATE_GUIDE.md](./TILESET_UPDATE_GUIDE.md) - Step-by-step tileset update procedures
+- [TILESET_IMPLEMENTATION_SUMMARY.md](./TILESET_IMPLEMENTATION_SUMMARY.md) - Implementation summary and registry details
+- [CROP_RESIDUE_FACTORS.md](./CROP_RESIDUE_FACTORS.md) - Residue factors and `feedstock_definitions.json` template
 
 ---
 

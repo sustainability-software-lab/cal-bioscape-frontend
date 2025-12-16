@@ -277,4 +277,10 @@ For detailed update procedures, see [TILESET_UPDATE_GUIDE.md](./TILESET_UPDATE_G
 - **v1.1** (2024-10-16): Updated to reflect 23 new chemical composition fields for LandIQ tileset (Tier 1-3 analysis data). **Note**: Superseded by v2.0 which moves these to static JSON.
 - **v1.0**: Initial quick reference guide
 
-For complete specifications, see [TILESET_SPECIFICATIONS.md](./TILESET_SPECIFICATIONS.md)
+## Related Documentation
+
+- [TILESET_SPECIFICATIONS.md](./TILESET_SPECIFICATIONS.md) - Complete tileset specifications
+- [README_TILESET_SPECS.md](./README_TILESET_SPECS.md) - Specifications overview
+- [TILESET_UPDATE_GUIDE.md](./TILESET_UPDATE_GUIDE.md) - Update procedures
+- [TILESET_IMPLEMENTATION_SUMMARY.md](./TILESET_IMPLEMENTATION_SUMMARY.md) - Implementation summary
+- [CROP_RESIDUE_FACTORS.md](./CROP_RESIDUE_FACTORS.md) - Residue factors and JSON template

@@ -155,7 +155,14 @@ Key references:
 2. Determining which `residue_type` values match filter criteria
 3. O(1) lookups for any chemical composition data
 
-See `CROP_RESIDUE_FACTORS.md` for the complete `feedstock_definitions.json` template.
+See [CROP_RESIDUE_FACTORS.md](./CROP_RESIDUE_FACTORS.md) for the complete `feedstock_definitions.json` template.
+
+## Related Documentation
+
+- [TILESET_SPECIFICATIONS.md](./TILESET_SPECIFICATIONS.md) - Complete tileset specifications
+- [TILESET_QUICK_REFERENCE.md](./TILESET_QUICK_REFERENCE.md) - Quick reference guide
+- [CROP_RESIDUE_FACTORS.md](./CROP_RESIDUE_FACTORS.md) - Residue factors and JSON template
+- [FEEDSTOCK_FILTERS_QUICK_START.md](./FEEDSTOCK_FILTERS_QUICK_START.md) - Quick start guide for filters
 
 ## Technical Implementation Details
 
