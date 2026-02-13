@@ -464,3 +464,4 @@ This document lists all crops assigned to each feedstock category with their cha
 3. **Energy values** are on dry basis
 4. **Processing suitability** based on scientific research and industry standards
 5. Some crops fit multiple uses (e.g., alfalfa can be used for AD, combustion, or bedding)
+
