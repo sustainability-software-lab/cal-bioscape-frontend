@@ -20,14 +20,12 @@ import {
  TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { 
-  ORCHARD_VINEYARD_RESIDUES, 
-  ROW_CROP_RESIDUES, 
-  FIELD_CROP_RESIDUES, 
   CROP_NAME_MAPPING,
   FEEDSTOCK_CATEGORIES,
   MOISTURE_CONTENT_LEVELS,
   ENERGY_CONTENT_LEVELS,
-  getFeedstockCharacteristics
+  getFeedstockCharacteristics,
+  getCropResidueFactors // Added this
 } from '@/lib/constants';
 
 // Define a minimal type for the mapbox map instance to avoid using 'any'
@@ -161,44 +159,39 @@ const LayerControls: React.FC<LayerControlsProps> = ({
   
   // Function to check if a crop is available in the selected month range
   const isCropAvailableInRange = (cropName: string, range: [number, number]): boolean => {
-    // Get standardized crop name
-    const standardizedName = CROP_NAME_MAPPING[cropName as keyof typeof CROP_NAME_MAPPING];
-    if (!standardizedName) return true; // If not found, assume always available
+    // Use the helper to get factors which now includes seasonal availability from the dynamic source
+    const factorsArray = getCropResidueFactors(cropName);
     
-    // Find the crop in the residue tables
-    let seasonalData;
-    if (standardizedName in ORCHARD_VINEYARD_RESIDUES) {
-      seasonalData = ORCHARD_VINEYARD_RESIDUES[standardizedName as keyof typeof ORCHARD_VINEYARD_RESIDUES].seasonalAvailability;
-    } else if (standardizedName in ROW_CROP_RESIDUES) {
-      seasonalData = ROW_CROP_RESIDUES[standardizedName as keyof typeof ROW_CROP_RESIDUES].seasonalAvailability;
-    } else if (standardizedName in FIELD_CROP_RESIDUES) {
-      seasonalData = FIELD_CROP_RESIDUES[standardizedName as keyof typeof FIELD_CROP_RESIDUES].seasonalAvailability;
-    }
-    
-    if (!seasonalData) return true; // If no seasonal data, assume always available
-    
-    // Check if crop is available in any month within the selected range
-    const [startMonth, endMonth] = range;
-    
-    // Handle cases where the range wraps around (e.g., Nov-Feb)
-    if (startMonth <= endMonth) {
-      // Normal range (e.g., Mar-Jul)
-      for (let i = startMonth; i <= endMonth; i++) {
-        if (seasonalData[getMonthAbbr(i)]) return true;
+    // If no data, assume always available (or should it be false? Original code assumed true if not found in mapping)
+    if (!factorsArray || factorsArray.length === 0) return true;
+
+    // Check if ANY of the residue streams for this crop are available in the range
+    return factorsArray.some(factor => {
+      const seasonalData = factor.seasonalAvailability;
+      if (!seasonalData) return false;
+
+      // Check if crop is available in any month within the selected range
+      const [startMonth, endMonth] = range;
+      
+      // Handle cases where the range wraps around (e.g., Nov-Feb)
+      if (startMonth <= endMonth) {
+        // Normal range (e.g., Mar-Jul)
+        for (let i = startMonth; i <= endMonth; i++) {
+          if (seasonalData[getMonthAbbr(i)]) return true;
+        }
+      } else {
+        // Wrapped range (e.g., Nov-Feb)
+        // Check from start to December
+        for (let i = startMonth; i < 12; i++) {
+          if (seasonalData[getMonthAbbr(i)]) return true;
+        }
+        // Check from January to end
+        for (let i = 0; i <= endMonth; i++) {
+          if (seasonalData[getMonthAbbr(i)]) return true;
+        }
       }
-    } else {
-      // Wrapped range (e.g., Nov-Feb)
-      // Check from start to December
-      for (let i = startMonth; i < 12; i++) {
-        if (seasonalData[getMonthAbbr(i)]) return true;
-      }
-      // Check from January to end
-      for (let i = 0; i <= endMonth; i++) {
-        if (seasonalData[getMonthAbbr(i)]) return true;
-      }
-    }
-    
-    return false; // Not available in any month within range
+      return false;
+    });
   };
   
   // Comprehensive filter function that checks all selected filter criteria
@@ -212,7 +205,8 @@ const LayerControls: React.FC<LayerControlsProps> = ({
     if (!seasonalMatch) return false;
     
     // Get feedstock characteristics
-    const characteristics = getFeedstockCharacteristics(cropName);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const characteristics = getFeedstockCharacteristics(cropName) as any; // Cast to any to handle new property safely if TS complains
     // If no characteristics defined, hide the crop (can't determine if it matches filters)
     if (!characteristics) return false;
     
@@ -225,7 +219,16 @@ const LayerControls: React.FC<LayerControlsProps> = ({
     // Check if crop matches selected moisture levels
     // If no moisture levels selected (empty array), hide everything
     if (selectedMoistureLevels.length === 0) return false;
-    const moistureMatch = selectedMoistureLevels.includes(characteristics.moistureLevel);
+    
+    // Handle both single level (legacy/fallback) and array of levels (new)
+    let moistureMatch = false;
+    if (characteristics.moistureLevels && Array.isArray(characteristics.moistureLevels)) {
+      // Check if ANY of the crop's moisture levels match ANY of the selected levels
+      moistureMatch = characteristics.moistureLevels.some((level: string) => selectedMoistureLevels.includes(level));
+    } else {
+      moistureMatch = selectedMoistureLevels.includes(characteristics.moistureLevel);
+    }
+    
     if (!moistureMatch) return false;
     
     // Check if crop matches selected energy levels

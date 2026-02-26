@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useCallback, useEffect } from 'react'; // Added useEffect
 import dynamic from 'next/dynamic';
+import { fetchResidueData } from '@/lib/residue-data';
 // Removed useSWRInfinite import
 const Map = dynamic(() => import('@/components/Map'), { ssr: false });
 import LayerControls from '@/components/LayerControls'; // Import the new LayerControls component
@@ -41,6 +42,12 @@ export default function Home() {
 
   // State for panel collapse
   const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
+
+  // Effect to fetch residue data on mount
+  useEffect(() => {
+    fetchResidueData()
+      .catch(err => console.error("Failed to load residue data:", err));
+  }, []);
 
   // Effect to dispatch resize event when panel collapses/expands
   useEffect(() => {

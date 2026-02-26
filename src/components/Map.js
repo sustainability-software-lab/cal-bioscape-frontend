@@ -7,7 +7,7 @@ import * as turf from '@turf/turf'; // Import TurfJS
 import SitingButton from './SitingButton';
 import SitingAnalysis from './SitingAnalysis';
 import SitingInventory from './SitingInventory'; // Import the new component
-import { INFRASTRUCTURE_LAYERS } from '@/lib/constants';
+import { INFRASTRUCTURE_LAYERS, getCropResidueFactors } from '@/lib/constants';
 import { TILESET_REGISTRY } from '@/lib/tileset-registry'; // Import centralized tileset registry
 import { layerLabelMappings } from '@/lib/labelMappings';
 
@@ -2346,206 +2346,58 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
             const cropName = properties.main_crop_name;
             const acres = parseFloat(properties.acres) || 0;
             
-            // Import crop residue factor mappings from constants
-            const CROP_NAME_MAPPING = {
-              // Orchard and Vineyard crops
-              "Apples": "Apples",
-              "Apricots": "Apricots",
-              "Avocados": "Avocados",
-              "Cherries": "Cherries",
-              "Dates": "Dates",
-              "Figs": "Figs",
-              "Grapes": "Grapes",
-              "Kiwis": "Kiwifruit",
-              "Nectarines": "Nectarines",
-              "Olives": "Olives",
-              "Peaches/Nectarines": "Peaches",
-              "Pears": "Pears",
-              "Persimmons": "Persimmons",
-              "Plums": "Plums & Prunes",
-              "Prunes": "Plums & Prunes",
-              "Pomegranates": "Pomegranates",
-              "Citrus and Subtropical": "All Citrus",
-              "Miscellaneous Subtropical Fruits": "All Citrus",
-              "Almonds": "Almonds",
-              "Pecans": "Pecans",
-              "Pistachios": "Pistachios",
-              "Walnuts": "Walnuts",
-              "Miscellaneous Deciduous": "Fruits & Nuts unsp.",
-              
-              // Row crops
-              "Artichokes": "Artichokes",
-              "Asparagus": "Asparagus",
-              "Bush Berries": "Berries",
-              "Beans (Dry)": "Beans",
-              "Lima Beans": "Lima Beans",
-              "Green Lima Beans": "Green Lima Beans",
-              "Broccoli": "Broccoli",
-              "Cabbage": "Cabbage",
-              "Cole Crops": "Cabbage",
-              "Melons, Squash and Cucumbers": "Combined Melons",
-              "Carrots": "Carrots",
-              "Cauliflower": "Cauliflower",
-              "Celery": "Celery",
-              "Cucumbers": "Cucumbers",
-              "Garlic": "Garlic",
-              "Lettuce/Leafy Greens": "Lettuce and Romaine",
-              "Onions and Garlic": "Dry Onions",
-              "Peppers": "Hot Peppers",
-              "Sweet Peppers": "Sweet Peppers",
-              "Spinach": "Spinach",
-              "Squash": "Squash",
-              "Sweet Corn": "Sweet Corn",
-              "Tomatoes": "Tomatoes",
-              "Potatoes": "Potatoes",
-              "Sweet Potatoes": "Sweet Potatos",
-              "Sugar beets": "Sugar Beets",
-              "Miscellaneous Truck Crops": "Unsp. vegetables",
-              
-              // Field crops
-              "Corn, Sorghum and Sudan": "Corn",
-              "Sorghum": "Sorghum",
-              "Wheat": "Wheat",
-              "Barley": "Barley",
-              "Oats": "Oats",
-              "Rice": "Rice",
-              "Wild Rice": "Rice",
-              "Safflower": "Safflower",
-              "Sunflowers": "Sunflower",
-              "Cotton": "Cotton",
-              "Alfalfa & Alfalfa Mixtures": "Alfalfa",
-              "Miscellaneous Field Crops": "Unsp. Field & Seed",
-              "Miscellaneous Grain and Hay": "Unsp. Field & Seed",
-              "Miscellaneous Grasses": "Bermuda Grass Seed"
-            };
-
-            // Orchard and Vineyard Residues
-            const ORCHARD_VINEYARD_RESIDUES = {
-              "Apples": { wetTonsPerAcre: 1.9, moistureContent: 0.4, dryTonsPerAcre: 1.2 },
-              "Apricots": { wetTonsPerAcre: 2.5, moistureContent: 0.4, dryTonsPerAcre: 1.5 },
-              "Avocados": { wetTonsPerAcre: 1.5, moistureContent: 0.4, dryTonsPerAcre: 0.9 },
-              "Cherries": { wetTonsPerAcre: 2.1, moistureContent: 0.4, dryTonsPerAcre: 1.2 },
-              "Dates": { wetTonsPerAcre: 0.6, moistureContent: 0.43, dryTonsPerAcre: 0.3 },
-              "Figs": { wetTonsPerAcre: 2.2, moistureContent: 0.43, dryTonsPerAcre: 1.3 },
-              "Grapes": { wetTonsPerAcre: 2.0, moistureContent: 0.45, dryTonsPerAcre: 1.1 },
-              "Kiwifruit": { wetTonsPerAcre: 2.0, moistureContent: 0.45, dryTonsPerAcre: 1.1 },
-              "Nectarines": { wetTonsPerAcre: 1.6, moistureContent: 0.43, dryTonsPerAcre: 0.9 },
-              "Olives": { wetTonsPerAcre: 1.1, moistureContent: 0.43, dryTonsPerAcre: 0.7 },
-              "Peaches": { wetTonsPerAcre: 2.3, moistureContent: 0.43, dryTonsPerAcre: 1.3 },
-              "Pears": { wetTonsPerAcre: 2.3, moistureContent: 0.4, dryTonsPerAcre: 1.4 },
-              "Persimmons": { wetTonsPerAcre: 1.6, moistureContent: 0.43, dryTonsPerAcre: 0.9 },
-              "Plums & Prunes": { wetTonsPerAcre: 1.5, moistureContent: 0.43, dryTonsPerAcre: 0.9 },
-              "Pomegranates": { wetTonsPerAcre: 1.6, moistureContent: 0.43, dryTonsPerAcre: 0.9 },
-              "All Citrus": { wetTonsPerAcre: 2.5, moistureContent: 0.4, dryTonsPerAcre: 1.5 },
-              "Almonds": { wetTonsPerAcre: 2.5, moistureContent: 0.4, dryTonsPerAcre: 1.5 },
-              "Pecans": { wetTonsPerAcre: 1.6, moistureContent: 0.4, dryTonsPerAcre: 1.0 },
-              "Pistachios": { wetTonsPerAcre: 1.0, moistureContent: 0.43, dryTonsPerAcre: 0.6 },
-              "Walnuts": { wetTonsPerAcre: 1.0, moistureContent: 0.43, dryTonsPerAcre: 0.6 },
-              "Fruits & Nuts unsp.": { wetTonsPerAcre: 1.6, moistureContent: 0.5, dryTonsPerAcre: 0.8 }
-            };
-
-            // Row Crop Residues
-            const ROW_CROP_RESIDUES = {
-              "Artichokes": { residueType: "Top Silage", wetTonsPerAcre: 1.7, moistureContent: 0.73, dryTonsPerAcre: 0.5 },
-              "Asparagus": { residueType: "", wetTonsPerAcre: 2.2, moistureContent: 0.8, dryTonsPerAcre: 0.4 },
-              "Green Lima Beans": { residueType: "Vines and Leaves", wetTonsPerAcre: 1.0, moistureContent: 0.8, dryTonsPerAcre: 0.2 },
-              "Berries": { residueType: "Prunings and Leaves", wetTonsPerAcre: 1.3, moistureContent: 0.4, dryTonsPerAcre: 0.8 },
-              "Snap Beans": { residueType: "Vines and Leaves", wetTonsPerAcre: 1.0, moistureContent: 0.8, dryTonsPerAcre: 0.2 },
-              "Broccoli": { residueType: "", wetTonsPerAcre: 1.0, moistureContent: 0.8, dryTonsPerAcre: 0.2 },
-              "Cabbage": { residueType: "", wetTonsPerAcre: 1.0, moistureContent: 0.8, dryTonsPerAcre: 0.2 },
-              "Combined Melons": { residueType: "Vines and Leaves", wetTonsPerAcre: 1.2, moistureContent: 0.8, dryTonsPerAcre: 0.2 },
-              "Carrots": { residueType: "Top Silage", wetTonsPerAcre: 1.0, moistureContent: 0.84, dryTonsPerAcre: 0.2 },
-              "Cauliflower": { residueType: "", wetTonsPerAcre: 1.0, moistureContent: 0.8, dryTonsPerAcre: 0.2 },
-              "Celery": { residueType: "", wetTonsPerAcre: 1.0, moistureContent: 0.8, dryTonsPerAcre: 0.2 },
-              "Cucumbers": { residueType: "Vines and Leaves", wetTonsPerAcre: 1.7, moistureContent: 0.8, dryTonsPerAcre: 0.3 },
-              "Garlic": { residueType: "", wetTonsPerAcre: 1.0, moistureContent: 0.73, dryTonsPerAcre: 0.3 },
-              "Lettuce and Romaine": { residueType: "", wetTonsPerAcre: 1.0, moistureContent: 0.8, dryTonsPerAcre: 0.2 },
-              "Dry Onions": { residueType: "", wetTonsPerAcre: 1.0, moistureContent: 0.73, dryTonsPerAcre: 0.3 },
-              "Green Onions": { residueType: "", wetTonsPerAcre: 1.0, moistureContent: 0.73, dryTonsPerAcre: 0.3 },
-              "Hot Peppers": { residueType: "Stems & Leaf Meal", wetTonsPerAcre: 1.0, moistureContent: 0.8, dryTonsPerAcre: 0.2 },
-              "Sweet Peppers": { residueType: "Stems & Leaf Meal", wetTonsPerAcre: 1.0, moistureContent: 0.8, dryTonsPerAcre: 0.2 },
-              "Spinach": { residueType: "", wetTonsPerAcre: 1.0, moistureContent: 0.8, dryTonsPerAcre: 0.2 },
-              "Squash": { residueType: "Vines and Leaves", wetTonsPerAcre: 1.2, moistureContent: 0.8, dryTonsPerAcre: 0.2 },
-              "Sweet Corn": { residueType: "Stover", wetTonsPerAcre: 4.7, moistureContent: 0.2, dryTonsPerAcre: 3.8 },
-              "Tomatoes": { residueType: "Vines and Leaves", wetTonsPerAcre: 1.3, moistureContent: 0.8, dryTonsPerAcre: 0.3 },
-              "Unsp. vegetables": { residueType: "", wetTonsPerAcre: 1.4, moistureContent: 0.8, dryTonsPerAcre: 0.3 },
-              "Potatoes": { residueType: "Vines and Leaves", wetTonsPerAcre: 1.2, moistureContent: 0.8, dryTonsPerAcre: 0.2 },
-              "Sweet Potatos": { residueType: "Vines and Leaves", wetTonsPerAcre: 1.2, moistureContent: 0.8, dryTonsPerAcre: 0.2 },
-              "Sugar Beets": { residueType: "Top Silage", wetTonsPerAcre: 2.4, moistureContent: 0.75, dryTonsPerAcre: 0.6 }
-            };
-
-            // Field Crop Residues
-            const FIELD_CROP_RESIDUES = {
-              "Corn": { residueType: "Stover", wetTonsPerAcre: 2.9, moistureContent: 0.2, dryTonsPerAcre: 2.3 },
-              "Sorghum": { residueType: "Stover", wetTonsPerAcre: 2.2, moistureContent: 0.2, dryTonsPerAcre: 1.8 },
-              "Wheat": { residueType: "Straw & Stubble", wetTonsPerAcre: 1.2, moistureContent: 0.14, dryTonsPerAcre: 1.0 },
-              "Barley": { residueType: "Straw & Stubble", wetTonsPerAcre: 0.9, moistureContent: 0.15, dryTonsPerAcre: 0.7 },
-              "Oats": { residueType: "Straw & Stubble", wetTonsPerAcre: 0.5, moistureContent: 0.15, dryTonsPerAcre: 0.4 },
-              "Rice": { residueType: "Straw", wetTonsPerAcre: 1.8, moistureContent: 0.14, dryTonsPerAcre: 1.6 },
-              "Safflower": { residueType: "Straw & Stubble", wetTonsPerAcre: 0.9, moistureContent: 0.14, dryTonsPerAcre: 0.8 },
-              "Sunflower": { residueType: "Straw & Stubble", wetTonsPerAcre: 0.9, moistureContent: 0.14, dryTonsPerAcre: 0.8 },
-              "Cotton": { residueType: "Straw & Stubble", wetTonsPerAcre: 1.5, moistureContent: 0.14, dryTonsPerAcre: 1.3 },
-              "Beans": { residueType: "vines and leaves", wetTonsPerAcre: 1.0, moistureContent: 0.8, dryTonsPerAcre: 0.2 },
-              "Lima Beans": { residueType: "Vines and Leaves", wetTonsPerAcre: 1.0, moistureContent: 0.8, dryTonsPerAcre: 0.2 },
-              "Alfalfa": { residueType: "Stems & Leaf Meal", wetTonsPerAcre: 1.0, moistureContent: 0.11, dryTonsPerAcre: 0.9 },
-              "Bermuda Grass Seed": { residueType: "Grass", wetTonsPerAcre: 1.0, moistureContent: 0.6, dryTonsPerAcre: 0.4 },
-              "Unsp. Field & Seed": { residueType: "Stubble", wetTonsPerAcre: 1.0, moistureContent: 0.14, dryTonsPerAcre: 0.86 }
-            };
-
-            // Function to get crop residue factors
-            const getCropResidueFactors = (cropName) => {
-              // Get the standardized crop name from mapping
-              const standardizedName = CROP_NAME_MAPPING[cropName] || null;
-              
-              if (!standardizedName) {
-                return null;
-              }
-              
-              // Check each residue category
-              if (ORCHARD_VINEYARD_RESIDUES[standardizedName]) {
-                return {
-                  ...ORCHARD_VINEYARD_RESIDUES[standardizedName],
-                  category: 'Orchard and Vineyard',
-                  residueType: 'Prunings'
-                };
-              }
-              
-              if (ROW_CROP_RESIDUES[standardizedName]) {
-                return {
-                  ...ROW_CROP_RESIDUES[standardizedName],
-                  category: 'Row Crop'
-                };
-              }
-              
-              if (FIELD_CROP_RESIDUES[standardizedName]) {
-                return {
-                  ...FIELD_CROP_RESIDUES[standardizedName],
-                  category: 'Field Crop'
-                };
-              }
-              
-              return null;
-            };
+            // Use imported getCropResidueFactors instead of local definition
 
             // Calculate residue yields
             let residueSection = '';
-            const residueFactors = getCropResidueFactors(cropName);
+            const residueFactorsArray = getCropResidueFactors(cropName);
             
-            if (residueFactors) {
-              // Calculate total residue amounts based on the harvested area (acres)
-              const dryResidueYield = Math.round(acres * residueFactors.dryTonsPerAcre);
-              const wetResidueYield = Math.round(acres * residueFactors.wetTonsPerAcre);
-              const residueType = residueFactors.residueType || 'Residue';
-              
+            if (residueFactorsArray && residueFactorsArray.length > 0) {
               // Add residue information to the popup
               residueSection = `
                 <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #eaeaea;">
                   <h5 style="font-size: 0.95em; font-weight: bold; margin: 0 0 5px 0;">Annual Crop Residue Estimates</h5>
-                  <div style="margin-bottom: 3px; text-align: left;"><strong style="font-weight: bold;">Residue Type:</strong> ${residueType}</div>
-                  <div style="margin-bottom: 3px; text-align: left;"><strong style="font-weight: bold;">Wet Tonnage:</strong> ${formatNumberWithCommas(wetResidueYield)} tons/year</div>
-                  <div style="margin-bottom: 3px; text-align: left;"><strong style="font-weight: bold;">Dry Tonnage:</strong> ${formatNumberWithCommas(dryResidueYield)} tons/year</div>
-                </div>
               `;
+
+              // Calculate totals for summary
+              let totalWet = 0;
+              let totalDry = 0;
+
+              residueFactorsArray.forEach((factor, index) => {
+                const dryYield = Math.round(acres * factor.dryTonsPerAcre);
+                const wetYield = Math.round(acres * factor.wetTonsPerAcre);
+                totalWet += wetYield;
+                totalDry += dryYield;
+
+                const name = factor.resourceName || factor.residueType || 'Residue';
+                
+                // Add separator between multiple streams
+                if (index > 0) {
+                  residueSection += `<div style="height: 1px; background-color: #f0f0f0; margin: 5px 0;"></div>`;
+                }
+
+                residueSection += `
+                  <div style="margin-bottom: 2px; margin-top: 2px;">
+                    <div style="font-weight: bold; font-size: 0.9em; color: #555;">${name}</div>
+                    <div style="padding-left: 8px;">
+                      <div style="margin-bottom: 1px; text-align: left; font-size: 0.85em;">Wet: ${formatNumberWithCommas(wetYield)} tons/yr</div>
+                      <div style="margin-bottom: 1px; text-align: left; font-size: 0.85em;">Dry: ${formatNumberWithCommas(dryYield)} tons/yr</div>
+                    </div>
+                  </div>
+                `;
+              });
+
+              // Add totals if there are multiple streams
+              if (residueFactorsArray.length > 1) {
+                 residueSection += `
+                  <div style="margin-top: 8px; pt-2; border-top: 1px dashed #ccc; font-weight: bold;">
+                    <div style="margin-bottom: 3px; text-align: left;">Total Wet: ${formatNumberWithCommas(totalWet)} tons/year</div>
+                    <div style="margin-bottom: 3px; text-align: left;">Total Dry: ${formatNumberWithCommas(totalDry)} tons/year</div>
+                  </div>
+                `;
+              }
+
+              residueSection += `</div>`;
             }
 
             // Increase right padding for close button spacing, remove table

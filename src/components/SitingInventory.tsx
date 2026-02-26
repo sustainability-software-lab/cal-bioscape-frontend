@@ -40,18 +40,35 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
   // Calculate residue yields for each crop in the inventory
   const inventoryWithResidues: CropInventoryWithResidue[] = React.useMemo(() => {
     return inventory.map(crop => {
-      const residueFactors = getCropResidueFactors(crop.name);
+      // Get array of factors (one per residue stream)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const residueFactorsArray = getCropResidueFactors(crop.name) as any[];
       
-      if (residueFactors) {
+      if (residueFactorsArray && residueFactorsArray.length > 0) {
+        let totalDryTonsPerAcre = 0;
+        let totalWetTonsPerAcre = 0;
+        const types = new Set<string>();
+
+        // Sum up factors from all residue streams
+        residueFactorsArray.forEach(factor => {
+          totalDryTonsPerAcre += factor.dryTonsPerAcre || 0;
+          totalWetTonsPerAcre += factor.wetTonsPerAcre || 0;
+          if (factor.residueType) {
+            types.add(factor.residueType);
+          } else if (factor.resourceName) {
+             types.add(factor.resourceName);
+          }
+        });
+
         // Calculate total residue amounts based on the harvested area (acres)
-        const dryResidueYield = Math.round(crop.acres * residueFactors.dryTonsPerAcre);
-        const wetResidueYield = Math.round(crop.acres * residueFactors.wetTonsPerAcre);
+        const dryResidueYield = Math.round(crop.acres * totalDryTonsPerAcre);
+        const wetResidueYield = Math.round(crop.acres * totalWetTonsPerAcre);
         
         return {
           ...crop,
           dryResidueYield,
           wetResidueYield,
-          residueType: residueFactors.residueType || 'Residue'
+          residueType: Array.from(types).join(', ') || 'Residue'
         };
       }
       
