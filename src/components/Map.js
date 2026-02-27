@@ -2550,7 +2550,17 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
       console.log('Closed popup because feedstock layer was hidden');
     }
 
-  }, [mapLoaded, layerVisibility?.feedstock]); // Depend on mapLoaded and the specific layerVisibility property
+    // Re-run siting analysis if it's currently active, after the map has had time to re-render
+    if (sitingModeRef.current && currentBuffer.current) {
+      map.current.once('idle', () => {
+        if (sitingModeRef.current && currentBuffer.current) {
+          console.log("Re-running inventory analysis due to feedstock layer visibility change");
+          analyzeResourcesInBuffer(currentBuffer.current);
+        }
+      });
+    }
+
+  }, [mapLoaded, layerVisibility?.feedstock, analyzeResourcesInBuffer]); // Depend on mapLoaded, visibility, and analyzeResourcesInBuffer
 
   // Effect for updating the crop filter based on visibleCrops prop
   useEffect(() => {
@@ -2586,7 +2596,17 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
       }
     }
 
-}, [mapLoaded, visibleCrops]); // Depend on mapLoaded and visibleCrops
+    // Re-run siting analysis if it's currently active, after the map has had time to re-render
+    if (sitingModeRef.current && currentBuffer.current) {
+      map.current.once('idle', () => {
+        if (sitingModeRef.current && currentBuffer.current) {
+          console.log("Re-running inventory analysis due to filter change");
+          analyzeResourcesInBuffer(currentBuffer.current);
+        }
+      });
+    }
+
+}, [mapLoaded, visibleCrops, analyzeResourcesInBuffer]); // Depend on mapLoaded, visibleCrops, and analyzeResourcesInBuffer
 
 // Effect for updating the cropland layer opacity
 useEffect(() => {

@@ -263,7 +263,9 @@ const LayerControls: React.FC<LayerControlsProps> = ({
           }
           
           // Create a filter that shows only visible crops
-          const visibleCropFilter = ['match', ['get', 'main_crop_name'], visibleCrops, true, false];
+          const visibleCropFilter = visibleCrops.length > 0
+            ? ['match', ['get', 'main_crop_name'], visibleCrops, true, false]
+            : ['==', ['get', 'main_crop_name'], '___NO_MATCH___']; // Hide all
           // Combine with the existing base filter that excludes 'U' code
           const combinedFilter = ['all', ['!=', ['get', 'main_crop_code'], 'U'], visibleCropFilter];
           
@@ -301,14 +303,22 @@ const LayerControls: React.FC<LayerControlsProps> = ({
             mapInstance.setLayoutProperty('feedstock-vector-layer', 'visibility', 'visible');
           }
           
-          // Create a filter that shows only visible crops
-          const visibleCropFilter = ['match', ['get', 'main_crop_name'], visibleCrops, true, false];
-          // Combine with the existing base filter that excludes 'U' code
-          const combinedFilter = ['all', ['!=', ['get', 'main_crop_code'], 'U'], visibleCropFilter];
-          
-          // Apply the filter directly to the map
-          mapInstance.setFilter('feedstock-vector-layer', combinedFilter);
-          console.log(`Applied comprehensive filters (${visibleCrops.length} crops visible)`);
+          if (visibleCrops.length === allCropNames.length) {
+            // Show everything (except U) when all tracked crops are visible
+            mapInstance.setFilter('feedstock-vector-layer', ['!=', ['get', 'main_crop_code'], 'U']);
+            console.log(`Applied comprehensive filters (All ${visibleCrops.length} tracked crops visible, showing all dataset features)`);
+          } else {
+            // Create a filter that shows only visible crops
+            const visibleCropFilter = visibleCrops.length > 0
+              ? ['match', ['get', 'main_crop_name'], visibleCrops, true, false]
+              : ['==', ['get', 'main_crop_name'], '___NO_MATCH___']; // Hide all
+            // Combine with the existing base filter that excludes 'U' code
+            const combinedFilter = ['all', ['!=', ['get', 'main_crop_code'], 'U'], visibleCropFilter];
+            
+            // Apply the filter directly to the map
+            mapInstance.setFilter('feedstock-vector-layer', combinedFilter);
+            console.log(`Applied comprehensive filters (${visibleCrops.length} crops visible)`);
+          }
         } catch (err) {
           console.error('Error applying comprehensive filters:', err);
         }
@@ -369,7 +379,9 @@ const LayerControls: React.FC<LayerControlsProps> = ({
           }
           
           // Create a filter that shows only visible crops
-          const visibleCropFilter = ['match', ['get', 'main_crop_name'], visibleCrops, true, false];
+          const visibleCropFilter = visibleCrops.length > 0
+            ? ['match', ['get', 'main_crop_name'], visibleCrops, true, false]
+            : ['==', ['get', 'main_crop_name'], '___NO_MATCH___']; // Hide all
           // Combine with the existing base filter that excludes 'U' code
           const combinedFilter = ['all', ['!=', ['get', 'main_crop_code'], 'U'], visibleCropFilter];
           
@@ -456,7 +468,9 @@ const LayerControls: React.FC<LayerControlsProps> = ({
             mapInstance.setFilter('feedstock-vector-layer', ['!=', ['get', 'main_crop_code'], 'U']);
           } else {
             // Create a filter that shows only visible crops
-            const visibleCropFilter = ['match', ['get', 'main_crop_name'], visibleCrops, true, false];
+            const visibleCropFilter = visibleCrops.length > 0
+              ? ['match', ['get', 'main_crop_name'], visibleCrops, true, false]
+              : ['==', ['get', 'main_crop_name'], '___NO_MATCH___']; // Hide all
             // Combine with the existing base filter that excludes 'U' code
             const combinedFilter = ['all', ['!=', ['get', 'main_crop_code'], 'U'], visibleCropFilter];
             
