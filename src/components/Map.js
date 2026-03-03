@@ -10,6 +10,9 @@ import SitingInventory from './SitingInventory'; // Import the new component
 import { INFRASTRUCTURE_LAYERS, getCropResidueFactors } from '@/lib/constants';
 import { TILESET_REGISTRY } from '@/lib/tileset-registry'; // Import centralized tileset registry
 import { layerLabelMappings } from '@/lib/labelMappings';
+import { getAvailability, getAnalysisByResource, getCensusByCrop } from '@/lib/api';
+import { getCountyGeoid } from '@/lib/county-lookup';
+import { getApiResource, getUsdaCropName } from '@/lib/resource-mapping';
 
 // --- Configuration ---
 // IMPORTANT: Replace with your actual Mapbox access token if using the placeholder.
@@ -34,7 +37,7 @@ if (MAPBOX_ACCESS_TOKEN && MAPBOX_ACCESS_TOKEN !== 'YOUR_MAPBOX_ACCESS_TOKEN') {
 
 
 // Accept props for data and visibility
-const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added visibleCrops & croplandOpacity props
+const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange }) => { // Added visibleCrops, croplandOpacity, onGeoidsChange props
   
   // Define cleanupSitingElements at the very beginning to avoid temporal dead zone issues
   const cleanupSitingElements = useCallback(() => {
@@ -194,6 +197,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
   const [inventoryData, setInventoryData] = useState([]);
   const [totalAcres, setTotalAcres] = useState(0);
   const [markerLocation, setMarkerLocation] = useState(null);
+  const [bufferGeoids, setBufferGeoids] = useState([]);
 
   // Define crop color mapping
   const cropColorMapping = useMemo(() => ({
@@ -605,7 +609,22 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
       
       console.log("Resource inventory:", inventoryArray);
       console.log("Total acres in buffer:", bufferTotalAcres);
-      
+
+      // Collect unique county GEOIDs from features within the buffer and propagate up
+      const countyGeoidsInBuffer = new Set();
+      features.forEach(feature => {
+        const county = feature.properties?.county;
+        if (county) {
+          const geoid = getCountyGeoid(county);
+          if (geoid) countyGeoidsInBuffer.add(geoid);
+        }
+      });
+      const geoidsArray = Array.from(countyGeoidsInBuffer);
+      setBufferGeoids(geoidsArray);
+      if (onGeoidsChange) {
+        onGeoidsChange(geoidsArray);
+      }
+
       // Update the state to show the inventory
       setInventoryData(inventoryArray);
       setTotalAcres(bufferTotalAcres);
@@ -2400,12 +2419,24 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
               residueSection += `</div>`;
             }
 
+            // --- Derive geoid and resource name for API calls ---
+            const countyGeoid = getCountyGeoid(properties.county || '');
+            const apiResource = getApiResource(cropName);
+            const usdaCrop = getUsdaCropName(cropName);
+            const apiSectionId = `api-data-${Date.now()}`;
+
+            // Initial loading HTML for the API section
+            const apiLoadingHTML = countyGeoid && (apiResource || usdaCrop)
+              ? `<div id="${apiSectionId}" style="margin-top:10px;padding-top:10px;border-top:1px solid #eaeaea;font-size:0.85em;color:#777;">Loading live data…</div>`
+              : '';
+
             // Increase right padding for close button spacing, remove table
             const popupHTML = `
               <div style="padding: 5px 15px 5px 5px; font-size: 0.9em;">
                 <h4 style="font-size: 1.1em; font-weight: bold; margin: 0 0 8px 0; padding: 0; text-align: left;">Crop Field Details</h4>
                 ${contentLines}
                 ${residueSection}
+                ${apiLoadingHTML}
               </div>
             `;
 
@@ -2431,6 +2462,66 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
               currentPopup.current = null;
               console.log('Popup closed manually');
             });
+
+            // --- Async API enrichment ---
+            if (countyGeoid && (apiResource || usdaCrop)) {
+              (async () => {
+                try {
+                  const [availResult, analysisResult, censusResult] = await Promise.allSettled([
+                    apiResource ? getAvailability(apiResource, countyGeoid) : Promise.resolve(null),
+                    apiResource ? getAnalysisByResource(apiResource, countyGeoid) : Promise.resolve(null),
+                    usdaCrop   ? getCensusByCrop(usdaCrop, countyGeoid) : Promise.resolve(null),
+                  ]);
+
+                  const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                  let apiHTML = '';
+
+                  // Availability
+                  const avail = availResult.status === 'fulfilled' ? availResult.value : null;
+                  if (avail && avail.from_month && avail.to_month) {
+                    const from = MONTH_NAMES[avail.from_month - 1] || avail.from_month;
+                    const to   = MONTH_NAMES[avail.to_month   - 1] || avail.to_month;
+                    apiHTML += `<div style="margin-bottom:3px;"><strong>Availability:</strong> ${from}–${to}</div>`;
+                  }
+
+                  // Analysis: moisture + heating value
+                  const analysis = analysisResult.status === 'fulfilled' ? analysisResult.value : null;
+                  if (analysis && analysis.data && analysis.data.length > 0) {
+                    analysis.data.forEach(item => {
+                      const label = item.parameter.replace(/_/g, ' ').replace(/\w\S*/g, t => t.charAt(0).toUpperCase() + t.substr(1).toLowerCase());
+                      apiHTML += `<div style="margin-bottom:3px;"><strong>${label}:</strong> ${item.value} ${item.unit}</div>`;
+                    });
+                  }
+
+                  // Census: harvested acres for county
+                  const census = censusResult.status === 'fulfilled' ? censusResult.value : null;
+                  if (census && Array.isArray(census) && census.length > 0) {
+                    const acresRow = census.find(r => r.parameter && r.parameter.toUpperCase().includes('ACRES HARVESTED'));
+                    if (acresRow) {
+                      apiHTML += `<div style="margin-bottom:3px;"><strong>County Harvested Acres (USDA):</strong> ${acresRow.value.toLocaleString()} ${acresRow.unit}</div>`;
+                    }
+                  }
+
+                  // Update popup DOM element
+                  const apiSection = document.getElementById(apiSectionId);
+                  if (apiSection) {
+                    if (apiHTML) {
+                      apiSection.innerHTML = `
+                        <div style="margin-top:10px;padding-top:10px;border-top:1px solid #eaeaea;">
+                          <h5 style="font-size:0.95em;font-weight:bold;margin:0 0 5px 0;">Live Feedstock Data</h5>
+                          <div style="font-size:0.85em;">${apiHTML}</div>
+                        </div>`;
+                    } else {
+                      apiSection.innerHTML = '';
+                    }
+                  }
+                } catch (err) {
+                  console.warn('[Map] API enrichment failed for popup:', err);
+                  const apiSection = document.getElementById(apiSectionId);
+                  if (apiSection) apiSection.innerHTML = '';
+                }
+              })();
+            }
 
             console.log('Displayed formatted popup for feature:', properties);
           }
@@ -2826,6 +2917,7 @@ useEffect(() => {
         bufferRadius={radius}
         bufferUnit={unit}
         location={markerLocation}
+        geoids={bufferGeoids}
       />
     </div>
   );

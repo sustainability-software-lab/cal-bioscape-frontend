@@ -145,6 +145,7 @@ export default function Home() {
 
   // State for the list of currently visible crops
   const [visibleCrops, setVisibleCrops] = useState<string[]>(allCropNames); // Start with all crops visible
+  const [bufferGeoids, setBufferGeoids] = useState<string[]>([]); // County GEOIDs within the siting buffer
 
   // --- Removed feedstock data fetching logic (useSWRInfinite, getKey, combinedFeedstockData, etc.) ---
 
@@ -312,6 +313,7 @@ export default function Home() {
             layerVisibility={layerVisibility}
             visibleCrops={visibleCrops} // Pass the visible crops state
             croplandOpacity={croplandOpacity} // Pass opacity state
+            onGeoidsChange={setBufferGeoids} // Propagate county GEOIDs up from buffer analysis
           />
         </div>
       </main>

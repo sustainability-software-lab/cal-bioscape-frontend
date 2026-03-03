@@ -5,6 +5,9 @@ import { Card } from "@/components/ui/card";
 import { ChevronDown, Leaf } from 'lucide-react';
 import { getCropResidueFactors } from '@/lib/constants';
 import { formatNumberWithCommas, downloadCSV } from '@/lib/utils';
+import { getAvailability } from '@/lib/api';
+import { getApiResource } from '@/lib/resource-mapping';
+import { CROP_NAME_MAPPING } from '@/lib/constants';
 
 interface CropInventory {
   name: string;
@@ -16,6 +19,9 @@ interface CropInventoryWithResidue extends CropInventory {
   dryResidueYield: number | null;
   wetResidueYield: number | null;
   residueType: string | null;
+  /** Human-readable availability window, e.g. "Aug–Oct" or null while loading */
+  availability: string | null;
+  availabilityLoading: boolean;
 }
 
 interface SitingInventoryProps {
@@ -25,6 +31,19 @@ interface SitingInventoryProps {
   bufferRadius: number;
   bufferUnit: string;
   location?: { lng: number; lat: number } | null;
+  /** County FIPS GEOIDs overlapping the buffer zone (derived from Map.js) */
+  geoids?: string[];
+}
+
+const MONTH_NAMES = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
+
+function formatAvailabilityWindow(fromMonth: number, toMonth: number): string {
+  const from = MONTH_NAMES[fromMonth - 1] ?? String(fromMonth);
+  const to   = MONTH_NAMES[toMonth   - 1] ?? String(toMonth);
+  return `${from}–${to}`;
 }
 
 const SitingInventory: React.FC<SitingInventoryProps> = ({
@@ -33,17 +52,57 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
   totalAcres,
   bufferRadius,
   bufferUnit,
-  location
+  location,
+  geoids,
 }) => {
   const [isCollapsed, setIsCollapsed] = React.useState(false);
-  
+
+  // ---- residue + availability state ----
+  // availability map: LandIQ crop name → display string (or null)
+  const [availabilityMap, setAvailabilityMap] = React.useState<Record<string, string | null>>({});
+  const [availabilityLoading, setAvailabilityLoading] = React.useState(false);
+
+  // Fetch availability from the API whenever the inventory or geoids change
+  React.useEffect(() => {
+    if (!inventory || inventory.length === 0) return;
+
+    // Pick the first (primary) geoid if available; fall back to state-level "06"
+    const geoid = geoids && geoids.length > 0 ? geoids[0] : '06';
+
+    setAvailabilityLoading(true);
+    const newMap: Record<string, string | null> = {};
+
+    const promises = inventory.map(async (crop) => {
+      const apiResource = getApiResource(crop.name);
+      if (!apiResource) {
+        newMap[crop.name] = null;
+        return;
+      }
+      try {
+        const result = await getAvailability(apiResource, geoid);
+        if (result && result.from_month && result.to_month) {
+          newMap[crop.name] = formatAvailabilityWindow(result.from_month, result.to_month);
+        } else {
+          newMap[crop.name] = null;
+        }
+      } catch {
+        newMap[crop.name] = null;
+      }
+    });
+
+    Promise.allSettled(promises).then(() => {
+      setAvailabilityMap({ ...newMap });
+      setAvailabilityLoading(false);
+    });
+  }, [inventory, geoids]);
+
   // Calculate residue yields for each crop in the inventory
   const inventoryWithResidues: CropInventoryWithResidue[] = React.useMemo(() => {
     return inventory.map(crop => {
       // Get array of factors (one per residue stream)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const residueFactorsArray = getCropResidueFactors(crop.name) as any[];
-      
+
       if (residueFactorsArray && residueFactorsArray.length > 0) {
         let totalDryTonsPerAcre = 0;
         let totalWetTonsPerAcre = 0;
@@ -56,71 +115,77 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
           if (factor.residueType) {
             types.add(factor.residueType);
           } else if (factor.resourceName) {
-             types.add(factor.resourceName);
+            types.add(factor.resourceName);
           }
         });
 
         // Calculate total residue amounts based on the harvested area (acres)
         const dryResidueYield = Math.round(crop.acres * totalDryTonsPerAcre);
         const wetResidueYield = Math.round(crop.acres * totalWetTonsPerAcre);
-        
+
         return {
           ...crop,
           dryResidueYield,
           wetResidueYield,
-          residueType: Array.from(types).join(', ') || 'Residue'
+          residueType: Array.from(types).join(', ') || 'Residue',
+          availability: availabilityMap[crop.name] ?? null,
+          availabilityLoading,
         };
       }
-      
+
       return {
         ...crop,
         dryResidueYield: null,
         wetResidueYield: null,
-        residueType: null
+        residueType: null,
+        availability: availabilityMap[crop.name] ?? null,
+        availabilityLoading,
       };
     });
-  }, [inventory]);
-  
+  }, [inventory, availabilityMap, availabilityLoading]);
+
   // Filter out rows with NA values (null residue yields)
   const filteredInventory = React.useMemo(() => {
-    return inventoryWithResidues.filter((crop): crop is CropInventoryWithResidue & { dryResidueYield: number; wetResidueYield: number } => 
+    return inventoryWithResidues.filter((crop): crop is CropInventoryWithResidue & { dryResidueYield: number; wetResidueYield: number } =>
       crop.dryResidueYield !== null && crop.wetResidueYield !== null
     );
   }, [inventoryWithResidues]);
-  
+
   // Calculate total residue yields from filtered inventory
   const totalDryResidue = React.useMemo(() => {
-    return filteredInventory.reduce((sum, crop) => 
+    return filteredInventory.reduce((sum, crop) =>
       sum + (crop.dryResidueYield || 0), 0);
   }, [filteredInventory]);
-  
+
   const totalWetResidue = React.useMemo(() => {
-    return filteredInventory.reduce((sum, crop) => 
+    return filteredInventory.reduce((sum, crop) =>
       sum + (crop.wetResidueYield || 0), 0);
   }, [filteredInventory]);
-  
+
   // Handler for exporting the inventory data as CSV
   const handleExportCSV = () => {
     if (filteredInventory.length === 0) return;
-    
+
     // Format data for CSV
     const csvData = filteredInventory.map(crop => ({
       'Crop Type': crop.name,
       'Acres': Math.round(crop.acres),
       'Percentage': Math.round((crop.acres / totalAcres) * 100) + '%',
       'Dry Residue (tons/year)': crop.dryResidueYield,
-      'Wet Residue (tons/year)': crop.wetResidueYield
+      'Wet Residue (tons/year)': crop.wetResidueYield,
+      'Availability': crop.availability ?? 'N/A',
     }));
-    
+
     // Add a total row
     csvData.push({
       'Crop Type': 'Total',
       'Acres': Math.round(totalAcres),
       'Percentage': '100%',
       'Dry Residue (tons/year)': Math.round(totalDryResidue),
-      'Wet Residue (tons/year)': Math.round(totalWetResidue)
+      'Wet Residue (tons/year)': Math.round(totalWetResidue),
+      'Availability': '',
     });
-    
+
     // Create metadata for the CSV
     const metadata = [];
 
@@ -138,9 +203,9 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
 
     // Add date - format without commas
     const now = new Date();
-    const formattedDate = now.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'long', 
+    const formattedDate = now.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
       day: 'numeric',
       timeZone: 'America/Los_Angeles'
     }).replace(/,/g, ''); // Remove commas from date
@@ -151,28 +216,28 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
       metadata.push(`Generated: ${dateParts[0]} ${dateParts[1]}`);
       metadata.push(dateParts[2]); // Year on its own row
     }
-    
+
     // Generate filename with date and location if available
     let filename = 'biocirv-resource-inventory';
     if (location) {
       filename += `-lat${location.lat.toFixed(4)}-lng${location.lng.toFixed(4)}`;
     }
     filename += `-${new Date().toISOString().split('T')[0]}.csv`;
-    
+
     downloadCSV(csvData, filename, metadata);
   };
 
-if (!isVisible) return null;
+  if (!isVisible) return null;
 
-return (
-    <Card className={`absolute top-4 right-4 z-10 ${isCollapsed ? 'py-2 px-4' : 'p-4'} w-[540px] max-w-[60%] shadow-lg bg-white`}>
+  return (
+    <Card className={`absolute top-4 right-4 z-10 ${isCollapsed ? 'py-2 px-4' : 'p-4'} w-[620px] max-w-[65%] shadow-lg bg-white`}>
       <div className={`flex justify-between items-center ${isCollapsed ? 'mb-0' : 'mb-0'}`}>
         <h3 className="font-medium text-sm flex items-center">
           <Leaf className="h-4 w-4 mr-2" />
           Resource Inventory
         </h3>
         <div className="flex items-center">
-          <button 
+          <button
             onClick={() => setIsCollapsed(!isCollapsed)}
             className="text-gray-500 hover:text-gray-700 transition-colors"
           >
@@ -192,7 +257,7 @@ return (
               </span>
             </div>
           )}
-          
+
           <div className="text-xs text-gray-600 border-b pb-3">
             <div className="flex items-center justify-between mb-1">
               <p className="font-semibold text-sm">Resources within {bufferRadius} {bufferUnit} buffer zone:</p>
@@ -213,11 +278,12 @@ return (
               <table className="w-full text-xs">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="py-2 px-3 text-left font-medium text-gray-500 w-[30%]">Crop Type</th>
-                    <th className="py-2 px-2 text-right font-medium text-gray-500 w-[15%]">Acres</th>
-                    <th className="py-2 px-2 text-right font-medium text-gray-500 w-[13%]">% of Area</th>
-                    <th className="py-2 px-2 text-right font-medium text-gray-500 w-[21%]">Dry Residue (tons/year)</th>
-                    <th className="py-2 px-2 text-right font-medium text-gray-500 w-[21%]">Wet Residue (tons/year)</th>
+                    <th className="py-2 px-3 text-left font-medium text-gray-500 w-[28%]">Crop Type</th>
+                    <th className="py-2 px-2 text-right font-medium text-gray-500 w-[12%]">Acres</th>
+                    <th className="py-2 px-2 text-right font-medium text-gray-500 w-[11%]">% of Area</th>
+                    <th className="py-2 px-2 text-right font-medium text-gray-500 w-[18%]">Dry Residue (tons/year)</th>
+                    <th className="py-2 px-2 text-right font-medium text-gray-500 w-[18%]">Wet Residue (tons/year)</th>
+                    <th className="py-2 px-2 text-right font-medium text-gray-500 w-[13%]">Availability</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -227,8 +293,8 @@ return (
                       <tr key={index} className="hover:bg-gray-50">
                         <td className="py-2 px-3 whitespace-normal">
                           <div className="flex items-center">
-                            <span 
-                              className="inline-block h-3 w-3 mr-2 rounded-sm flex-shrink-0" 
+                            <span
+                              className="inline-block h-3 w-3 mr-2 rounded-sm flex-shrink-0"
                               style={{ backgroundColor: crop.color }}
                             />
                             <span className="line-clamp-1" title={crop.name}>{crop.name}</span>
@@ -244,6 +310,11 @@ return (
                         <td className="py-2 px-2 text-right">
                           {formatNumberWithCommas(crop.wetResidueYield)}
                         </td>
+                        <td className="py-2 px-2 text-right text-gray-600">
+                          {crop.availabilityLoading
+                            ? <span className="text-gray-400 italic">…</span>
+                            : crop.availability ?? <span className="text-gray-400">—</span>}
+                        </td>
                       </tr>
                     ))}
                 </tbody>
@@ -254,6 +325,7 @@ return (
                     <td className="py-2 px-2 text-right">100%</td>
                     <td className="py-2 px-2 text-right">{formatNumberWithCommas(Math.round(totalDryResidue))}</td>
                     <td className="py-2 px-2 text-right">{formatNumberWithCommas(Math.round(totalWetResidue))}</td>
+                    <td className="py-2 px-2 text-right"></td>
                   </tr>
                 </tfoot>
               </table>
@@ -263,13 +335,14 @@ return (
               No crop resources with residue data found within the buffer zone.
             </div>
           )}
-          
+
           <div className="text-xs text-gray-500 border-t pt-3 mt-1">
-            <p className="mb-1">This inventory shows annual crop residues available within the selected buffer zone, calculated based on <a href="https://www.sciencedirect.com/science/article/abs/pii/S0921344918303148" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">established crop residue yield factors</a>. 
+            <p className="mb-1">This inventory shows annual crop residues available within the selected buffer zone, calculated based on <a href="https://www.sciencedirect.com/science/article/abs/pii/S0921344918303148" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">established crop residue yield factors</a>.
+            {availabilityLoading && <span className="ml-1 text-gray-400 italic">Loading availability data…</span>}
             </p>
             <div className="flex justify-between items-center">
-              <button 
-                onClick={handleExportCSV} 
+              <button
+                onClick={handleExportCSV}
                 className="text-gray-600 hover:text-gray-800 underline text-xs ml-auto"
                 disabled={filteredInventory.length === 0}
               >
