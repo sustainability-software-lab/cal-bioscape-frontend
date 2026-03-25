@@ -23,7 +23,6 @@ import {
   CROP_NAME_MAPPING,
   FEEDSTOCK_CATEGORIES,
   MOISTURE_CONTENT_LEVELS,
-  ENERGY_CONTENT_LEVELS,
   getFeedstockCharacteristics,
   getCropResidueFactors // Added this
 } from '@/lib/constants';
@@ -144,10 +143,6 @@ const LayerControls: React.FC<LayerControlsProps> = ({
   const [selectedMoistureLevels, setSelectedMoistureLevels] = useState<string[]>(
     Object.values(MOISTURE_CONTENT_LEVELS)
   ); // All moisture levels selected by default
-  const [selectedEnergyLevels, setSelectedEnergyLevels] = useState<string[]>(
-    Object.values(ENERGY_CONTENT_LEVELS)
-  ); // All energy levels selected by default
-
   // Composition filter state — range [min, max] per metric; full range = no filtering
   const [compositionFilters, setCompositionFilters] = useState<CompositionFilters>(
     DEFAULT_COMPOSITION_FILTERS
@@ -251,18 +246,12 @@ const LayerControls: React.FC<LayerControlsProps> = ({
     }
     
     if (!moistureMatch) return false;
-    
-    // Check if crop matches selected energy levels
-    // If no energy levels selected (empty array), hide everything
-    if (selectedEnergyLevels.length === 0) return false;
-    const energyMatch = selectedEnergyLevels.includes(characteristics.energyLevel);
-    if (!energyMatch) return false;
-    
+
     // Check composition filters (crops with no API data always pass)
     if (!cropPassesCompositionFilters(cropName, compositionLookup, compositionFilters)) return false;
 
     return true; // Crop matches all filter criteria
-  }, [monthRange, selectedFeedstockCategories, selectedMoistureLevels, selectedEnergyLevels, compositionLookup, compositionFilters]);
+  }, [monthRange, selectedFeedstockCategories, selectedMoistureLevels, compositionLookup, compositionFilters]);
   
   // Function to apply seasonal filter based on month range
   const applySeasonalFilter = (range: [number, number]) => {
