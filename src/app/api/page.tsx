@@ -33,8 +33,18 @@ export default function ApiPage() {
                     <div className="ml-3">
                       <h3 className="text-lg font-medium text-blue-800">API currently under development, coming soon.</h3>
                       <p className="mt-2 text-blue-700">
-                        Our team is working on building a comprehensive API for programmatic access to Cal BioScape data. 
+                        Our team is working on building a comprehensive API for programmatic access to Cal BioScape data.
                         Please check back later for documentation and access information.
+                      </p>
+                      <p className="mt-3">
+                        <a
+                          href={`${process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api-staging.calbioscape.org'}/docs`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-block text-blue-600 hover:text-blue-800 font-medium underline"
+                        >
+                          View API Documentation →
+                        </a>
                       </p>
                     </div>
                   </div>
