@@ -140,16 +140,27 @@ export function ReportBugModal({ isOpen, onClose }: ReportBugModalProps) {
               <Send className="h-5 w-5 text-green-600" />
             </div>
             <p className="font-medium text-gray-900">Bug report submitted!</p>
-            <p className="text-sm text-gray-500">Thank you. A GitHub issue has been filed and our team will look into it.</p>
-            {issueUrl && (
-              <a
-                href={issueUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-blue-600 hover:underline"
-              >
-                View GitHub issue →
-              </a>
+            {issueUrl ? (
+              <>
+                <p className="text-sm text-gray-500">Thank you. A GitHub issue has been filed and our team will look into it.</p>
+                <a
+                  href={issueUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-blue-600 hover:underline"
+                >
+                  View GitHub issue →
+                </a>
+              </>
+            ) : (
+              <p className="text-sm text-gray-500">
+                Report received, but we couldn't automatically file a GitHub issue.
+                Please contact us at{" "}
+                <a href="mailto:calbioscape@gmail.com" className="text-blue-600 hover:underline">
+                  calbioscape@gmail.com
+                </a>
+                {" "}if the issue persists.
+              </p>
             )}
             <button
               onClick={handleClose}

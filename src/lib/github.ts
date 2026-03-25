@@ -59,12 +59,18 @@ function getConfig() {
     return null
   }
 
-  return {
+  const cfg = {
     token: GITHUB_TOKEN,
     owner: GITHUB_REPO_OWNER,
     repo: GITHUB_REPO_NAME,
     baseUrl: GITHUB_BASE_URL || undefined,
   }
+  console.log(
+    `[github] Config loaded — owner: ${cfg.owner}, repo: ${cfg.repo}, ` +
+    `baseUrl: ${cfg.baseUrl ?? "api.github.com (default)"}, ` +
+    `token: ${cfg.token.slice(0, 20)}…`
+  )
+  return cfg
 }
 
 // Dedicated branch for storing bug-report screenshot assets.
@@ -267,10 +273,12 @@ export async function createGitHubIssueFromBugReport(
   })
   const { owner, repo } = config
 
+  console.log("[github] Ensuring labels exist…")
   await ensureLabelsExist(octokit, owner, repo)
 
   let screenshotUrls: string[] = []
   if (screenshots.length > 0) {
+    console.log(`[github] Uploading ${screenshots.length} screenshot(s)…`)
     try {
       screenshotUrls = await uploadScreenshotsToGitHub(
         octokit,
@@ -280,8 +288,10 @@ export async function createGitHubIssueFromBugReport(
         screenshots,
         config.baseUrl
       )
+      console.log(`[github] Uploaded ${screenshotUrls.length} screenshot(s)`)
     } catch (err) {
-      console.error("[github] Failed to upload screenshots:", err)
+      const e = err as { status?: number; message?: string; response?: { data?: unknown } }
+      console.error("[github] Failed to upload screenshots — status:", e.status, "message:", e.message, "data:", e.response?.data)
     }
   }
 
@@ -292,6 +302,7 @@ export async function createGitHubIssueFromBugReport(
     screenshotUrls
   )
 
+  console.log(`[github] Creating issue: "${bugReport.title}"…`)
   try {
     const issue = await octokit.issues.create({
       owner,
@@ -304,7 +315,8 @@ export async function createGitHubIssueFromBugReport(
     console.log(`[github] Created issue #${issue.data.number}: ${issue.data.html_url}`)
     return { issueNumber: issue.data.number, issueUrl: issue.data.html_url }
   } catch (err) {
-    console.error("[github] Failed to create GitHub issue:", err)
+    const e = err as { status?: number; message?: string; response?: { data?: unknown } }
+    console.error("[github] Failed to create issue — status:", e.status, "message:", e.message, "data:", JSON.stringify(e.response?.data))
     return null
   }
 }
