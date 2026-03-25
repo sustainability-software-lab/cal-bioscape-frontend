@@ -93,11 +93,19 @@ const SeasonalSupplyTimeline: React.FC<SeasonalSupplyTimelineProps> = ({ crops, 
       </button>
 
       {!isCollapsed && (
-        <div className="px-3 pb-3 space-y-3">
-          {/* Month header */}
-          <div className="flex items-center gap-2">
-            <div className="flex-shrink-0" style={{ width: '80px' }} />
-            <div className="grid grid-cols-12 gap-px flex-1">
+        <div className="px-3 pb-3">
+          {/* Single CSS grid wrapper — guarantees label col aligns with month col across all rows */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '80px 1fr 48px',
+              columnGap: '8px',
+              rowGap: '6px',
+            }}
+          >
+            {/* Month header row */}
+            <div /> {/* spacer — aligns with crop name column */}
+            <div className="grid grid-cols-12 gap-px">
               {MONTHS.map((m, i) => (
                 <div
                   key={m}
@@ -109,28 +117,25 @@ const SeasonalSupplyTimeline: React.FC<SeasonalSupplyTimelineProps> = ({ crops, 
                 </div>
               ))}
             </div>
-            <div className="flex-shrink-0 w-12" />
-          </div>
+            <div /> {/* spacer — aligns with tonnage column */}
 
-          {/* Crop rows */}
-          <div className="space-y-1.5">
+            {/* Crop rows */}
             {sorted.map(crop => {
               if (!crop.fromMonth || !crop.toMonth) return null;
               const segs = buildSegments(crop.fromMonth, crop.toMonth);
               const barHeight = Math.max(2, Math.round((crop.dryTons / maxDryTons) * 6));
 
               return (
-                <div key={crop.name} className="flex items-center gap-2">
+                <React.Fragment key={crop.name}>
                   {/* Crop name */}
                   <div
-                    className="text-[10px] text-gray-600 truncate flex-shrink-0 text-right"
-                    style={{ width: '80px' }}
+                    className="text-[10px] text-gray-600 truncate text-right self-center"
                     title={crop.name}
                   >
                     {crop.name}
                   </div>
-                  {/* 12-column grid */}
-                  <div className="relative grid grid-cols-12 gap-px flex-1" style={{ height: '10px' }}>
+                  {/* Bar track */}
+                  <div className="relative self-center" style={{ height: '10px' }}>
                     {segs.map(([s, e], si) => {
                       const width = ((e - s + 1) / 12) * 100;
                       const left = (s / 12) * 100;
@@ -152,41 +157,51 @@ const SeasonalSupplyTimeline: React.FC<SeasonalSupplyTimelineProps> = ({ crops, 
                     })}
                   </div>
                   {/* Tonnage label */}
-                  <div className="text-[10px] text-gray-400 flex-shrink-0 w-12 text-right">
+                  <div className="text-[10px] text-gray-400 text-right self-center">
                     {crop.dryTons >= 1000
                       ? `${(crop.dryTons / 1000).toFixed(1)}k`
                       : Math.round(crop.dryTons)}
                     {' '}t
                   </div>
-                </div>
+                </React.Fragment>
               );
             })}
-          </div>
 
-          {/* Monthly cumulative tonnage bar */}
-          <div className="pt-1 border-t border-gray-100">
-            <div className="text-[9px] text-gray-400 mb-1">Monthly feedstock supply (cumulative)</div>
-            <div className="flex items-end gap-2">
-              <div className="flex-shrink-0" style={{ width: '80px' }} />
-              <div className="grid grid-cols-12 gap-px flex-1" style={{ height: '18px' }}>
-                {monthlyTons.map((tons, i) => {
-                  const pct = tons / maxMonthlyTons;
-                  return (
-                    <div
-                      key={i}
-                      className="flex items-end"
-                      title={`${MONTHS[i]}: ${Math.round(tons).toLocaleString()} dry tons/yr`}
-                    >
+            {/* Monthly cumulative tonnage bar — spans full width */}
+            <div
+              style={{ gridColumn: '1 / -1' }}
+              className="border-t border-gray-100 pt-1"
+            >
+              <div className="text-[9px] text-gray-400 mb-1">Monthly feedstock supply (cumulative)</div>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '80px 1fr 48px',
+                  columnGap: '8px',
+                }}
+              >
+                <div /> {/* spacer */}
+                <div className="grid grid-cols-12 gap-px" style={{ height: '18px' }}>
+                  {monthlyTons.map((tons, i) => {
+                    const pct = tons / maxMonthlyTons;
+                    return (
                       <div
-                        className={`w-full rounded-sm ${i === peakMonthIdx ? 'bg-blue-400' : 'bg-gray-300'}`}
-                        style={{ height: `${Math.round(pct * 18)}px` }}
-                      />
-                    </div>
-                  );
-                })}
+                        key={i}
+                        className="flex items-end"
+                        title={`${MONTHS[i]}: ${Math.round(tons).toLocaleString()} dry tons/yr`}
+                      >
+                        <div
+                          className={`w-full rounded-sm ${i === peakMonthIdx ? 'bg-blue-400' : 'bg-gray-300'}`}
+                          style={{ height: `${Math.round(pct * 18)}px` }}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+                <div /> {/* spacer */}
               </div>
-              <div className="flex-shrink-0 w-12" />
             </div>
+          </div>
         </div>
       )}
     </div>
