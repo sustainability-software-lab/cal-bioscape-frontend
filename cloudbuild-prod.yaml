@@ -48,9 +48,9 @@ steps:
       - 'managed'
       - '--allow-unauthenticated'
       - '--set-env-vars'
-      - 'ENVIRONMENT=${_ENVIRONMENT},CA_BIOSITE_API_USER=cal-bioscape-frontend,NEXT_PUBLIC_API_BASE_URL=https://api.calbioscape.org,GITHUB_ISSUE_CREATE_ENABLED=true,GITHUB_REPO_OWNER=sustainability-software-lab,GITHUB_REPO_NAME=cal-bioscape-frontend'
+      - 'ENVIRONMENT=${_ENVIRONMENT},CA_BIOSITE_API_USER=cal-bioscape-frontend-prod,NEXT_PUBLIC_API_BASE_URL=https://api.calbioscape.org,GITHUB_ISSUE_CREATE_ENABLED=true,GITHUB_REPO_OWNER=sustainability-software-lab,GITHUB_REPO_NAME=cal-bioscape-frontend'
       - '--update-secrets'
-      - 'CA_BIOSITE_API_PASSWORD=biocirv-staging-frontend-service-password:latest,GITHUB_TOKEN=github-issue-token:latest'
+      - 'CA_BIOSITE_API_PASSWORD=biocirv-staging-frontend-prod-service-password:latest,GITHUB_TOKEN=github-issue-token:latest'
 
   # Ensure 100% traffic goes to the latest revision
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:460.0.0'
