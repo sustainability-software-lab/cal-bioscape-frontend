@@ -1468,7 +1468,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                           </span>
                         </TooltipTrigger>
                         <TooltipContent side="right" className="max-w-xs">
-                          <p>Filter crops by the type of residue they produce. Select one or more categories to show only those feedstock types.</p>
+                          <p>Filter by feedstock resource type. Each category corresponds to a distinct biomass material: woody prunings and nut shells (Tree, Vine &amp; Nut), grain straws and stover (Grain &amp; Field), fresh organic residues (Vegetable &amp; Specialty), green forage biomass (Pasture &amp; Forage), and non-cropped land (Idle &amp; Fallow).</p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
