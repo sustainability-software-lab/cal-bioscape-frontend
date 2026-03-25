@@ -31,6 +31,11 @@ const TechnologyRecommender: React.FC<TechnologyRecommenderProps> = ({ scores, i
   const [expanded, setExpanded] = React.useState(false);
   const top3 = scores.slice(0, 3);
 
+  // Hide the entire box if there are no scores and not loading
+  if (!isLoading && scores.length === 0) {
+    return null;
+  }
+
   return (
     <div className="border rounded-md bg-gradient-to-br from-indigo-50 to-violet-50 border-indigo-200 p-3">
       <div className="flex items-center justify-between mb-2">
