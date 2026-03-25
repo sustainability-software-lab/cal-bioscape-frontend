@@ -5,9 +5,16 @@ import { Card } from "@/components/ui/card";
 import { ChevronDown, Leaf } from 'lucide-react';
 import { getCropResidueFactors } from '@/lib/constants';
 import { formatNumberWithCommas, downloadCSV } from '@/lib/utils';
-import { getAvailability } from '@/lib/api';
+import { getAvailability, getAnalysisByResource } from '@/lib/api';
 import { getApiResource } from '@/lib/resource-mapping';
 import { onResidueDataLoaded } from '@/lib/residue-data';
+import { computeEnergyTotals, EnergyTotals } from '@/lib/energy-calculations';
+import { CompositionData, parseCompositionData } from '@/lib/composition-filters';
+import { computeMixSummary, rankTechnologies, TechScore } from '@/lib/technology-matcher';
+import EnergyPotentialCard from '@/components/EnergyPotentialCard';
+import FeedstockCompositionPanel from '@/components/FeedstockCompositionPanel';
+import TechnologyRecommender from '@/components/TechnologyRecommender';
+import SeasonalSupplyTimeline from '@/components/SeasonalSupplyTimeline';
 
 interface CropInventory {
   name: string;
@@ -67,6 +74,15 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
   // availability map: LandIQ crop name → display string (or null)
   const [availabilityMap, setAvailabilityMap] = React.useState<Record<string, string | null>>({});
   const [availabilityLoading, setAvailabilityLoading] = React.useState(false);
+  // Raw month numbers for the Gantt timeline
+  const [rawAvailabilityMap, setRawAvailabilityMap] = React.useState<Record<string, { fromMonth: number; toMonth: number } | null>>({});
+
+  // ---- Full composition data for energy calculations + composition panel ----
+  // Maps API resource name → parsed CompositionData (or {hasData:false} if unavailable)
+  const [compositionByResource, setCompositionByResource] = React.useState<Record<string, CompositionData>>({});
+  const [compositionLoading, setCompositionLoading] = React.useState(false);
+  // Per-crop expand state for the composition panel
+  const [expandedCrops, setExpandedCrops] = React.useState<Set<string>>(new Set());
 
   // Fetch availability from the API whenever the inventory or geoids change
   React.useEffect(() => {
@@ -77,28 +93,58 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
 
     setAvailabilityLoading(true);
     const newMap: Record<string, string | null> = {};
+    const newRawMap: Record<string, { fromMonth: number; toMonth: number } | null> = {};
 
     const promises = inventory.map(async (crop) => {
       const apiResource = getApiResource(crop.name);
       if (!apiResource) {
         newMap[crop.name] = null;
+        newRawMap[crop.name] = null;
         return;
       }
       try {
         const result = await getAvailability(apiResource, geoid);
         if (result && result.from_month && result.to_month) {
           newMap[crop.name] = formatAvailabilityWindow(result.from_month, result.to_month);
+          newRawMap[crop.name] = { fromMonth: result.from_month, toMonth: result.to_month };
         } else {
           newMap[crop.name] = null;
+          newRawMap[crop.name] = null;
         }
       } catch {
         newMap[crop.name] = null;
+        newRawMap[crop.name] = null;
       }
     });
 
     Promise.allSettled(promises).then(() => {
       setAvailabilityMap({ ...newMap });
+      setRawAvailabilityMap({ ...newRawMap });
       setAvailabilityLoading(false);
+    });
+  }, [inventory, geoids]);
+
+  // Fetch full composition data for each crop — used by both the energy card and composition panel
+  React.useEffect(() => {
+    if (!inventory || inventory.length === 0) return;
+    const geoid = geoids && geoids.length > 0 ? geoids[0] : '06';
+
+    setCompositionLoading(true);
+    const newByResource: Record<string, CompositionData> = {};
+
+    // Deduplicate: same API resource may appear for multiple LandIQ crops
+    const resourcesSeen = new Set<string>();
+    const promises = inventory.map(async (crop) => {
+      const apiResource = getApiResource(crop.name);
+      if (!apiResource || resourcesSeen.has(apiResource)) return;
+      resourcesSeen.add(apiResource);
+      const result = await getAnalysisByResource(apiResource, geoid);
+      newByResource[apiResource] = parseCompositionData(result);
+    });
+
+    Promise.allSettled(promises).then(() => {
+      setCompositionByResource({ ...newByResource });
+      setCompositionLoading(false);
     });
   }, [inventory, geoids]);
 
@@ -180,6 +226,36 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
     return filteredInventory.reduce((sum, crop) =>
       sum + (crop.wetResidueYield || 0), 0);
   }, [filteredInventory]);
+
+  // Compute feedstock energy potential from dry residue × HHV
+  const energyTotals: EnergyTotals | null = React.useMemo(() => {
+    if (filteredInventory.length === 0) return null;
+    // Build hhvLookup from compositionByResource (API HHV, or null to trigger fallback)
+    const hhvLookup: Record<string, number | null> = {};
+    for (const [resource, comp] of Object.entries(compositionByResource)) {
+      hhvLookup[resource] = comp.hhv ?? null;
+    }
+    const cropInputs = filteredInventory.map(crop => ({
+      cropName: crop.name,
+      dryTons: crop.dryResidueYield,
+      apiResource: getApiResource(crop.name),
+    }));
+    return computeEnergyTotals(cropInputs, hhvLookup);
+  }, [filteredInventory, compositionByResource]);
+
+  // Rank conversion technologies for the feedstock mix
+  const techScores: TechScore[] = React.useMemo(() => {
+    if (filteredInventory.length === 0) return [];
+    const cropInputs = filteredInventory.map(crop => ({
+      cropName: crop.name,
+      dryTons: crop.dryResidueYield,
+      apiResource: getApiResource(crop.name),
+    }));
+    const summary = computeMixSummary(cropInputs, compositionByResource);
+    // Only rank if we have at least some composition data
+    const hasAnyData = Object.values(compositionByResource).some(c => c.hasData);
+    return hasAnyData ? rankTechnologies(summary) : [];
+  }, [filteredInventory, compositionByResource]);
 
   // Handler for exporting the inventory data as CSV
   const handleExportCSV = () => {
@@ -277,6 +353,12 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
             </div>
           )}
 
+          {/* Energy Potential Card */}
+          <EnergyPotentialCard totals={energyTotals} isLoading={compositionLoading} />
+
+          {/* Conversion Technology Recommender */}
+          <TechnologyRecommender scores={techScores} isLoading={compositionLoading} />
+
           <div className="text-xs text-gray-600 border-b pb-3">
             <div className="flex items-center justify-between mb-1">
               <p className="font-semibold text-sm">Resources within {bufferRadius} {bufferUnit} buffer zone:</p>
@@ -308,46 +390,79 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
                 <tbody className="divide-y divide-gray-200">
                   {filteredInventory
                     .sort((a, b) => b.acres - a.acres) // Sort by acres descending
-                    .map((crop, index) => (
-                      <tr key={index} className="hover:bg-gray-50">
-                        <td className="py-2 px-3 whitespace-normal">
-                          <div className="flex items-center gap-1.5">
-                            <span
-                              className="inline-block h-3 w-3 rounded-sm flex-shrink-0"
-                              style={{ backgroundColor: crop.color }}
-                            />
-                            <span className="line-clamp-1 min-w-0" title={crop.name}>{crop.name}</span>
-                            {crop.residueSource === 'api' && (
-                              <span
-                                className="flex-shrink-0 rounded px-1 py-px text-[9px] font-medium leading-tight bg-green-50 text-green-700 border border-green-200"
-                                title="Yield factors sourced from resource_info.json"
-                              >api</span>
-                            )}
-                            {crop.residueSource === 'fallback' && (
-                              <span
-                                className="flex-shrink-0 rounded px-1 py-px text-[9px] font-medium leading-tight bg-amber-50 text-amber-700 border border-amber-200"
-                                title="Yield factors estimated from published literature"
-                              >est.</span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-2 px-2 text-right">{formatNumberWithCommas(Math.round(crop.acres))}</td>
-                        <td className="py-2 px-2 text-right">
-                          {Math.round((crop.acres / totalAcres) * 100)}%
-                        </td>
-                        <td className="py-2 px-2 text-right">
-                          {formatNumberWithCommas(crop.dryResidueYield)}
-                        </td>
-                        <td className="py-2 px-2 text-right">
-                          {formatNumberWithCommas(crop.wetResidueYield)}
-                        </td>
-                        <td className="py-2 px-2 text-right text-gray-600">
-                          {crop.availabilityLoading
-                            ? <span className="text-gray-400 italic">…</span>
-                            : crop.availability ?? <span className="text-gray-400">—</span>}
-                        </td>
-                      </tr>
-                    ))}
+                    .map((crop, index) => {
+                      const apiResource = getApiResource(crop.name);
+                      const composition = apiResource ? compositionByResource[apiResource] : undefined;
+                      const hasComposition = composition?.hasData === true;
+                      const isExpanded = expandedCrops.has(crop.name);
+                      return (
+                        <React.Fragment key={index}>
+                          <tr
+                            className={`hover:bg-gray-50 ${hasComposition ? 'cursor-pointer' : ''}`}
+                            onClick={() => {
+                              if (!hasComposition) return;
+                              setExpandedCrops(prev => {
+                                const next = new Set(prev);
+                                next.has(crop.name) ? next.delete(crop.name) : next.add(crop.name);
+                                return next;
+                              });
+                            }}
+                          >
+                            <td className="py-2 px-3 whitespace-normal">
+                              <div className="flex items-center gap-1.5">
+                                {hasComposition && (
+                                  <ChevronDown
+                                    className={`h-3 w-3 text-gray-400 flex-shrink-0 transition-transform ${isExpanded ? 'rotate-0' : '-rotate-90'}`}
+                                  />
+                                )}
+                                <span
+                                  className="inline-block h-3 w-3 rounded-sm flex-shrink-0"
+                                  style={{ backgroundColor: crop.color }}
+                                />
+                                <span className="line-clamp-1 min-w-0" title={crop.name}>{crop.name}</span>
+                                {crop.residueSource === 'api' && (
+                                  <span
+                                    className="flex-shrink-0 rounded px-1 py-px text-[9px] font-medium leading-tight bg-green-50 text-green-700 border border-green-200"
+                                    title="Yield factors sourced from resource_info.json"
+                                  >api</span>
+                                )}
+                                {crop.residueSource === 'fallback' && (
+                                  <span
+                                    className="flex-shrink-0 rounded px-1 py-px text-[9px] font-medium leading-tight bg-amber-50 text-amber-700 border border-amber-200"
+                                    title="Yield factors estimated from published literature"
+                                  >est.</span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-2 px-2 text-right">{formatNumberWithCommas(Math.round(crop.acres))}</td>
+                            <td className="py-2 px-2 text-right">
+                              {Math.round((crop.acres / totalAcres) * 100)}%
+                            </td>
+                            <td className="py-2 px-2 text-right">
+                              {formatNumberWithCommas(crop.dryResidueYield)}
+                            </td>
+                            <td className="py-2 px-2 text-right">
+                              {formatNumberWithCommas(crop.wetResidueYield)}
+                            </td>
+                            <td className="py-2 px-2 text-right text-gray-600">
+                              {crop.availabilityLoading
+                                ? <span className="text-gray-400 italic">…</span>
+                                : crop.availability ?? <span className="text-gray-400">—</span>}
+                            </td>
+                          </tr>
+                          {isExpanded && hasComposition && composition && (
+                            <tr className="bg-gray-50">
+                              <td colSpan={6} className="p-0">
+                                <FeedstockCompositionPanel
+                                  composition={composition}
+                                  source={crop.residueSource ?? 'fallback'}
+                                />
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
                 </tbody>
                 <tfoot className="bg-gray-50 font-medium">
                   <tr>
@@ -365,6 +480,25 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
             <div className="text-center text-sm text-gray-500 py-4">
               No crop resources with residue data found within the buffer zone.
             </div>
+          )}
+
+          {/* Seasonal Supply Timeline */}
+          {filteredInventory.length > 0 && (
+            <SeasonalSupplyTimeline
+              isLoading={availabilityLoading}
+              crops={filteredInventory.map(crop => {
+                const raw = rawAvailabilityMap[crop.name];
+                // Fall back to static residue factor months if API unavailable
+                const factor = getCropResidueFactors(crop.name)?.factors[0];
+                return {
+                  name: crop.name,
+                  color: crop.color,
+                  dryTons: crop.dryResidueYield,
+                  fromMonth: raw?.fromMonth ?? factor?.fromMonth ?? null,
+                  toMonth: raw?.toMonth ?? factor?.toMonth ?? null,
+                };
+              })}
+            />
           )}
 
           <div className="text-xs text-gray-500 border-t pt-3 mt-1">

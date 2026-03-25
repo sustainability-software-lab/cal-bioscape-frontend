@@ -38,7 +38,7 @@ if (MAPBOX_ACCESS_TOKEN && MAPBOX_ACCESS_TOKEN !== 'YOUR_MAPBOX_ACCESS_TOKEN') {
 
 
 // Accept props for data and visibility
-const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange }) => { // Added visibleCrops, croplandOpacity, onGeoidsChange props
+const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, onCountySelect }) => { // Added visibleCrops, croplandOpacity, onGeoidsChange props
   
   // Define cleanupSitingElements at the very beginning to avoid temporal dead zone issues
   const cleanupSitingElements = useCallback(() => {
@@ -2431,6 +2431,10 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange })
 
             // --- Derive geoid and resource name for API calls ---
             const countyGeoid = getCountyGeoid(properties.county || '');
+            // Notify parent of selected county so it can show the county feedstock panel
+            if (onCountySelect && properties.county && countyGeoid) {
+              onCountySelect(properties.county, countyGeoid);
+            }
             const apiResource = getApiResource(cropName);
             const usdaCrop = getUsdaCropName(cropName);
             const apiSectionId = `api-data-${Date.now()}`;
