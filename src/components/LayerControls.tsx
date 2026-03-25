@@ -19,15 +19,21 @@ import {
  TooltipProvider,
  TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { 
+import {
   CROP_NAME_MAPPING,
   FEEDSTOCK_CATEGORIES,
-  MOISTURE_CONTENT_LEVELS,
-  ENERGY_CONTENT_LEVELS,
   getFeedstockCharacteristics,
   getCropResidueFactors // Added this
 } from '@/lib/constants';
 import { onResidueDataLoaded } from '@/lib/residue-data';
+import {
+  CompositionLookup,
+  CompositionFilters,
+  DEFAULT_COMPOSITION_FILTERS,
+  COMPOSITION_FILTER_BOUNDS,
+  cropPassesCompositionFilters,
+  isCompositionFiltersActive,
+} from '@/lib/composition-filters';
 
 // Define a minimal type for the mapbox map instance to avoid using 'any'
 interface MapInstance {
@@ -50,7 +56,8 @@ interface LayerControlsProps {
   transportationMaster: boolean;
   onShowAllLayers: () => void;
   onHideAllLayers: () => void;
-  onClosePopupForLayer: (layerId: string) => void; // Add this line
+  onClosePopupForLayer: (layerId: string) => void;
+  compositionLookup: CompositionLookup;
 }
 
 const LayerControls: React.FC<LayerControlsProps> = ({
@@ -66,6 +73,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
   onShowAllLayers,
   onHideAllLayers,
   onClosePopupForLayer,
+  compositionLookup,
 }) => {
   // Local state to track layer visibility within the component
   // This helps keep UI in sync with actual map layer visibility
@@ -131,12 +139,10 @@ const LayerControls: React.FC<LayerControlsProps> = ({
   const [selectedFeedstockCategories, setSelectedFeedstockCategories] = useState<string[]>(
     Object.values(FEEDSTOCK_CATEGORIES)
   ); // All categories selected by default
-  const [selectedMoistureLevels, setSelectedMoistureLevels] = useState<string[]>(
-    Object.values(MOISTURE_CONTENT_LEVELS)
-  ); // All moisture levels selected by default
-  const [selectedEnergyLevels, setSelectedEnergyLevels] = useState<string[]>(
-    Object.values(ENERGY_CONTENT_LEVELS)
-  ); // All energy levels selected by default
+  // Composition filter state — range [min, max] per metric; full range = no filtering
+  const [compositionFilters, setCompositionFilters] = useState<CompositionFilters>(
+    DEFAULT_COMPOSITION_FILTERS
+  );
   
   // Month names for the range slider
   const monthNames = [
@@ -222,29 +228,11 @@ const LayerControls: React.FC<LayerControlsProps> = ({
     const categoryMatch = selectedFeedstockCategories.includes(characteristics.category);
     if (!categoryMatch) return false;
     
-    // Check if crop matches selected moisture levels
-    // If no moisture levels selected (empty array), hide everything
-    if (selectedMoistureLevels.length === 0) return false;
-    
-    // Handle both single level (legacy/fallback) and array of levels (new)
-    let moistureMatch = false;
-    if (characteristics.moistureLevels && Array.isArray(characteristics.moistureLevels)) {
-      // Check if ANY of the crop's moisture levels match ANY of the selected levels
-      moistureMatch = characteristics.moistureLevels.some((level: string) => selectedMoistureLevels.includes(level));
-    } else {
-      moistureMatch = selectedMoistureLevels.includes(characteristics.moistureLevel);
-    }
-    
-    if (!moistureMatch) return false;
-    
-    // Check if crop matches selected energy levels
-    // If no energy levels selected (empty array), hide everything
-    if (selectedEnergyLevels.length === 0) return false;
-    const energyMatch = selectedEnergyLevels.includes(characteristics.energyLevel);
-    if (!energyMatch) return false;
-    
+    // Check composition filters (crops with no API data always pass)
+    if (!cropPassesCompositionFilters(cropName, compositionLookup, compositionFilters)) return false;
+
     return true; // Crop matches all filter criteria
-  }, [monthRange, selectedFeedstockCategories, selectedMoistureLevels, selectedEnergyLevels]);
+  }, [monthRange, selectedFeedstockCategories, compositionLookup, compositionFilters]);
   
   // Function to apply seasonal filter based on month range
   const applySeasonalFilter = (range: [number, number]) => {
@@ -345,24 +333,6 @@ const LayerControls: React.FC<LayerControlsProps> = ({
     // Apply filters will be called via useEffect
   };
   
-  const handleMoistureLevelChange = (level: string, isChecked: boolean) => {
-    setSelectedMoistureLevels(prev => {
-      const newSelection = isChecked 
-        ? [...prev, level]
-        : prev.filter(l => l !== level);
-      return newSelection;
-    });
-  };
-  
-  const handleEnergyLevelChange = (level: string, isChecked: boolean) => {
-    setSelectedEnergyLevels(prev => {
-      const newSelection = isChecked 
-        ? [...prev, level]
-        : prev.filter(l => l !== level);
-      return newSelection;
-    });
-  };
-
   // --- Crop filtering logic ---
   const filteredCropNames = useMemo(() => 
     allCropNames.filter(name => 
@@ -1498,7 +1468,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                           </span>
                         </TooltipTrigger>
                         <TooltipContent side="right" className="max-w-xs">
-                          <p>Filter crops by the type of residue they produce. Select one or more categories to show only those feedstock types.</p>
+                          <p>Filter by feedstock resource type. Each category corresponds to a distinct biomass material: woody prunings and nut shells (Tree, Vine &amp; Nut), grain straws and stover (Grain &amp; Field), fresh organic residues (Vegetable &amp; Specialty), green forage biomass (Pasture &amp; Forage), and non-cropped land (Idle &amp; Fallow).</p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
@@ -1520,11 +1490,11 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                 </div>
               </div>
               
-              {/* Moisture Content Filter */}
-              <div className="space-y-3 pt-4 border-t border-gray-200">
-                <div className="px-2">
+              {/* Composition Filters (API-driven: moisture, composition, and energy content) */}
+              <div className="space-y-4 pt-4 border-t border-gray-200">
+                <div className="px-2 flex items-center justify-between">
                   <Label className="text-sm font-medium flex items-center">
-                    Moisture Content
+                    Biomass Composition
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -1533,61 +1503,203 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                           </span>
                         </TooltipTrigger>
                         <TooltipContent side="right" className="max-w-xs">
-                          <p>Filter by moisture content level. Low moisture feedstocks (&lt;15%) are ideal for thermal processes like pyrolysis. High moisture (&gt;30%) feedstocks are better for anaerobic digestion.</p>
+                          <p>Filter crops by biochemical composition. Values sourced from the Cal BioScape API where available; otherwise estimated from peer-reviewed biomass literature (Phyllis2/ECN, NREL). Adjust ranges to focus on feedstocks suited to specific conversion pathways.</p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
+                    {isCompositionFiltersActive(compositionFilters) && (
+                      <span className="ml-2 text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold uppercase tracking-wide">ACTIVE</span>
+                    )}
                   </Label>
+                  {isCompositionFiltersActive(compositionFilters) && (
+                    <button
+                      onClick={() => setCompositionFilters(DEFAULT_COMPOSITION_FILTERS)}
+                      className="text-xs text-blue-600 hover:underline ml-4"
+                    >
+                      Reset
+                    </button>
+                  )}
                 </div>
-                <div className="px-2 space-y-2">
-                  {Object.values(MOISTURE_CONTENT_LEVELS).map((level) => (
-                    <div key={level} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`moisture-${level}`}
-                        checked={selectedMoistureLevels.includes(level)}
-                        onCheckedChange={(checked) => handleMoistureLevelChange(level, !!checked)}
+
+                {Object.keys(compositionLookup).length === 0 ? (
+                  <p className="px-2 text-xs text-gray-400 italic">Loading composition data…</p>
+                ) : (
+                  <div className="px-2 space-y-5">
+                    {/* Moisture Content */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between items-center">
+                        <Label className="text-xs font-normal text-gray-700">
+                          Moisture Content
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span>
+                                  <Info className="h-3 w-3 ml-1 inline-block text-gray-400 cursor-help" />
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="right" className="max-w-xs">
+                                <p>As-received moisture content (%). Lower values (&lt;15%) indicate drier feedstocks better suited for direct combustion and pyrolysis; higher values (&gt;30%) favour anaerobic digestion. Values sourced from the Cal BioScape API where available; otherwise from peer-reviewed biomass literature.</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </Label>
+                        <span className="text-xs text-blue-600">
+                          {compositionFilters.moisture[0]}–{compositionFilters.moisture[1]}%
+                        </span>
+                      </div>
+                      <Slider
+                        min={COMPOSITION_FILTER_BOUNDS.moisture[0]}
+                        max={COMPOSITION_FILTER_BOUNDS.moisture[1]}
+                        step={1}
+                        value={compositionFilters.moisture}
+                        onValueChange={(v) =>
+                          setCompositionFilters(prev => ({ ...prev, moisture: v as [number, number] }))
+                        }
+                        className="w-full"
                       />
-                      <Label htmlFor={`moisture-${level}`} className="text-xs font-normal cursor-pointer">
-                        {level}
-                      </Label>
                     </div>
-                  ))}
-                </div>
-              </div>
-              
-              {/* Energy Content Filter */}
-              <div className="space-y-3 pt-4 border-t border-gray-200">
-                <div className="px-2">
-                  <Label className="text-sm font-medium flex items-center">
-                    Energy Content
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span>
-                            <Info className="h-4 w-4 ml-1 inline-block text-gray-500 cursor-help transition-colors hover:text-gray-700" />
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent side="right" className="max-w-xs">
-                          <p>Filter by calorific value (energy content). Higher values (&gt;17 MJ/kg) are better for direct combustion and energy generation.</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </Label>
-                </div>
-                <div className="px-2 space-y-2">
-                  {Object.values(ENERGY_CONTENT_LEVELS).map((level) => (
-                    <div key={level} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`energy-${level}`}
-                        checked={selectedEnergyLevels.includes(level)}
-                        onCheckedChange={(checked) => handleEnergyLevelChange(level, !!checked)}
+
+                    {/* Cellulose */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between items-center">
+                        <Label className="text-xs font-normal text-gray-700">
+                          Cellulose
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span>
+                                  <Info className="h-3 w-3 ml-1 inline-block text-gray-400 cursor-help" />
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="right" className="max-w-xs">
+                                <p>Higher cellulose (%) favours fermentation (ethanol) and fast pyrolysis pathways.</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </Label>
+                        <span className="text-xs text-blue-600">
+                          {compositionFilters.cellulose[0]}–{compositionFilters.cellulose[1]}%
+                        </span>
+                      </div>
+                      <Slider
+                        min={COMPOSITION_FILTER_BOUNDS.cellulose[0]}
+                        max={COMPOSITION_FILTER_BOUNDS.cellulose[1]}
+                        step={1}
+                        value={compositionFilters.cellulose}
+                        onValueChange={(v) =>
+                          setCompositionFilters(prev => ({ ...prev, cellulose: v as [number, number] }))
+                        }
+                        className="w-full"
                       />
-                      <Label htmlFor={`energy-${level}`} className="text-xs font-normal cursor-pointer">
-                        {level}
-                      </Label>
                     </div>
-                  ))}
-                </div>
+
+                    {/* Lignin */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between items-center">
+                        <Label className="text-xs font-normal text-gray-700">
+                          Lignin
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span>
+                                  <Info className="h-3 w-3 ml-1 inline-block text-gray-400 cursor-help" />
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="right" className="max-w-xs">
+                                <p>Low lignin (%) is preferred for biochemical conversion; high lignin suits thermochemical gasification.</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </Label>
+                        <span className="text-xs text-blue-600">
+                          {compositionFilters.lignin[0]}–{compositionFilters.lignin[1]}%
+                        </span>
+                      </div>
+                      <Slider
+                        min={COMPOSITION_FILTER_BOUNDS.lignin[0]}
+                        max={COMPOSITION_FILTER_BOUNDS.lignin[1]}
+                        step={1}
+                        value={compositionFilters.lignin}
+                        onValueChange={(v) =>
+                          setCompositionFilters(prev => ({ ...prev, lignin: v as [number, number] }))
+                        }
+                        className="w-full"
+                      />
+                    </div>
+
+                    {/* Ash */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between items-center">
+                        <Label className="text-xs font-normal text-gray-700">
+                          Ash Content
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span>
+                                  <Info className="h-3 w-3 ml-1 inline-block text-gray-400 cursor-help" />
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="right" className="max-w-xs">
+                                <p>Lower ash (%) improves combustion efficiency and reduces fouling in boilers and gasifiers.</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </Label>
+                        <span className="text-xs text-blue-600">
+                          {compositionFilters.ash[0]}–{compositionFilters.ash[1]}%
+                        </span>
+                      </div>
+                      <Slider
+                        min={COMPOSITION_FILTER_BOUNDS.ash[0]}
+                        max={COMPOSITION_FILTER_BOUNDS.ash[1]}
+                        step={1}
+                        value={compositionFilters.ash}
+                        onValueChange={(v) =>
+                          setCompositionFilters(prev => ({ ...prev, ash: v as [number, number] }))
+                        }
+                        className="w-full"
+                      />
+                    </div>
+
+                    {/* HHV */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between items-center">
+                        <Label className="text-xs font-normal text-gray-700">
+                          Heating Value (HHV)
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span>
+                                  <Info className="h-3 w-3 ml-1 inline-block text-gray-400 cursor-help" />
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="right" className="max-w-xs">
+                                <p>Higher Heating Value (MJ/kg, dry basis) — the energy content of the feedstock. Higher values (&gt;17 MJ/kg) are better for direct combustion and co-firing. Values sourced from the Cal BioScape API where available; otherwise from peer-reviewed biomass literature.</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </Label>
+                        <span className="text-xs text-blue-600">
+                          {compositionFilters.hhv[0]}–{compositionFilters.hhv[1]} MJ/kg
+                        </span>
+                      </div>
+                      <Slider
+                        min={COMPOSITION_FILTER_BOUNDS.hhv[0]}
+                        max={COMPOSITION_FILTER_BOUNDS.hhv[1]}
+                        step={0.5}
+                        value={compositionFilters.hhv}
+                        onValueChange={(v) =>
+                          setCompositionFilters(prev => ({ ...prev, hhv: v as [number, number] }))
+                        }
+                        className="w-full"
+                      />
+                    </div>
+
+                    <p className="text-xs text-gray-400 italic">
+                      Crops without composition data are always shown.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </AccordionContent>

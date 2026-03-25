@@ -3,6 +3,8 @@
 import { useState, useMemo, useCallback, useEffect } from 'react'; // Added useEffect
 import dynamic from 'next/dynamic';
 import { fetchResidueData } from '@/lib/residue-data';
+import { batchFetchCompositionData, CompositionLookup } from '@/lib/composition-filters';
+import CountyFeedstockPanel from '@/components/CountyFeedstockPanel';
 // Removed useSWRInfinite import
 const Map = dynamic(() => import('@/components/Map'), { ssr: false });
 import LayerControls from '@/components/LayerControls'; // Import the new LayerControls component
@@ -47,6 +49,13 @@ export default function Home() {
   useEffect(() => {
     fetchResidueData()
       .catch(err => console.error("Failed to load residue data:", err));
+  }, []);
+
+  // Batch-fetch composition analysis data for all mapped crops (state-level, geoid "06")
+  useEffect(() => {
+    batchFetchCompositionData('06')
+      .then(setCompositionLookup)
+      .catch(err => console.warn('[composition] Failed to fetch composition data:', err));
   }, []);
 
   // Effect to dispatch resize event when panel collapses/expands
@@ -146,6 +155,8 @@ export default function Home() {
   // State for the list of currently visible crops
   const [visibleCrops, setVisibleCrops] = useState<string[]>(allCropNames); // Start with all crops visible
   const [bufferGeoids, setBufferGeoids] = useState<string[]>([]); // County GEOIDs within the siting buffer
+  const [compositionLookup, setCompositionLookup] = useState<CompositionLookup>({});
+  const [selectedCounty, setSelectedCounty] = useState<{ name: string; geoid: string } | null>(null);
 
   // --- Removed feedstock data fetching logic (useSWRInfinite, getKey, combinedFeedstockData, etc.) ---
 
@@ -264,6 +275,7 @@ export default function Home() {
               onShowAllLayers={handleShowAllLayers}
               onHideAllLayers={handleHideAllLayers}
               onClosePopupForLayer={handleClosePopupForLayer}
+              compositionLookup={compositionLookup}
             />
           </div>
         </div>
@@ -311,10 +323,18 @@ export default function Home() {
           {/* Pass fetched data and visibility state to the Map component */}
           <Map
             layerVisibility={layerVisibility}
-            visibleCrops={visibleCrops} // Pass the visible crops state
-            croplandOpacity={croplandOpacity} // Pass opacity state
-            onGeoidsChange={setBufferGeoids} // Propagate county GEOIDs up from buffer analysis
+            visibleCrops={visibleCrops}
+            croplandOpacity={croplandOpacity}
+            onGeoidsChange={setBufferGeoids}
+            onCountySelect={(name: string, geoid: string) => setSelectedCounty({ name, geoid })}
           />
+          {selectedCounty && (
+            <CountyFeedstockPanel
+              countyName={selectedCounty.name}
+              geoid={selectedCounty.geoid}
+              onClose={() => setSelectedCounty(null)}
+            />
+          )}
         </div>
       </main>
       

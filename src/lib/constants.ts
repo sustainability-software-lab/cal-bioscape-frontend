@@ -165,29 +165,13 @@ export const INFRASTRUCTURE_LAYERS = {
 
 // ===== FEEDSTOCK CHARACTERISTICS FOR FILTERING =====
 
-// Feedstock Type Categories
+// Feedstock Resource Type Categories (resource-oriented, not LandIQ land-survey classifications)
 export const FEEDSTOCK_CATEGORIES = {
-  ORCHARD_VINEYARD: 'Orchard & Vineyard Crops',
-  ROW_TRUCK: 'Row & Truck Crops',
-  FIELD: 'Field Crops',
-  PASTURE_FORAGE: 'Pasture & Forage',
-  IDLE_FALLOW: 'Idle & Fallow Land',
-  MISCELLANEOUS: 'Miscellaneous'
-} as const;
-
-// Moisture Content Classifications
-export const MOISTURE_CONTENT_LEVELS = {
-  LOW: 'Low (<15%)',
-  MEDIUM: 'Medium (15-30%)',
-  HIGH: 'High (>30%)'
-} as const;
-
-// Energy Content Classifications (based on typical calorific values)
-// Low: <12 MJ/kg, Medium: 12-17 MJ/kg, High: >17 MJ/kg
-export const ENERGY_CONTENT_LEVELS = {
-  LOW: 'Low (<12 MJ/kg)',
-  MEDIUM: 'Medium (12-17 MJ/kg)',
-  HIGH: 'High (>17 MJ/kg)'
+  TREE_VINE_NUT:       'Tree, Vine & Nut Crops',
+  GRAIN_FIELD:         'Grain & Field Crops',
+  VEGETABLE_SPECIALTY: 'Vegetable & Specialty Crops',
+  PASTURE_FORAGE:      'Pasture & Forage',
+  FALLOW_IDLE:         'Idle & Fallow Land',
 } as const;
 
 // Processing Suitability Categories
@@ -200,472 +184,284 @@ export const PROCESSING_TYPES = {
 } as const;
 
 // Mapping of standardized crop names to their feedstock characteristics
-export const FEEDSTOCK_CHARACTERISTICS: { [key: string]: { category: string; moistureLevel: string; energyLevel: string; processingSuitability: string[]; } } = {
+export const FEEDSTOCK_CHARACTERISTICS: { [key: string]: { category: string; processingSuitability: string[]; } } = {
   "Apples": { 
-    category: FEEDSTOCK_CATEGORIES.ORCHARD_VINEYARD, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.MEDIUM,
-    energyLevel: ENERGY_CONTENT_LEVELS.MEDIUM,
+    category: FEEDSTOCK_CATEGORIES.TREE_VINE_NUT, 
     processingSuitability: [PROCESSING_TYPES.PYROLYSIS, PROCESSING_TYPES.COMBUSTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Apricots (D2)": { 
-    category: FEEDSTOCK_CATEGORIES.ORCHARD_VINEYARD, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.MEDIUM,
-    energyLevel: ENERGY_CONTENT_LEVELS.MEDIUM,
+    category: FEEDSTOCK_CATEGORIES.TREE_VINE_NUT, 
     processingSuitability: [PROCESSING_TYPES.PYROLYSIS, PROCESSING_TYPES.COMBUSTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Avocados": { 
-    category: FEEDSTOCK_CATEGORIES.ORCHARD_VINEYARD, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.MEDIUM,
-    energyLevel: ENERGY_CONTENT_LEVELS.MEDIUM,
+    category: FEEDSTOCK_CATEGORIES.TREE_VINE_NUT, 
     processingSuitability: [PROCESSING_TYPES.PYROLYSIS, PROCESSING_TYPES.COMBUSTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Cherries": { 
-    category: FEEDSTOCK_CATEGORIES.ORCHARD_VINEYARD, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.MEDIUM,
-    energyLevel: ENERGY_CONTENT_LEVELS.MEDIUM,
+    category: FEEDSTOCK_CATEGORIES.TREE_VINE_NUT, 
     processingSuitability: [PROCESSING_TYPES.PYROLYSIS, PROCESSING_TYPES.COMBUSTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Dates": { 
-    category: FEEDSTOCK_CATEGORIES.ORCHARD_VINEYARD, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.MEDIUM,
-    energyLevel: ENERGY_CONTENT_LEVELS.MEDIUM,
+    category: FEEDSTOCK_CATEGORIES.TREE_VINE_NUT, 
     processingSuitability: [PROCESSING_TYPES.PYROLYSIS, PROCESSING_TYPES.COMBUSTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Figs": { 
-    category: FEEDSTOCK_CATEGORIES.ORCHARD_VINEYARD, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.MEDIUM,
-    energyLevel: ENERGY_CONTENT_LEVELS.MEDIUM,
+    category: FEEDSTOCK_CATEGORIES.TREE_VINE_NUT, 
     processingSuitability: [PROCESSING_TYPES.PYROLYSIS, PROCESSING_TYPES.COMBUSTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Grapes (V)": { 
-    category: FEEDSTOCK_CATEGORIES.ORCHARD_VINEYARD, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.MEDIUM,
-    energyLevel: ENERGY_CONTENT_LEVELS.MEDIUM,
+    category: FEEDSTOCK_CATEGORIES.TREE_VINE_NUT, 
     processingSuitability: [PROCESSING_TYPES.PYROLYSIS, PROCESSING_TYPES.COMBUSTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Kiwifruit": { 
-    category: FEEDSTOCK_CATEGORIES.ORCHARD_VINEYARD, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.MEDIUM,
-    energyLevel: ENERGY_CONTENT_LEVELS.MEDIUM,
+    category: FEEDSTOCK_CATEGORIES.TREE_VINE_NUT, 
     processingSuitability: [PROCESSING_TYPES.PYROLYSIS, PROCESSING_TYPES.COMBUSTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Peaches/Nect. (D5)": { 
-    category: FEEDSTOCK_CATEGORIES.ORCHARD_VINEYARD, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.MEDIUM,
-    energyLevel: ENERGY_CONTENT_LEVELS.MEDIUM,
+    category: FEEDSTOCK_CATEGORIES.TREE_VINE_NUT, 
     processingSuitability: [PROCESSING_TYPES.PYROLYSIS, PROCESSING_TYPES.COMBUSTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Olives (C6)": { 
-    category: FEEDSTOCK_CATEGORIES.ORCHARD_VINEYARD, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.MEDIUM,
-    energyLevel: ENERGY_CONTENT_LEVELS.MEDIUM,
+    category: FEEDSTOCK_CATEGORIES.TREE_VINE_NUT, 
     processingSuitability: [PROCESSING_TYPES.PYROLYSIS, PROCESSING_TYPES.COMBUSTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Pears (D6)": { 
-    category: FEEDSTOCK_CATEGORIES.ORCHARD_VINEYARD, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.MEDIUM,
-    energyLevel: ENERGY_CONTENT_LEVELS.MEDIUM,
+    category: FEEDSTOCK_CATEGORIES.TREE_VINE_NUT, 
     processingSuitability: [PROCESSING_TYPES.PYROLYSIS, PROCESSING_TYPES.COMBUSTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Persimmons": { 
-    category: FEEDSTOCK_CATEGORIES.ORCHARD_VINEYARD, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.MEDIUM,
-    energyLevel: ENERGY_CONTENT_LEVELS.MEDIUM,
+    category: FEEDSTOCK_CATEGORIES.TREE_VINE_NUT, 
     processingSuitability: [PROCESSING_TYPES.PYROLYSIS, PROCESSING_TYPES.COMBUSTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Plums (D7)": { 
-    category: FEEDSTOCK_CATEGORIES.ORCHARD_VINEYARD, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.MEDIUM,
-    energyLevel: ENERGY_CONTENT_LEVELS.MEDIUM,
+    category: FEEDSTOCK_CATEGORIES.TREE_VINE_NUT, 
     processingSuitability: [PROCESSING_TYPES.PYROLYSIS, PROCESSING_TYPES.COMBUSTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Pomegranates": { 
-    category: FEEDSTOCK_CATEGORIES.ORCHARD_VINEYARD, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.MEDIUM,
-    energyLevel: ENERGY_CONTENT_LEVELS.MEDIUM,
+    category: FEEDSTOCK_CATEGORIES.TREE_VINE_NUT, 
     processingSuitability: [PROCESSING_TYPES.PYROLYSIS, PROCESSING_TYPES.COMBUSTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Oranges (C3)": { 
-    category: FEEDSTOCK_CATEGORIES.ORCHARD_VINEYARD, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.MEDIUM,
-    energyLevel: ENERGY_CONTENT_LEVELS.MEDIUM,
+    category: FEEDSTOCK_CATEGORIES.TREE_VINE_NUT, 
     processingSuitability: [PROCESSING_TYPES.PYROLYSIS, PROCESSING_TYPES.COMBUSTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Almonds": { 
-    category: FEEDSTOCK_CATEGORIES.ORCHARD_VINEYARD, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.MEDIUM,
-    energyLevel: ENERGY_CONTENT_LEVELS.HIGH,
+    category: FEEDSTOCK_CATEGORIES.TREE_VINE_NUT, 
     processingSuitability: [PROCESSING_TYPES.PYROLYSIS, PROCESSING_TYPES.COMBUSTION, PROCESSING_TYPES.ANIMAL_BEDDING]
   },
   "Pecans": { 
-    category: FEEDSTOCK_CATEGORIES.ORCHARD_VINEYARD, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.MEDIUM,
-    energyLevel: ENERGY_CONTENT_LEVELS.HIGH,
+    category: FEEDSTOCK_CATEGORIES.TREE_VINE_NUT, 
     processingSuitability: [PROCESSING_TYPES.PYROLYSIS, PROCESSING_TYPES.COMBUSTION, PROCESSING_TYPES.ANIMAL_BEDDING]
   },
   "Pistachios (D14)": { 
-    category: FEEDSTOCK_CATEGORIES.ORCHARD_VINEYARD, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.MEDIUM,
-    energyLevel: ENERGY_CONTENT_LEVELS.HIGH,
+    category: FEEDSTOCK_CATEGORIES.TREE_VINE_NUT, 
     processingSuitability: [PROCESSING_TYPES.PYROLYSIS, PROCESSING_TYPES.COMBUSTION, PROCESSING_TYPES.ANIMAL_BEDDING]
   },
   "Walnuts (D13)": { 
-    category: FEEDSTOCK_CATEGORIES.ORCHARD_VINEYARD, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.MEDIUM,
-    energyLevel: ENERGY_CONTENT_LEVELS.HIGH,
+    category: FEEDSTOCK_CATEGORIES.TREE_VINE_NUT, 
     processingSuitability: [PROCESSING_TYPES.PYROLYSIS, PROCESSING_TYPES.COMBUSTION, PROCESSING_TYPES.ANIMAL_BEDDING]
   },
   "Misc. Deciduous (D10)": { 
-    category: FEEDSTOCK_CATEGORIES.ORCHARD_VINEYARD, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.MEDIUM,
-    energyLevel: ENERGY_CONTENT_LEVELS.MEDIUM,
+    category: FEEDSTOCK_CATEGORIES.TREE_VINE_NUT, 
     processingSuitability: [PROCESSING_TYPES.PYROLYSIS, PROCESSING_TYPES.COMBUSTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Artichokes": { 
-    category: FEEDSTOCK_CATEGORIES.ROW_TRUCK, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.HIGH,
-    energyLevel: ENERGY_CONTENT_LEVELS.LOW,
+    category: FEEDSTOCK_CATEGORIES.VEGETABLE_SPECIALTY, 
     processingSuitability: [PROCESSING_TYPES.ANAEROBIC_DIGESTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Asparagus": { 
-    category: FEEDSTOCK_CATEGORIES.ROW_TRUCK, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.HIGH,
-    energyLevel: ENERGY_CONTENT_LEVELS.LOW,
+    category: FEEDSTOCK_CATEGORIES.VEGETABLE_SPECIALTY, 
     processingSuitability: [PROCESSING_TYPES.ANAEROBIC_DIGESTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Berries": { 
-    category: FEEDSTOCK_CATEGORIES.ROW_TRUCK, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.MEDIUM,
-    energyLevel: ENERGY_CONTENT_LEVELS.MEDIUM,
+    category: FEEDSTOCK_CATEGORIES.VEGETABLE_SPECIALTY, 
     processingSuitability: [PROCESSING_TYPES.PYROLYSIS, PROCESSING_TYPES.COMBUSTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Beans": { 
-    category: FEEDSTOCK_CATEGORIES.ROW_TRUCK, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.HIGH,
-    energyLevel: ENERGY_CONTENT_LEVELS.LOW,
+    category: FEEDSTOCK_CATEGORIES.VEGETABLE_SPECIALTY, 
     processingSuitability: [PROCESSING_TYPES.ANAEROBIC_DIGESTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Lima Beans": { 
-    category: FEEDSTOCK_CATEGORIES.ROW_TRUCK, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.HIGH,
-    energyLevel: ENERGY_CONTENT_LEVELS.LOW,
+    category: FEEDSTOCK_CATEGORIES.VEGETABLE_SPECIALTY, 
     processingSuitability: [PROCESSING_TYPES.ANAEROBIC_DIGESTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Green Lima Beans": { 
-    category: FEEDSTOCK_CATEGORIES.ROW_TRUCK, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.HIGH,
-    energyLevel: ENERGY_CONTENT_LEVELS.LOW,
+    category: FEEDSTOCK_CATEGORIES.VEGETABLE_SPECIALTY, 
     processingSuitability: [PROCESSING_TYPES.ANAEROBIC_DIGESTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Broccoli": { 
-    category: FEEDSTOCK_CATEGORIES.ROW_TRUCK, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.HIGH,
-    energyLevel: ENERGY_CONTENT_LEVELS.LOW,
+    category: FEEDSTOCK_CATEGORIES.VEGETABLE_SPECIALTY, 
     processingSuitability: [PROCESSING_TYPES.ANAEROBIC_DIGESTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Cabbage": { 
-    category: FEEDSTOCK_CATEGORIES.ROW_TRUCK, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.HIGH,
-    energyLevel: ENERGY_CONTENT_LEVELS.LOW,
+    category: FEEDSTOCK_CATEGORIES.VEGETABLE_SPECIALTY, 
     processingSuitability: [PROCESSING_TYPES.ANAEROBIC_DIGESTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Melons/Squash (T9)": { 
-    category: FEEDSTOCK_CATEGORIES.ROW_TRUCK, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.HIGH,
-    energyLevel: ENERGY_CONTENT_LEVELS.LOW,
+    category: FEEDSTOCK_CATEGORIES.VEGETABLE_SPECIALTY, 
     processingSuitability: [PROCESSING_TYPES.ANAEROBIC_DIGESTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Carrots": { 
-    category: FEEDSTOCK_CATEGORIES.ROW_TRUCK, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.HIGH,
-    energyLevel: ENERGY_CONTENT_LEVELS.LOW,
+    category: FEEDSTOCK_CATEGORIES.VEGETABLE_SPECIALTY, 
     processingSuitability: [PROCESSING_TYPES.ANAEROBIC_DIGESTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Cauliflower": { 
-    category: FEEDSTOCK_CATEGORIES.ROW_TRUCK, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.HIGH,
-    energyLevel: ENERGY_CONTENT_LEVELS.LOW,
+    category: FEEDSTOCK_CATEGORIES.VEGETABLE_SPECIALTY, 
     processingSuitability: [PROCESSING_TYPES.ANAEROBIC_DIGESTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Celery": { 
-    category: FEEDSTOCK_CATEGORIES.ROW_TRUCK, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.HIGH,
-    energyLevel: ENERGY_CONTENT_LEVELS.LOW,
+    category: FEEDSTOCK_CATEGORIES.VEGETABLE_SPECIALTY, 
     processingSuitability: [PROCESSING_TYPES.ANAEROBIC_DIGESTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Cucumbers": { 
-    category: FEEDSTOCK_CATEGORIES.ROW_TRUCK, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.HIGH,
-    energyLevel: ENERGY_CONTENT_LEVELS.LOW,
+    category: FEEDSTOCK_CATEGORIES.VEGETABLE_SPECIALTY, 
     processingSuitability: [PROCESSING_TYPES.ANAEROBIC_DIGESTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Garlic": { 
-    category: FEEDSTOCK_CATEGORIES.ROW_TRUCK, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.HIGH,
-    energyLevel: ENERGY_CONTENT_LEVELS.LOW,
+    category: FEEDSTOCK_CATEGORIES.VEGETABLE_SPECIALTY, 
     processingSuitability: [PROCESSING_TYPES.ANAEROBIC_DIGESTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Lettuce and Romaine": { 
-    category: FEEDSTOCK_CATEGORIES.ROW_TRUCK, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.HIGH,
-    energyLevel: ENERGY_CONTENT_LEVELS.LOW,
+    category: FEEDSTOCK_CATEGORIES.VEGETABLE_SPECIALTY, 
     processingSuitability: [PROCESSING_TYPES.ANAEROBIC_DIGESTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Dry Onions": { 
-    category: FEEDSTOCK_CATEGORIES.ROW_TRUCK, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.HIGH,
-    energyLevel: ENERGY_CONTENT_LEVELS.LOW,
+    category: FEEDSTOCK_CATEGORIES.VEGETABLE_SPECIALTY, 
     processingSuitability: [PROCESSING_TYPES.ANAEROBIC_DIGESTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Hot Peppers": { 
-    category: FEEDSTOCK_CATEGORIES.ROW_TRUCK, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.HIGH,
-    energyLevel: ENERGY_CONTENT_LEVELS.LOW,
+    category: FEEDSTOCK_CATEGORIES.VEGETABLE_SPECIALTY, 
     processingSuitability: [PROCESSING_TYPES.ANAEROBIC_DIGESTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Sweet Peppers": { 
-    category: FEEDSTOCK_CATEGORIES.ROW_TRUCK, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.HIGH,
-    energyLevel: ENERGY_CONTENT_LEVELS.LOW,
+    category: FEEDSTOCK_CATEGORIES.VEGETABLE_SPECIALTY, 
     processingSuitability: [PROCESSING_TYPES.ANAEROBIC_DIGESTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Spinach": { 
-    category: FEEDSTOCK_CATEGORIES.ROW_TRUCK, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.HIGH,
-    energyLevel: ENERGY_CONTENT_LEVELS.LOW,
+    category: FEEDSTOCK_CATEGORIES.VEGETABLE_SPECIALTY, 
     processingSuitability: [PROCESSING_TYPES.ANAEROBIC_DIGESTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Sweet Corn": { 
-    category: FEEDSTOCK_CATEGORIES.ROW_TRUCK, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.LOW,
-    energyLevel: ENERGY_CONTENT_LEVELS.HIGH,
+    category: FEEDSTOCK_CATEGORIES.VEGETABLE_SPECIALTY, 
     processingSuitability: [PROCESSING_TYPES.PYROLYSIS, PROCESSING_TYPES.COMBUSTION, PROCESSING_TYPES.ANIMAL_BEDDING]
   },
   "Tomatoes Proc. (T15)": { 
-    category: FEEDSTOCK_CATEGORIES.ROW_TRUCK, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.HIGH,
-    energyLevel: ENERGY_CONTENT_LEVELS.LOW,
+    category: FEEDSTOCK_CATEGORIES.VEGETABLE_SPECIALTY, 
     processingSuitability: [PROCESSING_TYPES.ANAEROBIC_DIGESTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Potatoes (T12)": { 
-    category: FEEDSTOCK_CATEGORIES.ROW_TRUCK, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.HIGH,
-    energyLevel: ENERGY_CONTENT_LEVELS.LOW,
+    category: FEEDSTOCK_CATEGORIES.VEGETABLE_SPECIALTY, 
     processingSuitability: [PROCESSING_TYPES.ANAEROBIC_DIGESTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Sweet Potatoes (T13)": { 
-    category: FEEDSTOCK_CATEGORIES.ROW_TRUCK, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.HIGH,
-    energyLevel: ENERGY_CONTENT_LEVELS.LOW,
+    category: FEEDSTOCK_CATEGORIES.VEGETABLE_SPECIALTY, 
     processingSuitability: [PROCESSING_TYPES.ANAEROBIC_DIGESTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Sugar Beets": { 
-    category: FEEDSTOCK_CATEGORIES.ROW_TRUCK, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.HIGH,
-    energyLevel: ENERGY_CONTENT_LEVELS.LOW,
+    category: FEEDSTOCK_CATEGORIES.VEGETABLE_SPECIALTY, 
     processingSuitability: [PROCESSING_TYPES.ANAEROBIC_DIGESTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Unsp. vegetables": { 
-    category: FEEDSTOCK_CATEGORIES.ROW_TRUCK, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.HIGH,
-    energyLevel: ENERGY_CONTENT_LEVELS.LOW,
+    category: FEEDSTOCK_CATEGORIES.VEGETABLE_SPECIALTY, 
     processingSuitability: [PROCESSING_TYPES.ANAEROBIC_DIGESTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Corn, Sorghum (F16)": { 
-    category: FEEDSTOCK_CATEGORIES.FIELD, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.LOW,
-    energyLevel: ENERGY_CONTENT_LEVELS.HIGH,
+    category: FEEDSTOCK_CATEGORIES.GRAIN_FIELD, 
     processingSuitability: [PROCESSING_TYPES.PYROLYSIS, PROCESSING_TYPES.COMBUSTION, PROCESSING_TYPES.ANIMAL_BEDDING]
   },
   "Wheat (G2)": { 
-    category: FEEDSTOCK_CATEGORIES.FIELD, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.LOW,
-    energyLevel: ENERGY_CONTENT_LEVELS.HIGH,
+    category: FEEDSTOCK_CATEGORIES.GRAIN_FIELD, 
     processingSuitability: [PROCESSING_TYPES.PYROLYSIS, PROCESSING_TYPES.COMBUSTION, PROCESSING_TYPES.ANIMAL_BEDDING]
   },
   "Barley": { 
-    category: FEEDSTOCK_CATEGORIES.FIELD, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.LOW,
-    energyLevel: ENERGY_CONTENT_LEVELS.HIGH,
+    category: FEEDSTOCK_CATEGORIES.GRAIN_FIELD, 
     processingSuitability: [PROCESSING_TYPES.PYROLYSIS, PROCESSING_TYPES.COMBUSTION, PROCESSING_TYPES.ANIMAL_BEDDING]
   },
   "Oats": { 
-    category: FEEDSTOCK_CATEGORIES.FIELD, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.LOW,
-    energyLevel: ENERGY_CONTENT_LEVELS.HIGH,
+    category: FEEDSTOCK_CATEGORIES.GRAIN_FIELD, 
     processingSuitability: [PROCESSING_TYPES.PYROLYSIS, PROCESSING_TYPES.COMBUSTION, PROCESSING_TYPES.ANIMAL_BEDDING]
   },
   "Rice (R1)": { 
-    category: FEEDSTOCK_CATEGORIES.FIELD, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.LOW,
-    energyLevel: ENERGY_CONTENT_LEVELS.MEDIUM,
+    category: FEEDSTOCK_CATEGORIES.GRAIN_FIELD, 
     processingSuitability: [PROCESSING_TYPES.PYROLYSIS, PROCESSING_TYPES.COMBUSTION, PROCESSING_TYPES.ANIMAL_BEDDING]
   },
   "Safflower": { 
-    category: FEEDSTOCK_CATEGORIES.FIELD, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.LOW,
-    energyLevel: ENERGY_CONTENT_LEVELS.HIGH,
+    category: FEEDSTOCK_CATEGORIES.GRAIN_FIELD, 
     processingSuitability: [PROCESSING_TYPES.PYROLYSIS, PROCESSING_TYPES.COMBUSTION, PROCESSING_TYPES.ANIMAL_BEDDING]
   },
   "Sunflower": { 
-    category: FEEDSTOCK_CATEGORIES.FIELD, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.LOW,
-    energyLevel: ENERGY_CONTENT_LEVELS.HIGH,
+    category: FEEDSTOCK_CATEGORIES.GRAIN_FIELD, 
     processingSuitability: [PROCESSING_TYPES.PYROLYSIS, PROCESSING_TYPES.COMBUSTION, PROCESSING_TYPES.ANIMAL_BEDDING]
   },
   "Cotton (F1)": { 
-    category: FEEDSTOCK_CATEGORIES.FIELD, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.LOW,
-    energyLevel: ENERGY_CONTENT_LEVELS.MEDIUM,
+    category: FEEDSTOCK_CATEGORIES.GRAIN_FIELD, 
     processingSuitability: [PROCESSING_TYPES.PYROLYSIS, PROCESSING_TYPES.COMBUSTION, PROCESSING_TYPES.ANIMAL_BEDDING]
   },
   "Alfalfa & Mixtures": { 
     category: FEEDSTOCK_CATEGORIES.PASTURE_FORAGE, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.LOW,
-    energyLevel: ENERGY_CONTENT_LEVELS.MEDIUM,
     processingSuitability: [PROCESSING_TYPES.ANAEROBIC_DIGESTION, PROCESSING_TYPES.COMBUSTION, PROCESSING_TYPES.ANIMAL_BEDDING]
   },
   "Unsp. Field & Seed": { 
-    category: FEEDSTOCK_CATEGORIES.FIELD, 
-    moistureLevel: MOISTURE_CONTENT_LEVELS.LOW,
-    energyLevel: ENERGY_CONTENT_LEVELS.MEDIUM,
+    category: FEEDSTOCK_CATEGORIES.GRAIN_FIELD, 
     processingSuitability: [PROCESSING_TYPES.PYROLYSIS, PROCESSING_TYPES.COMBUSTION, PROCESSING_TYPES.ANIMAL_BEDDING]
   },
   "Bermuda Grass Seed": {
     category: FEEDSTOCK_CATEGORIES.PASTURE_FORAGE,
-    moistureLevel: MOISTURE_CONTENT_LEVELS.MEDIUM,
-    energyLevel: ENERGY_CONTENT_LEVELS.MEDIUM,
     processingSuitability: [PROCESSING_TYPES.ANAEROBIC_DIGESTION, PROCESSING_TYPES.COMBUSTION, PROCESSING_TYPES.ANIMAL_BEDDING]
   },
   "Eucalyptus": {
-    category: FEEDSTOCK_CATEGORIES.MISCELLANEOUS,
-    moistureLevel: MOISTURE_CONTENT_LEVELS.LOW,
-    energyLevel: ENERGY_CONTENT_LEVELS.HIGH,
+    category: FEEDSTOCK_CATEGORIES.TREE_VINE_NUT,
     processingSuitability: [PROCESSING_TYPES.PYROLYSIS, PROCESSING_TYPES.COMBUSTION]
   },
   "Flowers, Nursery and Christmas Tree Farms": {
-    category: FEEDSTOCK_CATEGORIES.MISCELLANEOUS,
-    moistureLevel: MOISTURE_CONTENT_LEVELS.HIGH,
-    energyLevel: ENERGY_CONTENT_LEVELS.LOW,
+    category: FEEDSTOCK_CATEGORIES.VEGETABLE_SPECIALTY,
     processingSuitability: [PROCESSING_TYPES.COMPOSTING]
   },
   "Greenhouse": {
-    category: FEEDSTOCK_CATEGORIES.MISCELLANEOUS,
-    moistureLevel: MOISTURE_CONTENT_LEVELS.HIGH,
-    energyLevel: ENERGY_CONTENT_LEVELS.LOW,
+    category: FEEDSTOCK_CATEGORIES.VEGETABLE_SPECIALTY,
     processingSuitability: [PROCESSING_TYPES.COMPOSTING]
   },
   "Idle – Long Term": {
-    category: FEEDSTOCK_CATEGORIES.IDLE_FALLOW,
-    moistureLevel: MOISTURE_CONTENT_LEVELS.LOW,
-    energyLevel: ENERGY_CONTENT_LEVELS.LOW,
+    category: FEEDSTOCK_CATEGORIES.FALLOW_IDLE,
     processingSuitability: [PROCESSING_TYPES.COMPOSTING]
   },
   "Idle – Short Term": {
-    category: FEEDSTOCK_CATEGORIES.IDLE_FALLOW,
-    moistureLevel: MOISTURE_CONTENT_LEVELS.LOW,
-    energyLevel: ENERGY_CONTENT_LEVELS.LOW,
+    category: FEEDSTOCK_CATEGORIES.FALLOW_IDLE,
     processingSuitability: [PROCESSING_TYPES.COMPOSTING]
   },
   "Induced high water table native pasture": {
     category: FEEDSTOCK_CATEGORIES.PASTURE_FORAGE,
-    moistureLevel: MOISTURE_CONTENT_LEVELS.HIGH,
-    energyLevel: ENERGY_CONTENT_LEVELS.LOW,
     processingSuitability: [PROCESSING_TYPES.ANAEROBIC_DIGESTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Mixed Pasture": {
     category: FEEDSTOCK_CATEGORIES.PASTURE_FORAGE,
-    moistureLevel: MOISTURE_CONTENT_LEVELS.HIGH,
-    energyLevel: ENERGY_CONTENT_LEVELS.LOW,
     processingSuitability: [PROCESSING_TYPES.ANAEROBIC_DIGESTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Native Pasture": {
     category: FEEDSTOCK_CATEGORIES.PASTURE_FORAGE,
-    moistureLevel: MOISTURE_CONTENT_LEVELS.HIGH,
-    energyLevel: ENERGY_CONTENT_LEVELS.LOW,
     processingSuitability: [PROCESSING_TYPES.ANAEROBIC_DIGESTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Strawberries": {
-    category: FEEDSTOCK_CATEGORIES.ROW_TRUCK,
-    moistureLevel: MOISTURE_CONTENT_LEVELS.HIGH,
-    energyLevel: ENERGY_CONTENT_LEVELS.LOW,
+    category: FEEDSTOCK_CATEGORIES.VEGETABLE_SPECIALTY,
     processingSuitability: [PROCESSING_TYPES.ANAEROBIC_DIGESTION, PROCESSING_TYPES.COMPOSTING]
   },
   "Turf Farms": {
     category: FEEDSTOCK_CATEGORIES.PASTURE_FORAGE,
-    moistureLevel: MOISTURE_CONTENT_LEVELS.HIGH,
-    energyLevel: ENERGY_CONTENT_LEVELS.LOW,
     processingSuitability: [PROCESSING_TYPES.COMPOSTING]
   },
   "Unclassified Fallow": {
-    category: FEEDSTOCK_CATEGORIES.IDLE_FALLOW,
-    moistureLevel: MOISTURE_CONTENT_LEVELS.LOW,
-    energyLevel: ENERGY_CONTENT_LEVELS.LOW,
+    category: FEEDSTOCK_CATEGORIES.FALLOW_IDLE,
     processingSuitability: [PROCESSING_TYPES.COMPOSTING]
   },
   "Young Perennials": {
-    category: FEEDSTOCK_CATEGORIES.ORCHARD_VINEYARD,
-    moistureLevel: MOISTURE_CONTENT_LEVELS.MEDIUM,
-    energyLevel: ENERGY_CONTENT_LEVELS.MEDIUM,
+    category: FEEDSTOCK_CATEGORIES.TREE_VINE_NUT,
     processingSuitability: [PROCESSING_TYPES.COMPOSTING]
   }
 };
 
 // Helper function to get feedstock characteristics by crop name
 export const getFeedstockCharacteristics = (cropName: string) => {
-  // Get the standardized crop name from mapping
   const standardizedName = CROP_NAME_MAPPING[cropName as keyof typeof CROP_NAME_MAPPING] || null;
-  
-  if (!standardizedName) {
-    return null;
-  }
-  
-  // Get static characteristics as a base
-  const staticCharacteristics = FEEDSTOCK_CHARACTERISTICS[standardizedName] || null;
-  
-  // Try to get dynamic data to override moisture level
-  // dynamicData is now ResidueFactors[]
-  const dynamicData = getResidueData(standardizedName);
-  
-  if (dynamicData && dynamicData.length > 0) {
-    // Collect all moisture levels present in the residue streams
-    const moistureLevels = new Set<string>();
-    
-    dynamicData.forEach(factor => {
-      const moisture = factor.moistureContent; // 0 to 1
-      if (moisture < 0.15) {
-        moistureLevels.add(MOISTURE_CONTENT_LEVELS.LOW);
-      } else if (moisture >= 0.15 && moisture <= 0.30) {
-        moistureLevels.add(MOISTURE_CONTENT_LEVELS.MEDIUM);
-      } else {
-        moistureLevels.add(MOISTURE_CONTENT_LEVELS.HIGH);
-      }
-    });
-    
-    const dynamicMoistureLevels = Array.from(moistureLevels);
-    
-    // If we have static characteristics, override moisture level with array
-    // Note: Consumers need to be updated to handle moistureLevels array instead of single string
-    if (staticCharacteristics) {
-      return {
-        ...staticCharacteristics,
-        moistureLevels: dynamicMoistureLevels,
-        // Keep single level for backward compat (use primary/first or calculate avg?)
-        // Let's use the first one as fallback, but rely on 'moistureLevels' for filtering
-        moistureLevel: dynamicMoistureLevels[0] || MOISTURE_CONTENT_LEVELS.MEDIUM
-      };
-    }
-    
-    return null; 
-  }
-  
-  // Fallback to static if dynamic data not yet loaded
-  if (staticCharacteristics) {
-    return {
-      ...staticCharacteristics,
-      moistureLevels: [staticCharacteristics.moistureLevel] // Wrap in array for consistency
-    };
-  }
-  
-  return null;
+  if (!standardizedName) return null;
+  return FEEDSTOCK_CHARACTERISTICS[standardizedName] || null;
 };
