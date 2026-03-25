@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useCallback, useEffect } from 'react'; // Added useEffect
 import dynamic from 'next/dynamic';
+import { fetchResidueData } from '@/lib/residue-data';
 // Removed useSWRInfinite import
 const Map = dynamic(() => import('@/components/Map'), { ssr: false });
 import LayerControls from '@/components/LayerControls'; // Import the new LayerControls component
@@ -41,6 +42,12 @@ export default function Home() {
 
   // State for panel collapse
   const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
+
+  // Effect to fetch residue data on mount
+  useEffect(() => {
+    fetchResidueData()
+      .catch(err => console.error("Failed to load residue data:", err));
+  }, []);
 
   // Effect to dispatch resize event when panel collapses/expands
   useEffect(() => {
@@ -138,6 +145,7 @@ export default function Home() {
 
   // State for the list of currently visible crops
   const [visibleCrops, setVisibleCrops] = useState<string[]>(allCropNames); // Start with all crops visible
+  const [bufferGeoids, setBufferGeoids] = useState<string[]>([]); // County GEOIDs within the siting buffer
 
   // --- Removed feedstock data fetching logic (useSWRInfinite, getKey, combinedFeedstockData, etc.) ---
 
@@ -305,6 +313,7 @@ export default function Home() {
             layerVisibility={layerVisibility}
             visibleCrops={visibleCrops} // Pass the visible crops state
             croplandOpacity={croplandOpacity} // Pass opacity state
+            onGeoidsChange={setBufferGeoids} // Propagate county GEOIDs up from buffer analysis
           />
         </div>
       </main>

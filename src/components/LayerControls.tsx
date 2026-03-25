@@ -20,15 +20,14 @@ import {
  TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { 
-  ORCHARD_VINEYARD_RESIDUES, 
-  ROW_CROP_RESIDUES, 
-  FIELD_CROP_RESIDUES, 
   CROP_NAME_MAPPING,
   FEEDSTOCK_CATEGORIES,
   MOISTURE_CONTENT_LEVELS,
   ENERGY_CONTENT_LEVELS,
-  getFeedstockCharacteristics
+  getFeedstockCharacteristics,
+  getCropResidueFactors // Added this
 } from '@/lib/constants';
+import { onResidueDataLoaded } from '@/lib/residue-data';
 
 // Define a minimal type for the mapbox map instance to avoid using 'any'
 interface MapInstance {
@@ -71,7 +70,11 @@ const LayerControls: React.FC<LayerControlsProps> = ({
   // Local state to track layer visibility within the component
   // This helps keep UI in sync with actual map layer visibility
   const [localLayerVisibility, setLocalLayerVisibility] = useState<{ [key: string]: boolean }>(initialVisibility);
-  
+
+  // Re-render once residue data finishes loading so crop filters reflect actual data.
+  const [, setResidueReady] = useState(0);
+  useEffect(() => onResidueDataLoaded(() => setResidueReady(v => v + 1)), []);
+
   // Update local state when props change
   useEffect(() => {
     setLocalLayerVisibility(initialVisibility);
@@ -161,44 +164,40 @@ const LayerControls: React.FC<LayerControlsProps> = ({
   
   // Function to check if a crop is available in the selected month range
   const isCropAvailableInRange = (cropName: string, range: [number, number]): boolean => {
-    // Get standardized crop name
-    const standardizedName = CROP_NAME_MAPPING[cropName as keyof typeof CROP_NAME_MAPPING];
-    if (!standardizedName) return true; // If not found, assume always available
-    
-    // Find the crop in the residue tables
-    let seasonalData;
-    if (standardizedName in ORCHARD_VINEYARD_RESIDUES) {
-      seasonalData = ORCHARD_VINEYARD_RESIDUES[standardizedName as keyof typeof ORCHARD_VINEYARD_RESIDUES].seasonalAvailability;
-    } else if (standardizedName in ROW_CROP_RESIDUES) {
-      seasonalData = ROW_CROP_RESIDUES[standardizedName as keyof typeof ROW_CROP_RESIDUES].seasonalAvailability;
-    } else if (standardizedName in FIELD_CROP_RESIDUES) {
-      seasonalData = FIELD_CROP_RESIDUES[standardizedName as keyof typeof FIELD_CROP_RESIDUES].seasonalAvailability;
-    }
-    
-    if (!seasonalData) return true; // If no seasonal data, assume always available
-    
-    // Check if crop is available in any month within the selected range
-    const [startMonth, endMonth] = range;
-    
-    // Handle cases where the range wraps around (e.g., Nov-Feb)
-    if (startMonth <= endMonth) {
-      // Normal range (e.g., Mar-Jul)
-      for (let i = startMonth; i <= endMonth; i++) {
-        if (seasonalData[getMonthAbbr(i)]) return true;
+    // Use the helper to get factors which now includes seasonal availability from the dynamic source
+    const result = getCropResidueFactors(cropName);
+    const factorsArray = result?.factors;
+
+    // If no data, assume always available (or should it be false? Original code assumed true if not found in mapping)
+    if (!factorsArray || factorsArray.length === 0) return true;
+
+    // Check if ANY of the residue streams for this crop are available in the range
+    return factorsArray.some(factor => {
+      const seasonalData = factor.seasonalAvailability;
+      if (!seasonalData) return false;
+
+      // Check if crop is available in any month within the selected range
+      const [startMonth, endMonth] = range;
+      
+      // Handle cases where the range wraps around (e.g., Nov-Feb)
+      if (startMonth <= endMonth) {
+        // Normal range (e.g., Mar-Jul)
+        for (let i = startMonth; i <= endMonth; i++) {
+          if (seasonalData[getMonthAbbr(i)]) return true;
+        }
+      } else {
+        // Wrapped range (e.g., Nov-Feb)
+        // Check from start to December
+        for (let i = startMonth; i < 12; i++) {
+          if (seasonalData[getMonthAbbr(i)]) return true;
+        }
+        // Check from January to end
+        for (let i = 0; i <= endMonth; i++) {
+          if (seasonalData[getMonthAbbr(i)]) return true;
+        }
       }
-    } else {
-      // Wrapped range (e.g., Nov-Feb)
-      // Check from start to December
-      for (let i = startMonth; i < 12; i++) {
-        if (seasonalData[getMonthAbbr(i)]) return true;
-      }
-      // Check from January to end
-      for (let i = 0; i <= endMonth; i++) {
-        if (seasonalData[getMonthAbbr(i)]) return true;
-      }
-    }
-    
-    return false; // Not available in any month within range
+      return false;
+    });
   };
   
   // Comprehensive filter function that checks all selected filter criteria
@@ -212,7 +211,8 @@ const LayerControls: React.FC<LayerControlsProps> = ({
     if (!seasonalMatch) return false;
     
     // Get feedstock characteristics
-    const characteristics = getFeedstockCharacteristics(cropName);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const characteristics = getFeedstockCharacteristics(cropName) as any; // Cast to any to handle new property safely if TS complains
     // If no characteristics defined, hide the crop (can't determine if it matches filters)
     if (!characteristics) return false;
     
@@ -225,7 +225,16 @@ const LayerControls: React.FC<LayerControlsProps> = ({
     // Check if crop matches selected moisture levels
     // If no moisture levels selected (empty array), hide everything
     if (selectedMoistureLevels.length === 0) return false;
-    const moistureMatch = selectedMoistureLevels.includes(characteristics.moistureLevel);
+    
+    // Handle both single level (legacy/fallback) and array of levels (new)
+    let moistureMatch = false;
+    if (characteristics.moistureLevels && Array.isArray(characteristics.moistureLevels)) {
+      // Check if ANY of the crop's moisture levels match ANY of the selected levels
+      moistureMatch = characteristics.moistureLevels.some((level: string) => selectedMoistureLevels.includes(level));
+    } else {
+      moistureMatch = selectedMoistureLevels.includes(characteristics.moistureLevel);
+    }
+    
     if (!moistureMatch) return false;
     
     // Check if crop matches selected energy levels
@@ -260,7 +269,9 @@ const LayerControls: React.FC<LayerControlsProps> = ({
           }
           
           // Create a filter that shows only visible crops
-          const visibleCropFilter = ['match', ['get', 'main_crop_name'], visibleCrops, true, false];
+          const visibleCropFilter = visibleCrops.length > 0
+            ? ['match', ['get', 'main_crop_name'], visibleCrops, true, false]
+            : ['==', ['get', 'main_crop_name'], '___NO_MATCH___']; // Hide all
           // Combine with the existing base filter that excludes 'U' code
           const combinedFilter = ['all', ['!=', ['get', 'main_crop_code'], 'U'], visibleCropFilter];
           
@@ -298,14 +309,22 @@ const LayerControls: React.FC<LayerControlsProps> = ({
             mapInstance.setLayoutProperty('feedstock-vector-layer', 'visibility', 'visible');
           }
           
-          // Create a filter that shows only visible crops
-          const visibleCropFilter = ['match', ['get', 'main_crop_name'], visibleCrops, true, false];
-          // Combine with the existing base filter that excludes 'U' code
-          const combinedFilter = ['all', ['!=', ['get', 'main_crop_code'], 'U'], visibleCropFilter];
-          
-          // Apply the filter directly to the map
-          mapInstance.setFilter('feedstock-vector-layer', combinedFilter);
-          console.log(`Applied comprehensive filters (${visibleCrops.length} crops visible)`);
+          if (visibleCrops.length === allCropNames.length) {
+            // Show everything (except U) when all tracked crops are visible
+            mapInstance.setFilter('feedstock-vector-layer', ['!=', ['get', 'main_crop_code'], 'U']);
+            console.log(`Applied comprehensive filters (All ${visibleCrops.length} tracked crops visible, showing all dataset features)`);
+          } else {
+            // Create a filter that shows only visible crops
+            const visibleCropFilter = visibleCrops.length > 0
+              ? ['match', ['get', 'main_crop_name'], visibleCrops, true, false]
+              : ['==', ['get', 'main_crop_name'], '___NO_MATCH___']; // Hide all
+            // Combine with the existing base filter that excludes 'U' code
+            const combinedFilter = ['all', ['!=', ['get', 'main_crop_code'], 'U'], visibleCropFilter];
+            
+            // Apply the filter directly to the map
+            mapInstance.setFilter('feedstock-vector-layer', combinedFilter);
+            console.log(`Applied comprehensive filters (${visibleCrops.length} crops visible)`);
+          }
         } catch (err) {
           console.error('Error applying comprehensive filters:', err);
         }
@@ -366,7 +385,9 @@ const LayerControls: React.FC<LayerControlsProps> = ({
           }
           
           // Create a filter that shows only visible crops
-          const visibleCropFilter = ['match', ['get', 'main_crop_name'], visibleCrops, true, false];
+          const visibleCropFilter = visibleCrops.length > 0
+            ? ['match', ['get', 'main_crop_name'], visibleCrops, true, false]
+            : ['==', ['get', 'main_crop_name'], '___NO_MATCH___']; // Hide all
           // Combine with the existing base filter that excludes 'U' code
           const combinedFilter = ['all', ['!=', ['get', 'main_crop_code'], 'U'], visibleCropFilter];
           
@@ -453,7 +474,9 @@ const LayerControls: React.FC<LayerControlsProps> = ({
             mapInstance.setFilter('feedstock-vector-layer', ['!=', ['get', 'main_crop_code'], 'U']);
           } else {
             // Create a filter that shows only visible crops
-            const visibleCropFilter = ['match', ['get', 'main_crop_name'], visibleCrops, true, false];
+            const visibleCropFilter = visibleCrops.length > 0
+              ? ['match', ['get', 'main_crop_name'], visibleCrops, true, false]
+              : ['==', ['get', 'main_crop_name'], '___NO_MATCH___']; // Hide all
             // Combine with the existing base filter that excludes 'U' code
             const combinedFilter = ['all', ['!=', ['get', 'main_crop_code'], 'U'], visibleCropFilter];
             

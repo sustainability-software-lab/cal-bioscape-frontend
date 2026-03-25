@@ -7,9 +7,13 @@ import * as turf from '@turf/turf'; // Import TurfJS
 import SitingButton from './SitingButton';
 import SitingAnalysis from './SitingAnalysis';
 import SitingInventory from './SitingInventory'; // Import the new component
-import { INFRASTRUCTURE_LAYERS } from '@/lib/constants';
+import { INFRASTRUCTURE_LAYERS, getCropResidueFactors } from '@/lib/constants';
 import { TILESET_REGISTRY } from '@/lib/tileset-registry'; // Import centralized tileset registry
 import { layerLabelMappings } from '@/lib/labelMappings';
+import { getAvailability, getAnalysisByResource, getCensusByCrop } from '@/lib/api';
+import { getCountyGeoid } from '@/lib/county-lookup';
+import { getApiResource, getUsdaCropName } from '@/lib/resource-mapping';
+import { onResidueDataLoaded } from '@/lib/residue-data';
 
 // --- Configuration ---
 // IMPORTANT: Replace with your actual Mapbox access token if using the placeholder.
@@ -34,7 +38,7 @@ if (MAPBOX_ACCESS_TOKEN && MAPBOX_ACCESS_TOKEN !== 'YOUR_MAPBOX_ACCESS_TOKEN') {
 
 
 // Accept props for data and visibility
-const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added visibleCrops & croplandOpacity props
+const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange }) => { // Added visibleCrops, croplandOpacity, onGeoidsChange props
   
   // Define cleanupSitingElements at the very beginning to avoid temporal dead zone issues
   const cleanupSitingElements = useCallback(() => {
@@ -171,6 +175,11 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
   const mapContainer = useRef(null); // Reference to the map container div
   const map = useRef(null); // Reference to the map instance
   const [mapLoaded, setMapLoaded] = useState(false); // State to track map load status
+
+  // Re-render once residue data finishes loading so popup calculations use real data.
+  const [, setResidueReady] = useState(0);
+  useEffect(() => onResidueDataLoaded(() => setResidueReady(v => v + 1)), []);
+
   const currentPopup = useRef(null); // Reference to track the current popup
   const [currentPopupLayer, setCurrentPopupLayer] = useState(null); // State to track the layer of the current popup
   
@@ -194,6 +203,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
   const [inventoryData, setInventoryData] = useState([]);
   const [totalAcres, setTotalAcres] = useState(0);
   const [markerLocation, setMarkerLocation] = useState(null);
+  const [bufferGeoids, setBufferGeoids] = useState([]);
 
   // Define crop color mapping
   const cropColorMapping = useMemo(() => ({
@@ -265,7 +275,10 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
         formattedValue = formatPhoneNumber(formattedValue);
       } else if (typeof formattedValue === 'number' || (typeof formattedValue === 'string' && !isNaN(Number(formattedValue)) && formattedValue.trim() !== '')) {
         const num = Number(formattedValue);
-        formattedValue = num.toLocaleString();
+        const noCommaKeywords = ['year', 'latitude', 'longitude', 'zip', ' id', 'index', 'naics', 'version'];
+        if (!noCommaKeywords.some(kw => label.toLowerCase().includes(kw))) {
+          formattedValue = num.toLocaleString();
+        }
       }
       
       if (units) {
@@ -605,7 +618,22 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
       
       console.log("Resource inventory:", inventoryArray);
       console.log("Total acres in buffer:", bufferTotalAcres);
-      
+
+      // Collect unique county GEOIDs from features within the buffer and propagate up
+      const countyGeoidsInBuffer = new Set();
+      features.forEach(feature => {
+        const county = feature.properties?.county;
+        if (county) {
+          const geoid = getCountyGeoid(county);
+          if (geoid) countyGeoidsInBuffer.add(geoid);
+        }
+      });
+      const geoidsArray = Array.from(countyGeoidsInBuffer);
+      setBufferGeoids(geoidsArray);
+      if (onGeoidsChange) {
+        onGeoidsChange(geoidsArray);
+      }
+
       // Update the state to show the inventory
       setInventoryData(inventoryArray);
       setTotalAcres(bufferTotalAcres);
@@ -2346,207 +2374,71 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
             const cropName = properties.main_crop_name;
             const acres = parseFloat(properties.acres) || 0;
             
-            // Import crop residue factor mappings from constants
-            const CROP_NAME_MAPPING = {
-              // Orchard and Vineyard crops
-              "Apples": "Apples",
-              "Apricots": "Apricots",
-              "Avocados": "Avocados",
-              "Cherries": "Cherries",
-              "Dates": "Dates",
-              "Figs": "Figs",
-              "Grapes": "Grapes",
-              "Kiwis": "Kiwifruit",
-              "Nectarines": "Nectarines",
-              "Olives": "Olives",
-              "Peaches/Nectarines": "Peaches",
-              "Pears": "Pears",
-              "Persimmons": "Persimmons",
-              "Plums": "Plums & Prunes",
-              "Prunes": "Plums & Prunes",
-              "Pomegranates": "Pomegranates",
-              "Citrus and Subtropical": "All Citrus",
-              "Miscellaneous Subtropical Fruits": "All Citrus",
-              "Almonds": "Almonds",
-              "Pecans": "Pecans",
-              "Pistachios": "Pistachios",
-              "Walnuts": "Walnuts",
-              "Miscellaneous Deciduous": "Fruits & Nuts unsp.",
-              
-              // Row crops
-              "Artichokes": "Artichokes",
-              "Asparagus": "Asparagus",
-              "Bush Berries": "Berries",
-              "Beans (Dry)": "Beans",
-              "Lima Beans": "Lima Beans",
-              "Green Lima Beans": "Green Lima Beans",
-              "Broccoli": "Broccoli",
-              "Cabbage": "Cabbage",
-              "Cole Crops": "Cabbage",
-              "Melons, Squash and Cucumbers": "Combined Melons",
-              "Carrots": "Carrots",
-              "Cauliflower": "Cauliflower",
-              "Celery": "Celery",
-              "Cucumbers": "Cucumbers",
-              "Garlic": "Garlic",
-              "Lettuce/Leafy Greens": "Lettuce and Romaine",
-              "Onions and Garlic": "Dry Onions",
-              "Peppers": "Hot Peppers",
-              "Sweet Peppers": "Sweet Peppers",
-              "Spinach": "Spinach",
-              "Squash": "Squash",
-              "Sweet Corn": "Sweet Corn",
-              "Tomatoes": "Tomatoes",
-              "Potatoes": "Potatoes",
-              "Sweet Potatoes": "Sweet Potatos",
-              "Sugar beets": "Sugar Beets",
-              "Miscellaneous Truck Crops": "Unsp. vegetables",
-              
-              // Field crops
-              "Corn, Sorghum and Sudan": "Corn",
-              "Sorghum": "Sorghum",
-              "Wheat": "Wheat",
-              "Barley": "Barley",
-              "Oats": "Oats",
-              "Rice": "Rice",
-              "Wild Rice": "Rice",
-              "Safflower": "Safflower",
-              "Sunflowers": "Sunflower",
-              "Cotton": "Cotton",
-              "Alfalfa & Alfalfa Mixtures": "Alfalfa",
-              "Miscellaneous Field Crops": "Unsp. Field & Seed",
-              "Miscellaneous Grain and Hay": "Unsp. Field & Seed",
-              "Miscellaneous Grasses": "Bermuda Grass Seed"
-            };
-
-            // Orchard and Vineyard Residues
-            const ORCHARD_VINEYARD_RESIDUES = {
-              "Apples": { wetTonsPerAcre: 1.9, moistureContent: 0.4, dryTonsPerAcre: 1.2 },
-              "Apricots": { wetTonsPerAcre: 2.5, moistureContent: 0.4, dryTonsPerAcre: 1.5 },
-              "Avocados": { wetTonsPerAcre: 1.5, moistureContent: 0.4, dryTonsPerAcre: 0.9 },
-              "Cherries": { wetTonsPerAcre: 2.1, moistureContent: 0.4, dryTonsPerAcre: 1.2 },
-              "Dates": { wetTonsPerAcre: 0.6, moistureContent: 0.43, dryTonsPerAcre: 0.3 },
-              "Figs": { wetTonsPerAcre: 2.2, moistureContent: 0.43, dryTonsPerAcre: 1.3 },
-              "Grapes": { wetTonsPerAcre: 2.0, moistureContent: 0.45, dryTonsPerAcre: 1.1 },
-              "Kiwifruit": { wetTonsPerAcre: 2.0, moistureContent: 0.45, dryTonsPerAcre: 1.1 },
-              "Nectarines": { wetTonsPerAcre: 1.6, moistureContent: 0.43, dryTonsPerAcre: 0.9 },
-              "Olives": { wetTonsPerAcre: 1.1, moistureContent: 0.43, dryTonsPerAcre: 0.7 },
-              "Peaches": { wetTonsPerAcre: 2.3, moistureContent: 0.43, dryTonsPerAcre: 1.3 },
-              "Pears": { wetTonsPerAcre: 2.3, moistureContent: 0.4, dryTonsPerAcre: 1.4 },
-              "Persimmons": { wetTonsPerAcre: 1.6, moistureContent: 0.43, dryTonsPerAcre: 0.9 },
-              "Plums & Prunes": { wetTonsPerAcre: 1.5, moistureContent: 0.43, dryTonsPerAcre: 0.9 },
-              "Pomegranates": { wetTonsPerAcre: 1.6, moistureContent: 0.43, dryTonsPerAcre: 0.9 },
-              "All Citrus": { wetTonsPerAcre: 2.5, moistureContent: 0.4, dryTonsPerAcre: 1.5 },
-              "Almonds": { wetTonsPerAcre: 2.5, moistureContent: 0.4, dryTonsPerAcre: 1.5 },
-              "Pecans": { wetTonsPerAcre: 1.6, moistureContent: 0.4, dryTonsPerAcre: 1.0 },
-              "Pistachios": { wetTonsPerAcre: 1.0, moistureContent: 0.43, dryTonsPerAcre: 0.6 },
-              "Walnuts": { wetTonsPerAcre: 1.0, moistureContent: 0.43, dryTonsPerAcre: 0.6 },
-              "Fruits & Nuts unsp.": { wetTonsPerAcre: 1.6, moistureContent: 0.5, dryTonsPerAcre: 0.8 }
-            };
-
-            // Row Crop Residues
-            const ROW_CROP_RESIDUES = {
-              "Artichokes": { residueType: "Top Silage", wetTonsPerAcre: 1.7, moistureContent: 0.73, dryTonsPerAcre: 0.5 },
-              "Asparagus": { residueType: "", wetTonsPerAcre: 2.2, moistureContent: 0.8, dryTonsPerAcre: 0.4 },
-              "Green Lima Beans": { residueType: "Vines and Leaves", wetTonsPerAcre: 1.0, moistureContent: 0.8, dryTonsPerAcre: 0.2 },
-              "Berries": { residueType: "Prunings and Leaves", wetTonsPerAcre: 1.3, moistureContent: 0.4, dryTonsPerAcre: 0.8 },
-              "Snap Beans": { residueType: "Vines and Leaves", wetTonsPerAcre: 1.0, moistureContent: 0.8, dryTonsPerAcre: 0.2 },
-              "Broccoli": { residueType: "", wetTonsPerAcre: 1.0, moistureContent: 0.8, dryTonsPerAcre: 0.2 },
-              "Cabbage": { residueType: "", wetTonsPerAcre: 1.0, moistureContent: 0.8, dryTonsPerAcre: 0.2 },
-              "Combined Melons": { residueType: "Vines and Leaves", wetTonsPerAcre: 1.2, moistureContent: 0.8, dryTonsPerAcre: 0.2 },
-              "Carrots": { residueType: "Top Silage", wetTonsPerAcre: 1.0, moistureContent: 0.84, dryTonsPerAcre: 0.2 },
-              "Cauliflower": { residueType: "", wetTonsPerAcre: 1.0, moistureContent: 0.8, dryTonsPerAcre: 0.2 },
-              "Celery": { residueType: "", wetTonsPerAcre: 1.0, moistureContent: 0.8, dryTonsPerAcre: 0.2 },
-              "Cucumbers": { residueType: "Vines and Leaves", wetTonsPerAcre: 1.7, moistureContent: 0.8, dryTonsPerAcre: 0.3 },
-              "Garlic": { residueType: "", wetTonsPerAcre: 1.0, moistureContent: 0.73, dryTonsPerAcre: 0.3 },
-              "Lettuce and Romaine": { residueType: "", wetTonsPerAcre: 1.0, moistureContent: 0.8, dryTonsPerAcre: 0.2 },
-              "Dry Onions": { residueType: "", wetTonsPerAcre: 1.0, moistureContent: 0.73, dryTonsPerAcre: 0.3 },
-              "Green Onions": { residueType: "", wetTonsPerAcre: 1.0, moistureContent: 0.73, dryTonsPerAcre: 0.3 },
-              "Hot Peppers": { residueType: "Stems & Leaf Meal", wetTonsPerAcre: 1.0, moistureContent: 0.8, dryTonsPerAcre: 0.2 },
-              "Sweet Peppers": { residueType: "Stems & Leaf Meal", wetTonsPerAcre: 1.0, moistureContent: 0.8, dryTonsPerAcre: 0.2 },
-              "Spinach": { residueType: "", wetTonsPerAcre: 1.0, moistureContent: 0.8, dryTonsPerAcre: 0.2 },
-              "Squash": { residueType: "Vines and Leaves", wetTonsPerAcre: 1.2, moistureContent: 0.8, dryTonsPerAcre: 0.2 },
-              "Sweet Corn": { residueType: "Stover", wetTonsPerAcre: 4.7, moistureContent: 0.2, dryTonsPerAcre: 3.8 },
-              "Tomatoes": { residueType: "Vines and Leaves", wetTonsPerAcre: 1.3, moistureContent: 0.8, dryTonsPerAcre: 0.3 },
-              "Unsp. vegetables": { residueType: "", wetTonsPerAcre: 1.4, moistureContent: 0.8, dryTonsPerAcre: 0.3 },
-              "Potatoes": { residueType: "Vines and Leaves", wetTonsPerAcre: 1.2, moistureContent: 0.8, dryTonsPerAcre: 0.2 },
-              "Sweet Potatos": { residueType: "Vines and Leaves", wetTonsPerAcre: 1.2, moistureContent: 0.8, dryTonsPerAcre: 0.2 },
-              "Sugar Beets": { residueType: "Top Silage", wetTonsPerAcre: 2.4, moistureContent: 0.75, dryTonsPerAcre: 0.6 }
-            };
-
-            // Field Crop Residues
-            const FIELD_CROP_RESIDUES = {
-              "Corn": { residueType: "Stover", wetTonsPerAcre: 2.9, moistureContent: 0.2, dryTonsPerAcre: 2.3 },
-              "Sorghum": { residueType: "Stover", wetTonsPerAcre: 2.2, moistureContent: 0.2, dryTonsPerAcre: 1.8 },
-              "Wheat": { residueType: "Straw & Stubble", wetTonsPerAcre: 1.2, moistureContent: 0.14, dryTonsPerAcre: 1.0 },
-              "Barley": { residueType: "Straw & Stubble", wetTonsPerAcre: 0.9, moistureContent: 0.15, dryTonsPerAcre: 0.7 },
-              "Oats": { residueType: "Straw & Stubble", wetTonsPerAcre: 0.5, moistureContent: 0.15, dryTonsPerAcre: 0.4 },
-              "Rice": { residueType: "Straw", wetTonsPerAcre: 1.8, moistureContent: 0.14, dryTonsPerAcre: 1.6 },
-              "Safflower": { residueType: "Straw & Stubble", wetTonsPerAcre: 0.9, moistureContent: 0.14, dryTonsPerAcre: 0.8 },
-              "Sunflower": { residueType: "Straw & Stubble", wetTonsPerAcre: 0.9, moistureContent: 0.14, dryTonsPerAcre: 0.8 },
-              "Cotton": { residueType: "Straw & Stubble", wetTonsPerAcre: 1.5, moistureContent: 0.14, dryTonsPerAcre: 1.3 },
-              "Beans": { residueType: "vines and leaves", wetTonsPerAcre: 1.0, moistureContent: 0.8, dryTonsPerAcre: 0.2 },
-              "Lima Beans": { residueType: "Vines and Leaves", wetTonsPerAcre: 1.0, moistureContent: 0.8, dryTonsPerAcre: 0.2 },
-              "Alfalfa": { residueType: "Stems & Leaf Meal", wetTonsPerAcre: 1.0, moistureContent: 0.11, dryTonsPerAcre: 0.9 },
-              "Bermuda Grass Seed": { residueType: "Grass", wetTonsPerAcre: 1.0, moistureContent: 0.6, dryTonsPerAcre: 0.4 },
-              "Unsp. Field & Seed": { residueType: "Stubble", wetTonsPerAcre: 1.0, moistureContent: 0.14, dryTonsPerAcre: 0.86 }
-            };
-
-            // Function to get crop residue factors
-            const getCropResidueFactors = (cropName) => {
-              // Get the standardized crop name from mapping
-              const standardizedName = CROP_NAME_MAPPING[cropName] || null;
-              
-              if (!standardizedName) {
-                return null;
-              }
-              
-              // Check each residue category
-              if (ORCHARD_VINEYARD_RESIDUES[standardizedName]) {
-                return {
-                  ...ORCHARD_VINEYARD_RESIDUES[standardizedName],
-                  category: 'Orchard and Vineyard',
-                  residueType: 'Prunings'
-                };
-              }
-              
-              if (ROW_CROP_RESIDUES[standardizedName]) {
-                return {
-                  ...ROW_CROP_RESIDUES[standardizedName],
-                  category: 'Row Crop'
-                };
-              }
-              
-              if (FIELD_CROP_RESIDUES[standardizedName]) {
-                return {
-                  ...FIELD_CROP_RESIDUES[standardizedName],
-                  category: 'Field Crop'
-                };
-              }
-              
-              return null;
-            };
+            // Use imported getCropResidueFactors instead of local definition
 
             // Calculate residue yields
             let residueSection = '';
-            const residueFactors = getCropResidueFactors(cropName);
-            
-            if (residueFactors) {
-              // Calculate total residue amounts based on the harvested area (acres)
-              const dryResidueYield = Math.round(acres * residueFactors.dryTonsPerAcre);
-              const wetResidueYield = Math.round(acres * residueFactors.wetTonsPerAcre);
-              const residueType = residueFactors.residueType || 'Residue';
-              
+            const residueResult = getCropResidueFactors(cropName);
+            const residueFactorsArray = residueResult?.factors;
+
+            if (residueFactorsArray && residueFactorsArray.length > 0) {
               // Add residue information to the popup
               residueSection = `
                 <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #eaeaea;">
                   <h5 style="font-size: 0.95em; font-weight: bold; margin: 0 0 5px 0;">Annual Crop Residue Estimates</h5>
-                  <div style="margin-bottom: 3px; text-align: left;"><strong style="font-weight: bold;">Residue Type:</strong> ${residueType}</div>
-                  <div style="margin-bottom: 3px; text-align: left;"><strong style="font-weight: bold;">Wet Tonnage:</strong> ${formatNumberWithCommas(wetResidueYield)} tons/year</div>
-                  <div style="margin-bottom: 3px; text-align: left;"><strong style="font-weight: bold;">Dry Tonnage:</strong> ${formatNumberWithCommas(dryResidueYield)} tons/year</div>
-                </div>
               `;
+
+              // Calculate totals for summary
+              let totalWet = 0;
+              let totalDry = 0;
+
+              residueFactorsArray.forEach((factor, index) => {
+                const dryYield = Math.round(acres * factor.dryTonsPerAcre);
+                const wetYield = Math.round(acres * factor.wetTonsPerAcre);
+                totalWet += wetYield;
+                totalDry += dryYield;
+
+                const name = factor.resourceName || factor.residueType || 'Residue';
+                
+                // Add separator between multiple streams
+                if (index > 0) {
+                  residueSection += `<div style="height: 1px; background-color: #f0f0f0; margin: 5px 0;"></div>`;
+                }
+
+                residueSection += `
+                  <div style="margin-bottom: 2px; margin-top: 2px;">
+                    <div style="font-weight: bold; font-size: 0.9em; color: #555;">${name}</div>
+                    <div style="padding-left: 8px;">
+                      <div style="margin-bottom: 1px; text-align: left; font-size: 0.85em;">Wet: ${formatNumberWithCommas(wetYield)} tons/yr</div>
+                      <div style="margin-bottom: 1px; text-align: left; font-size: 0.85em;">Dry: ${formatNumberWithCommas(dryYield)} tons/yr</div>
+                    </div>
+                  </div>
+                `;
+              });
+
+              // Add totals if there are multiple streams
+              if (residueFactorsArray.length > 1) {
+                 residueSection += `
+                  <div style="margin-top: 8px; pt-2; border-top: 1px dashed #ccc; font-weight: bold;">
+                    <div style="margin-bottom: 3px; text-align: left;">Total Wet: ${formatNumberWithCommas(totalWet)} tons/year</div>
+                    <div style="margin-bottom: 3px; text-align: left;">Total Dry: ${formatNumberWithCommas(totalDry)} tons/year</div>
+                  </div>
+                `;
+              }
+
+              residueSection += `</div>`;
             }
+
+            // --- Derive geoid and resource name for API calls ---
+            const countyGeoid = getCountyGeoid(properties.county || '');
+            const apiResource = getApiResource(cropName);
+            const usdaCrop = getUsdaCropName(cropName);
+            const apiSectionId = `api-data-${Date.now()}`;
+
+            // Initial loading HTML for the API section
+            const apiLoadingHTML = countyGeoid && (apiResource || usdaCrop)
+              ? `<div id="${apiSectionId}" style="margin-top:10px;padding-top:10px;border-top:1px solid #eaeaea;font-size:0.85em;color:#777;">Loading live data…</div>`
+              : '';
 
             // Increase right padding for close button spacing, remove table
             const popupHTML = `
@@ -2554,6 +2446,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
                 <h4 style="font-size: 1.1em; font-weight: bold; margin: 0 0 8px 0; padding: 0; text-align: left;">Crop Field Details</h4>
                 ${contentLines}
                 ${residueSection}
+                ${apiLoadingHTML}
               </div>
             `;
 
@@ -2579,6 +2472,66 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
               currentPopup.current = null;
               console.log('Popup closed manually');
             });
+
+            // --- Async API enrichment ---
+            if (countyGeoid && (apiResource || usdaCrop)) {
+              (async () => {
+                try {
+                  const [availResult, analysisResult, censusResult] = await Promise.allSettled([
+                    apiResource ? getAvailability(apiResource, countyGeoid) : Promise.resolve(null),
+                    apiResource ? getAnalysisByResource(apiResource, countyGeoid) : Promise.resolve(null),
+                    usdaCrop   ? getCensusByCrop(usdaCrop, countyGeoid) : Promise.resolve(null),
+                  ]);
+
+                  const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                  let apiHTML = '';
+
+                  // Availability
+                  const avail = availResult.status === 'fulfilled' ? availResult.value : null;
+                  if (avail && avail.from_month && avail.to_month) {
+                    const from = MONTH_NAMES[avail.from_month - 1] || avail.from_month;
+                    const to   = MONTH_NAMES[avail.to_month   - 1] || avail.to_month;
+                    apiHTML += `<div style="margin-bottom:3px;"><strong>Availability:</strong> ${from}–${to}</div>`;
+                  }
+
+                  // Analysis: moisture + heating value
+                  const analysis = analysisResult.status === 'fulfilled' ? analysisResult.value : null;
+                  if (analysis && analysis.data && analysis.data.length > 0) {
+                    analysis.data.forEach(item => {
+                      const label = item.parameter.replace(/_/g, ' ').replace(/\w\S*/g, t => t.charAt(0).toUpperCase() + t.substr(1).toLowerCase());
+                      apiHTML += `<div style="margin-bottom:3px;"><strong>${label}:</strong> ${item.value} ${item.unit}</div>`;
+                    });
+                  }
+
+                  // Census: harvested acres for county
+                  const census = censusResult.status === 'fulfilled' ? censusResult.value : null;
+                  if (census && Array.isArray(census) && census.length > 0) {
+                    const acresRow = census.find(r => r.parameter && r.parameter.toUpperCase().includes('ACRES HARVESTED'));
+                    if (acresRow) {
+                      apiHTML += `<div style="margin-bottom:3px;"><strong>County Harvested Acres (USDA):</strong> ${acresRow.value.toLocaleString()} ${acresRow.unit}</div>`;
+                    }
+                  }
+
+                  // Update popup DOM element
+                  const apiSection = document.getElementById(apiSectionId);
+                  if (apiSection) {
+                    if (apiHTML) {
+                      apiSection.innerHTML = `
+                        <div style="margin-top:10px;padding-top:10px;border-top:1px solid #eaeaea;">
+                          <h5 style="font-size:0.95em;font-weight:bold;margin:0 0 5px 0;">Live Feedstock Data</h5>
+                          <div style="font-size:0.85em;">${apiHTML}</div>
+                        </div>`;
+                    } else {
+                      apiSection.innerHTML = '';
+                    }
+                  }
+                } catch (err) {
+                  console.warn('[Map] API enrichment failed for popup:', err);
+                  const apiSection = document.getElementById(apiSectionId);
+                  if (apiSection) apiSection.innerHTML = '';
+                }
+              })();
+            }
 
             console.log('Displayed formatted popup for feature:', properties);
           }
@@ -2698,7 +2651,17 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
       console.log('Closed popup because feedstock layer was hidden');
     }
 
-  }, [mapLoaded, layerVisibility?.feedstock]); // Depend on mapLoaded and the specific layerVisibility property
+    // Re-run siting analysis if it's currently active, after the map has had time to re-render
+    if (sitingModeRef.current && currentBuffer.current) {
+      map.current.once('idle', () => {
+        if (sitingModeRef.current && currentBuffer.current) {
+          console.log("Re-running inventory analysis due to feedstock layer visibility change");
+          analyzeResourcesInBuffer(currentBuffer.current);
+        }
+      });
+    }
+
+  }, [mapLoaded, layerVisibility?.feedstock, analyzeResourcesInBuffer]); // Depend on mapLoaded, visibility, and analyzeResourcesInBuffer
 
   // Effect for updating the crop filter based on visibleCrops prop
   useEffect(() => {
@@ -2734,7 +2697,17 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity }) => { // Added v
       }
     }
 
-}, [mapLoaded, visibleCrops]); // Depend on mapLoaded and visibleCrops
+    // Re-run siting analysis if it's currently active, after the map has had time to re-render
+    if (sitingModeRef.current && currentBuffer.current) {
+      map.current.once('idle', () => {
+        if (sitingModeRef.current && currentBuffer.current) {
+          console.log("Re-running inventory analysis due to filter change");
+          analyzeResourcesInBuffer(currentBuffer.current);
+        }
+      });
+    }
+
+}, [mapLoaded, visibleCrops, analyzeResourcesInBuffer]); // Depend on mapLoaded, visibleCrops, and analyzeResourcesInBuffer
 
 // Effect for updating the cropland layer opacity
 useEffect(() => {
@@ -2954,6 +2927,7 @@ useEffect(() => {
         bufferRadius={radius}
         bufferUnit={unit}
         location={markerLocation}
+        geoids={bufferGeoids}
       />
     </div>
   );
