@@ -31,7 +31,6 @@ export function ReportBugModal({ isOpen, onClose }: ReportBugModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
-  const [issueUrl, setIssueUrl] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const resetForm = () => {
@@ -42,7 +41,6 @@ export function ReportBugModal({ isOpen, onClose }: ReportBugModalProps) {
     setScreenshots([])
     setError(null)
     setSubmitted(false)
-    setIssueUrl(null)
   }
 
   const handleClose = () => {
@@ -112,7 +110,6 @@ export function ReportBugModal({ isOpen, onClose }: ReportBugModalProps) {
         throw new Error(data.error || "Failed to submit bug report")
       }
 
-      setIssueUrl(data.issueUrl ?? null)
       setSubmitted(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred")
@@ -130,7 +127,7 @@ export function ReportBugModal({ isOpen, onClose }: ReportBugModalProps) {
             Report a Bug
           </DialogTitle>
           <DialogDescription>
-            Describe the issue you encountered and it will be filed as a GitHub issue for our team to review.
+            Describe the issue you encountered and our team will look into it.
           </DialogDescription>
         </DialogHeader>
 
@@ -140,28 +137,7 @@ export function ReportBugModal({ isOpen, onClose }: ReportBugModalProps) {
               <Send className="h-5 w-5 text-green-600" />
             </div>
             <p className="font-medium text-gray-900">Bug report submitted!</p>
-            {issueUrl ? (
-              <>
-                <p className="text-sm text-gray-500">Thank you. A GitHub issue has been filed and our team will look into it.</p>
-                <a
-                  href={issueUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-blue-600 hover:underline"
-                >
-                  View GitHub issue →
-                </a>
-              </>
-            ) : (
-              <p className="text-sm text-gray-500">
-                Report received, but we couldn't automatically file a GitHub issue.
-                Please contact us at{" "}
-                <a href="mailto:calbioscape@gmail.com" className="text-blue-600 hover:underline">
-                  calbioscape@gmail.com
-                </a>
-                {" "}if the issue persists.
-              </p>
-            )}
+            <p className="text-sm text-gray-500">Thank you. Your report has been received and our team will look into it.</p>
             <button
               onClick={handleClose}
               className="mt-2 px-4 py-2 rounded-md bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
