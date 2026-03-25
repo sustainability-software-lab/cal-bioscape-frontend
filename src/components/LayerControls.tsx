@@ -58,6 +58,8 @@ interface LayerControlsProps {
   onHideAllLayers: () => void;
   onClosePopupForLayer: (layerId: string) => void;
   compositionLookup: CompositionLookup;
+  compositionFilters: CompositionFilters;
+  onCompositionFiltersChange: (filters: CompositionFilters) => void;
 }
 
 const LayerControls: React.FC<LayerControlsProps> = ({
@@ -74,6 +76,8 @@ const LayerControls: React.FC<LayerControlsProps> = ({
   onHideAllLayers,
   onClosePopupForLayer,
   compositionLookup,
+  compositionFilters,
+  onCompositionFiltersChange,
 }) => {
   // Local state to track layer visibility within the component
   // This helps keep UI in sync with actual map layer visibility
@@ -140,10 +144,6 @@ const LayerControls: React.FC<LayerControlsProps> = ({
     Object.values(FEEDSTOCK_CATEGORIES)
   ); // All categories selected by default
   // Composition filter state — range [min, max] per metric; full range = no filtering
-  const [compositionFilters, setCompositionFilters] = useState<CompositionFilters>(
-    DEFAULT_COMPOSITION_FILTERS
-  );
-  
   // Month names for the range slider
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -1513,7 +1513,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                   </Label>
                   {isCompositionFiltersActive(compositionFilters) && (
                     <button
-                      onClick={() => setCompositionFilters(DEFAULT_COMPOSITION_FILTERS)}
+                      onClick={() => onCompositionFiltersChange(DEFAULT_COMPOSITION_FILTERS)}
                       className="text-xs text-blue-600 hover:underline ml-4"
                     >
                       Reset
@@ -1553,7 +1553,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                         step={1}
                         value={compositionFilters.moisture}
                         onValueChange={(v) =>
-                          setCompositionFilters(prev => ({ ...prev, moisture: v as [number, number] }))
+                          onCompositionFiltersChange({ ...compositionFilters, moisture: v as [number, number] })
                         }
                         className="w-full"
                       />
@@ -1587,7 +1587,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                         step={1}
                         value={compositionFilters.cellulose}
                         onValueChange={(v) =>
-                          setCompositionFilters(prev => ({ ...prev, cellulose: v as [number, number] }))
+                          onCompositionFiltersChange({ ...compositionFilters, cellulose: v as [number, number] })
                         }
                         className="w-full"
                       />
@@ -1621,7 +1621,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                         step={1}
                         value={compositionFilters.lignin}
                         onValueChange={(v) =>
-                          setCompositionFilters(prev => ({ ...prev, lignin: v as [number, number] }))
+                          onCompositionFiltersChange({ ...compositionFilters, lignin: v as [number, number] })
                         }
                         className="w-full"
                       />
@@ -1655,7 +1655,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                         step={1}
                         value={compositionFilters.ash}
                         onValueChange={(v) =>
-                          setCompositionFilters(prev => ({ ...prev, ash: v as [number, number] }))
+                          onCompositionFiltersChange({ ...compositionFilters, ash: v as [number, number] })
                         }
                         className="w-full"
                       />
@@ -1689,7 +1689,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                         step={0.5}
                         value={compositionFilters.hhv}
                         onValueChange={(v) =>
-                          setCompositionFilters(prev => ({ ...prev, hhv: v as [number, number] }))
+                          onCompositionFiltersChange({ ...compositionFilters, hhv: v as [number, number] })
                         }
                         className="w-full"
                       />

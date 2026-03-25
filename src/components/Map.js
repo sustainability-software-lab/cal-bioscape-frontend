@@ -38,7 +38,7 @@ if (MAPBOX_ACCESS_TOKEN && MAPBOX_ACCESS_TOKEN !== 'YOUR_MAPBOX_ACCESS_TOKEN') {
 
 
 // Accept props for data and visibility
-const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, onCountySelect }) => { // Added visibleCrops, croplandOpacity, onGeoidsChange props
+const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, onCountySelect, compositionFilters, compositionLookup }) => { // Added visibleCrops, croplandOpacity, onGeoidsChange props
   
   // Define cleanupSitingElements at the very beginning to avoid temporal dead zone issues
   const cleanupSitingElements = useCallback(() => {
@@ -2924,7 +2924,7 @@ useEffect(() => {
       )}
       
       {/* Resource Inventory Panel */}
-      <SitingInventory 
+      <SitingInventory
         isVisible={showInventoryPanel}
         inventory={inventoryData}
         totalAcres={totalAcres}
@@ -2932,6 +2932,8 @@ useEffect(() => {
         bufferUnit={unit}
         location={markerLocation}
         geoids={bufferGeoids}
+        compositionFilters={compositionFilters}
+        compositionLookup={compositionLookup}
       />
     </div>
   );

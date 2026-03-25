@@ -9,7 +9,7 @@ import { getAvailability, getAnalysisByResource } from '@/lib/api';
 import { getApiResource } from '@/lib/resource-mapping';
 import { onResidueDataLoaded } from '@/lib/residue-data';
 import { computeEnergyTotals, EnergyTotals } from '@/lib/energy-calculations';
-import { CompositionData, parseCompositionData } from '@/lib/composition-filters';
+import { CompositionData, parseCompositionData, CompositionFilters, CompositionLookup, cropPassesCompositionFilters } from '@/lib/composition-filters';
 import { computeMixSummary, rankTechnologies, TechScore } from '@/lib/technology-matcher';
 import EnergyPotentialCard from '@/components/EnergyPotentialCard';
 import FeedstockCompositionPanel from '@/components/FeedstockCompositionPanel';
@@ -42,6 +42,8 @@ interface SitingInventoryProps {
   location?: { lng: number; lat: number } | null;
   /** County FIPS GEOIDs overlapping the buffer zone (derived from Map.js) */
   geoids?: string[];
+  compositionFilters?: CompositionFilters;
+  compositionLookup?: CompositionLookup;
 }
 
 const MONTH_NAMES = [
@@ -63,6 +65,8 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
   bufferUnit,
   location,
   geoids,
+  compositionFilters,
+  compositionLookup,
 }) => {
   const [isCollapsed, setIsCollapsed] = React.useState(false);
 
@@ -209,12 +213,16 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
     });
   }, [inventory, availabilityMap, availabilityLoading, residueReady]);
 
-  // Filter out rows with NA values (null residue yields)
+  // Filter out rows with NA values (null residue yields) and apply composition filters
   const filteredInventory = React.useMemo(() => {
-    return inventoryWithResidues.filter((crop): crop is CropInventoryWithResidue & { dryResidueYield: number; wetResidueYield: number } =>
-      crop.dryResidueYield !== null && crop.wetResidueYield !== null
-    );
-  }, [inventoryWithResidues]);
+    return inventoryWithResidues.filter((crop): crop is CropInventoryWithResidue & { dryResidueYield: number; wetResidueYield: number } => {
+      if (crop.dryResidueYield === null || crop.wetResidueYield === null) return false;
+      if (compositionFilters && compositionLookup) {
+        if (!cropPassesCompositionFilters(crop.name, compositionLookup, compositionFilters)) return false;
+      }
+      return true;
+    });
+  }, [inventoryWithResidues, compositionFilters, compositionLookup]);
 
   // Calculate total residue yields from filtered inventory
   const totalDryResidue = React.useMemo(() => {
