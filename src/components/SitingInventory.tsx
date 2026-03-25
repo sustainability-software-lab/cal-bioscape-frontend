@@ -59,7 +59,7 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
   const [isCollapsed, setIsCollapsed] = React.useState(false);
 
   // Re-render once residue data finishes loading so useMemos below see the data.
-  const [, setResidueReady] = React.useState(0);
+  const [residueReady, setResidueReady] = React.useState(0);
   React.useEffect(() => onResidueDataLoaded(() => setResidueReady(v => v + 1)), []);
 
   // ---- residue + availability state ----
@@ -147,7 +147,7 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
         availabilityLoading,
       };
     });
-  }, [inventory, availabilityMap, availabilityLoading]);
+  }, [inventory, availabilityMap, availabilityLoading, residueReady]);
 
   // Filter out rows with NA values (null residue yields)
   const filteredInventory = React.useMemo(() => {
