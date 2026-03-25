@@ -107,12 +107,26 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
     return inventory.map(crop => {
       const residueResult = getCropResidueFactors(crop.name);
 
+      // Derive static availability window from the first factor's from/to month.
+      // Used as fallback when the API availability endpoint has no data.
+      let staticAvailability: string | null = null;
+      if (residueResult && residueResult.factors.length > 0) {
+        const f = residueResult.factors[0];
+        if (f.fromMonth && f.toMonth) {
+          staticAvailability = formatAvailabilityWindow(f.fromMonth, f.toMonth);
+        }
+      }
+
+      // API result takes precedence; fall back to static from residue factors.
+      const availability = availabilityMap[crop.name] ?? staticAvailability;
+      // Only show the loading spinner if we have no static data to show yet.
+      const isLoading = availabilityLoading && availability === null;
+
       if (residueResult && residueResult.factors.length > 0) {
         let totalDryTonsPerAcre = 0;
         let totalWetTonsPerAcre = 0;
         const types = new Set<string>();
 
-        // Sum up factors from all residue streams
         residueResult.factors.forEach(factor => {
           totalDryTonsPerAcre += factor.dryTonsPerAcre || 0;
           totalWetTonsPerAcre += factor.wetTonsPerAcre || 0;
@@ -123,7 +137,6 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
           }
         });
 
-        // Calculate total residue amounts based on the harvested area (acres)
         const dryResidueYield = Math.round(crop.acres * totalDryTonsPerAcre);
         const wetResidueYield = Math.round(crop.acres * totalWetTonsPerAcre);
 
@@ -133,8 +146,8 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
           wetResidueYield,
           residueType: Array.from(types).join(', ') || 'Residue',
           residueSource: residueResult.source,
-          availability: availabilityMap[crop.name] ?? null,
-          availabilityLoading,
+          availability,
+          availabilityLoading: isLoading,
         };
       }
 
@@ -144,8 +157,8 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
         wetResidueYield: null,
         residueType: null,
         residueSource: null,
-        availability: availabilityMap[crop.name] ?? null,
-        availabilityLoading,
+        availability,
+        availabilityLoading: isLoading,
       };
     });
   }, [inventory, availabilityMap, availabilityLoading, residueReady]);

@@ -51,6 +51,8 @@ function factor(
     wetTonsPerAcre,
     moistureContent,
     seasonalAvailability: availability(fromMonth, toMonth),
+    fromMonth,
+    toMonth,
     collected,
   };
 }

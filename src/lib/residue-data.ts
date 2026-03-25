@@ -24,6 +24,10 @@ export interface ResidueFactors {
   moistureContent: number;
   dryTonsPerAcre: number;
   seasonalAvailability: SeasonalAvailability;
+  /** 1-indexed start month of the availability window (e.g. 9 = September) */
+  fromMonth?: number;
+  /** 1-indexed end month of the availability window (e.g. 11 = November) */
+  toMonth?: number;
   residueType: string; // e.g. "Ag Residue"
   collected: boolean; // e.g. TRUE/FALSE
   category?: string;
@@ -160,12 +164,17 @@ export const fetchResidueData = async (): Promise<void> => {
         
         const collected = item.collected?.toUpperCase() === 'TRUE';
 
+        const fromMonthNum = parseInt(item.from_month, 10);
+        const toMonthNum   = parseInt(item.to_month,   10);
+
         const factor: ResidueFactors = {
           resourceName: item.resource,
           wetTonsPerAcre: wetTons,
           dryTonsPerAcre: dryTons,
           moistureContent: moisture,
           seasonalAvailability: seasonal,
+          fromMonth: isNaN(fromMonthNum) ? undefined : fromMonthNum,
+          toMonth:   isNaN(toMonthNum)   ? undefined : toMonthNum,
           residueType: item.residue_type,
           collected: collected
           // category: inferCategory(item) // We will handle category assignment when retrieving
