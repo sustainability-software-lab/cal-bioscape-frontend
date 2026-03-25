@@ -424,13 +424,13 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
                                   <span
                                     className="flex-shrink-0 rounded px-1 py-px text-[9px] font-medium leading-tight bg-green-50 text-green-700 border border-green-200"
                                     title="Yield factors sourced from resource_info.json"
-                                  >api</span>
+                                  >API</span>
                                 )}
                                 {crop.residueSource === 'fallback' && (
                                   <span
                                     className="flex-shrink-0 rounded px-1 py-px text-[9px] font-medium leading-tight bg-amber-50 text-amber-700 border border-amber-200"
                                     title="Yield factors estimated from published literature"
-                                  >est.</span>
+                                  >Est.</span>
                                 )}
                               </div>
                             </td>
