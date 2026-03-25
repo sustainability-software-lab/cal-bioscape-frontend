@@ -325,7 +325,7 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
   if (!isVisible) return null;
 
   return (
-    <Card className={`absolute top-4 right-4 z-10 ${isCollapsed ? 'py-2 px-4' : 'p-4'} w-[620px] max-w-[65%] shadow-lg bg-white`}>
+    <Card className={`absolute top-4 right-4 z-10 ${isCollapsed ? 'py-2 px-4' : 'p-4'} w-[620px] max-w-[65%] shadow-lg bg-white max-h-[calc(100vh-120px)] flex flex-col`}>
       <div className={`flex justify-between items-center ${isCollapsed ? 'mb-0' : 'mb-0'}`}>
         <h3 className="font-medium text-sm flex items-center">
           <Leaf className="h-4 w-4 mr-2" />
@@ -342,7 +342,7 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
       </div>
 
       {!isCollapsed && (
-        <div className="space-y-2">
+        <div className="space-y-2 overflow-y-auto flex-1 pr-2">
           {/* Sighting Location */}
           {location && (
             <div className="text-xs text-gray-700 bg-gray-50 p-2 rounded-md border">
