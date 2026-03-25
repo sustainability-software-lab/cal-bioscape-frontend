@@ -22,7 +22,6 @@ import {
 import {
   CROP_NAME_MAPPING,
   FEEDSTOCK_CATEGORIES,
-  MOISTURE_CONTENT_LEVELS,
   getFeedstockCharacteristics,
   getCropResidueFactors // Added this
 } from '@/lib/constants';
@@ -140,9 +139,6 @@ const LayerControls: React.FC<LayerControlsProps> = ({
   const [selectedFeedstockCategories, setSelectedFeedstockCategories] = useState<string[]>(
     Object.values(FEEDSTOCK_CATEGORIES)
   ); // All categories selected by default
-  const [selectedMoistureLevels, setSelectedMoistureLevels] = useState<string[]>(
-    Object.values(MOISTURE_CONTENT_LEVELS)
-  ); // All moisture levels selected by default
   // Composition filter state — range [min, max] per metric; full range = no filtering
   const [compositionFilters, setCompositionFilters] = useState<CompositionFilters>(
     DEFAULT_COMPOSITION_FILTERS
@@ -232,26 +228,11 @@ const LayerControls: React.FC<LayerControlsProps> = ({
     const categoryMatch = selectedFeedstockCategories.includes(characteristics.category);
     if (!categoryMatch) return false;
     
-    // Check if crop matches selected moisture levels
-    // If no moisture levels selected (empty array), hide everything
-    if (selectedMoistureLevels.length === 0) return false;
-    
-    // Handle both single level (legacy/fallback) and array of levels (new)
-    let moistureMatch = false;
-    if (characteristics.moistureLevels && Array.isArray(characteristics.moistureLevels)) {
-      // Check if ANY of the crop's moisture levels match ANY of the selected levels
-      moistureMatch = characteristics.moistureLevels.some((level: string) => selectedMoistureLevels.includes(level));
-    } else {
-      moistureMatch = selectedMoistureLevels.includes(characteristics.moistureLevel);
-    }
-    
-    if (!moistureMatch) return false;
-
     // Check composition filters (crops with no API data always pass)
     if (!cropPassesCompositionFilters(cropName, compositionLookup, compositionFilters)) return false;
 
     return true; // Crop matches all filter criteria
-  }, [monthRange, selectedFeedstockCategories, selectedMoistureLevels, compositionLookup, compositionFilters]);
+  }, [monthRange, selectedFeedstockCategories, compositionLookup, compositionFilters]);
   
   // Function to apply seasonal filter based on month range
   const applySeasonalFilter = (range: [number, number]) => {
@@ -350,15 +331,6 @@ const LayerControls: React.FC<LayerControlsProps> = ({
       return newSelection;
     });
     // Apply filters will be called via useEffect
-  };
-  
-  const handleMoistureLevelChange = (level: string, isChecked: boolean) => {
-    setSelectedMoistureLevels(prev => {
-      const newSelection = isChecked 
-        ? [...prev, level]
-        : prev.filter(l => l !== level);
-      return newSelection;
-    });
   };
   
   // --- Crop filtering logic ---
@@ -1518,42 +1490,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                 </div>
               </div>
               
-              {/* Moisture Content Filter */}
-              <div className="space-y-3 pt-4 border-t border-gray-200">
-                <div className="px-2">
-                  <Label className="text-sm font-medium flex items-center">
-                    Moisture Content
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span>
-                            <Info className="h-4 w-4 ml-1 inline-block text-gray-500 cursor-help transition-colors hover:text-gray-700" />
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent side="right" className="max-w-xs">
-                          <p>Filter by moisture content level. Low moisture feedstocks (&lt;15%) are ideal for thermal processes like pyrolysis. High moisture (&gt;30%) feedstocks are better for anaerobic digestion.</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </Label>
-                </div>
-                <div className="px-2 space-y-2">
-                  {Object.values(MOISTURE_CONTENT_LEVELS).map((level) => (
-                    <div key={level} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`moisture-${level}`}
-                        checked={selectedMoistureLevels.includes(level)}
-                        onCheckedChange={(checked) => handleMoistureLevelChange(level, !!checked)}
-                      />
-                      <Label htmlFor={`moisture-${level}`} className="text-xs font-normal cursor-pointer">
-                        {level}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
-              {/* Composition Filters (API-driven, includes HHV slider for energy content) */}
+              {/* Composition Filters (API-driven: moisture, composition, and energy content) */}
               <div className="space-y-4 pt-4 border-t border-gray-200">
                 <div className="px-2 flex items-center justify-between">
                   <Label className="text-sm font-medium flex items-center">
@@ -1588,6 +1525,40 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                   <p className="px-2 text-xs text-gray-400 italic">Loading composition data…</p>
                 ) : (
                   <div className="px-2 space-y-5">
+                    {/* Moisture Content */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between items-center">
+                        <Label className="text-xs font-normal text-gray-700">
+                          Moisture Content
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span>
+                                  <Info className="h-3 w-3 ml-1 inline-block text-gray-400 cursor-help" />
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="right" className="max-w-xs">
+                                <p>As-received moisture content (%). Lower values (&lt;15%) indicate drier feedstocks better suited for direct combustion and pyrolysis; higher values (&gt;30%) favour anaerobic digestion. Values sourced from the Cal BioScape API where available; otherwise from peer-reviewed biomass literature.</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </Label>
+                        <span className="text-xs text-blue-600">
+                          {compositionFilters.moisture[0]}–{compositionFilters.moisture[1]}%
+                        </span>
+                      </div>
+                      <Slider
+                        min={COMPOSITION_FILTER_BOUNDS.moisture[0]}
+                        max={COMPOSITION_FILTER_BOUNDS.moisture[1]}
+                        step={1}
+                        value={compositionFilters.moisture}
+                        onValueChange={(v) =>
+                          setCompositionFilters(prev => ({ ...prev, moisture: v as [number, number] }))
+                        }
+                        className="w-full"
+                      />
+                    </div>
+
                     {/* Cellulose */}
                     <div className="space-y-1">
                       <div className="flex justify-between items-center">

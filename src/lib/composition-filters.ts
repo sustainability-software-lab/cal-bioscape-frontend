@@ -45,6 +45,7 @@ export type CompositionLookup = Record<string, CompositionData>;
  * When at the default full-range bounds, the filter has no effect.
  */
 export interface CompositionFilters {
+  moisture: [number, number];
   cellulose: [number, number];
   lignin: [number, number];
   ash: [number, number];
@@ -53,6 +54,7 @@ export interface CompositionFilters {
 
 /** Full-range bounds for each metric — at these values, no crops are hidden. */
 export const COMPOSITION_FILTER_BOUNDS: CompositionFilters = {
+  moisture: [0, 80],
   cellulose: [0, 60],
   lignin: [0, 40],
   ash: [0, 30],
@@ -60,6 +62,7 @@ export const COMPOSITION_FILTER_BOUNDS: CompositionFilters = {
 };
 
 export const DEFAULT_COMPOSITION_FILTERS: CompositionFilters = {
+  moisture: [0, 80],
   cellulose: [0, 60],
   lignin: [0, 40],
   ash: [0, 30],
@@ -163,11 +166,13 @@ export function cropPassesCompositionFilters(
     apiComp?.hasData ? apiComp : COMPOSITION_FALLBACKS[landiqCropName];
   if (!comp?.hasData) return true;
 
+  const [moistureMin, moistureMax] = filters.moisture;
   const [celMin, celMax] = filters.cellulose;
   const [ligMin, ligMax] = filters.lignin;
   const [ashMin, ashMax] = filters.ash;
   const [hhvMin, hhvMax] = filters.hhv;
 
+  if (comp.moisture !== undefined && (comp.moisture < moistureMin || comp.moisture > moistureMax)) return false;
   if (comp.cellulose !== undefined && (comp.cellulose < celMin || comp.cellulose > celMax)) return false;
   if (comp.lignin !== undefined && (comp.lignin < ligMin || comp.lignin > ligMax)) return false;
   if (comp.ash !== undefined && (comp.ash < ashMin || comp.ash > ashMax)) return false;
@@ -180,6 +185,7 @@ export function cropPassesCompositionFilters(
 export function isCompositionFiltersActive(filters: CompositionFilters): boolean {
   const b = COMPOSITION_FILTER_BOUNDS;
   return (
+    filters.moisture[0] !== b.moisture[0] || filters.moisture[1] !== b.moisture[1] ||
     filters.cellulose[0] !== b.cellulose[0] || filters.cellulose[1] !== b.cellulose[1] ||
     filters.lignin[0] !== b.lignin[0] || filters.lignin[1] !== b.lignin[1] ||
     filters.ash[0] !== b.ash[0] || filters.ash[1] !== b.ash[1] ||
