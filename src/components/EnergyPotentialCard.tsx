@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Zap } from 'lucide-react';
+import { Info, Zap } from 'lucide-react';
 import { EnergyTotals, EnergyUnit, convertGj, energyUnitLabel } from '@/lib/energy-calculations';
 import { formatNumberWithCommas } from '@/lib/utils';
 
@@ -93,9 +93,26 @@ const EnergyPotentialCard: React.FC<EnergyPotentialCardProps> = ({ totals, isLoa
 
           {/* Data source footnote */}
           {!totals.allApiData && (
-            <p className="text-[10px] text-amber-600 mt-1">
-              Some HHV values estimated from literature — API data unavailable for all crops.
-            </p>
+            <div className="flex items-center gap-1 mt-1">
+              <p className="text-[10px] text-amber-600">
+                Some HHV values estimated from literature.
+              </p>
+              <div className="relative group">
+                <Info className="h-3 w-3 text-amber-500 cursor-help flex-shrink-0" />
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-60 bg-gray-900 text-gray-100 text-[10px] leading-relaxed rounded-md px-2.5 py-2 hidden group-hover:block z-50 shadow-lg">
+                  Higher heating values (HHV) for crops without measured data are drawn from the{' '}
+                  <a
+                    href="https://phyllis.nl/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline text-blue-300 hover:text-blue-200"
+                  >
+                    Phyllis2 biomass database
+                  </a>
+                  {' '}(TNO, Netherlands), which aggregates measured compositional data for agricultural residues and waste materials.
+                </div>
+              </div>
+            </div>
           )}
         </div>
       ) : (
