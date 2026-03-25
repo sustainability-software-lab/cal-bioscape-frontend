@@ -165,8 +165,9 @@ const LayerControls: React.FC<LayerControlsProps> = ({
   // Function to check if a crop is available in the selected month range
   const isCropAvailableInRange = (cropName: string, range: [number, number]): boolean => {
     // Use the helper to get factors which now includes seasonal availability from the dynamic source
-    const factorsArray = getCropResidueFactors(cropName);
-    
+    const result = getCropResidueFactors(cropName);
+    const factorsArray = result?.factors;
+
     // If no data, assume always available (or should it be false? Original code assumed true if not found in mapping)
     if (!factorsArray || factorsArray.length === 0) return true;
 

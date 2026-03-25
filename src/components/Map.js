@@ -2378,8 +2378,9 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange })
 
             // Calculate residue yields
             let residueSection = '';
-            const residueFactorsArray = getCropResidueFactors(cropName);
-            
+            const residueResult = getCropResidueFactors(cropName);
+            const residueFactorsArray = residueResult?.factors;
+
             if (residueFactorsArray && residueFactorsArray.length > 0) {
               // Add residue information to the popup
               residueSection = `

@@ -7,7 +7,6 @@ import { getCropResidueFactors } from '@/lib/constants';
 import { formatNumberWithCommas, downloadCSV } from '@/lib/utils';
 import { getAvailability } from '@/lib/api';
 import { getApiResource } from '@/lib/resource-mapping';
-import { CROP_NAME_MAPPING } from '@/lib/constants';
 import { onResidueDataLoaded } from '@/lib/residue-data';
 
 interface CropInventory {
@@ -20,6 +19,8 @@ interface CropInventoryWithResidue extends CropInventory {
   dryResidueYield: number | null;
   wetResidueYield: number | null;
   residueType: string | null;
+  /** Whether residue factors came from the live API JSON or literature-based fallbacks */
+  residueSource: 'api' | 'fallback' | null;
   /** Human-readable availability window, e.g. "Aug–Oct" or null while loading */
   availability: string | null;
   availabilityLoading: boolean;
@@ -104,17 +105,15 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
   // Calculate residue yields for each crop in the inventory
   const inventoryWithResidues: CropInventoryWithResidue[] = React.useMemo(() => {
     return inventory.map(crop => {
-      // Get array of factors (one per residue stream)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const residueFactorsArray = getCropResidueFactors(crop.name) as any[];
+      const residueResult = getCropResidueFactors(crop.name);
 
-      if (residueFactorsArray && residueFactorsArray.length > 0) {
+      if (residueResult && residueResult.factors.length > 0) {
         let totalDryTonsPerAcre = 0;
         let totalWetTonsPerAcre = 0;
         const types = new Set<string>();
 
         // Sum up factors from all residue streams
-        residueFactorsArray.forEach(factor => {
+        residueResult.factors.forEach(factor => {
           totalDryTonsPerAcre += factor.dryTonsPerAcre || 0;
           totalWetTonsPerAcre += factor.wetTonsPerAcre || 0;
           if (factor.residueType) {
@@ -133,6 +132,7 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
           dryResidueYield,
           wetResidueYield,
           residueType: Array.from(types).join(', ') || 'Residue',
+          residueSource: residueResult.source,
           availability: availabilityMap[crop.name] ?? null,
           availabilityLoading,
         };
@@ -143,6 +143,7 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
         dryResidueYield: null,
         wetResidueYield: null,
         residueType: null,
+        residueSource: null,
         availability: availabilityMap[crop.name] ?? null,
         availabilityLoading,
       };
@@ -297,12 +298,24 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
                     .map((crop, index) => (
                       <tr key={index} className="hover:bg-gray-50">
                         <td className="py-2 px-3 whitespace-normal">
-                          <div className="flex items-center">
+                          <div className="flex items-center gap-1.5">
                             <span
-                              className="inline-block h-3 w-3 mr-2 rounded-sm flex-shrink-0"
+                              className="inline-block h-3 w-3 rounded-sm flex-shrink-0"
                               style={{ backgroundColor: crop.color }}
                             />
-                            <span className="line-clamp-1" title={crop.name}>{crop.name}</span>
+                            <span className="line-clamp-1 min-w-0" title={crop.name}>{crop.name}</span>
+                            {crop.residueSource === 'api' && (
+                              <span
+                                className="flex-shrink-0 rounded px-1 py-px text-[9px] font-medium leading-tight bg-green-50 text-green-700 border border-green-200"
+                                title="Yield factors sourced from resource_info.json"
+                              >api</span>
+                            )}
+                            {crop.residueSource === 'fallback' && (
+                              <span
+                                className="flex-shrink-0 rounded px-1 py-px text-[9px] font-medium leading-tight bg-amber-50 text-amber-700 border border-amber-200"
+                                title="Yield factors estimated from published literature"
+                              >est.</span>
+                            )}
                           </div>
                         </td>
                         <td className="py-2 px-2 text-right">{formatNumberWithCommas(Math.round(crop.acres))}</td>

@@ -97,9 +97,15 @@ export const CROP_NAME_MAPPING = {
 import { getResidueData, ResidueFactors } from './residue-data';
 import { RESIDUE_FALLBACKS } from './residue-fallbacks';
 
+export type ResidueFactorsResult = {
+  factors: ResidueFactors[];
+  /** Whether the data came from the live resource_info.json or literature-based fallbacks */
+  source: 'api' | 'fallback';
+};
+
 // Helper functions for crop residue calculations
-// Returns an array of residue factors for the given crop (one per residue type)
-export const getCropResidueFactors = (cropName: string): ResidueFactors[] | null => {
+// Returns factors for the given crop (one per residue type) plus a data-source tag.
+export const getCropResidueFactors = (cropName: string): ResidueFactorsResult | null => {
   // Get the standardized crop name from mapping
   const standardizedName = CROP_NAME_MAPPING[cropName as keyof typeof CROP_NAME_MAPPING] || null;
 
@@ -115,21 +121,27 @@ export const getCropResidueFactors = (cropName: string): ResidueFactors[] | null
     dynamicData.some(f => f.dryTonsPerAcre > 0 || f.wetTonsPerAcre > 0);
 
   if (hasYieldData) {
-    return dynamicData!.map(factor => ({
-      ...factor,
-      category: factor.category || 'Crop Residue',
-      residueType: factor.residueType || 'Residue'
-    }));
+    return {
+      source: 'api',
+      factors: dynamicData!.map(factor => ({
+        ...factor,
+        category: factor.category || 'Crop Residue',
+        residueType: factor.residueType || 'Residue',
+      })),
+    };
   }
 
   // Fall back to literature-based estimates for crops missing from the primary data.
   const fallbackData = RESIDUE_FALLBACKS[standardizedName];
   if (fallbackData && fallbackData.length > 0) {
-    return fallbackData.map(factor => ({
-      ...factor,
-      category: factor.category || 'Crop Residue',
-      residueType: factor.residueType || 'Residue'
-    }));
+    return {
+      source: 'fallback',
+      factors: fallbackData.map(factor => ({
+        ...factor,
+        category: factor.category || 'Crop Residue',
+        residueType: factor.residueType || 'Residue',
+      })),
+    };
   }
 
   return null;
