@@ -49,13 +49,12 @@ export async function POST(req: Request) {
 
     const bugReportId = randomBytes(8).toString("hex")
 
-    // Fire-and-forget: create GitHub issue
-    createGitHubIssueFromBugReport(
+    const result = await createGitHubIssueFromBugReport(
       { id: bugReportId, title, description, reporterName, reporterEmail },
       screenshots
-    ).catch((err) => console.error("[bug-report] GitHub issue creation failed:", err))
+    )
 
-    return NextResponse.json({ success: true }, { status: 201 })
+    return NextResponse.json({ success: true, issueUrl: result?.issueUrl ?? null }, { status: 201 })
   } catch (error) {
     console.error("Error submitting bug report:", error)
     return NextResponse.json({ error: "Failed to submit bug report" }, { status: 500 })

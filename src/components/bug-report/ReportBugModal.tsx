@@ -31,6 +31,7 @@ export function ReportBugModal({ isOpen, onClose }: ReportBugModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
+  const [issueUrl, setIssueUrl] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const resetForm = () => {
@@ -41,6 +42,7 @@ export function ReportBugModal({ isOpen, onClose }: ReportBugModalProps) {
     setScreenshots([])
     setError(null)
     setSubmitted(false)
+    setIssueUrl(null)
   }
 
   const handleClose = () => {
@@ -105,11 +107,12 @@ export function ReportBugModal({ isOpen, onClose }: ReportBugModalProps) {
 
       const res = await fetch("/api/bug-reports", { method: "POST", body: formData })
 
+      const data = await res.json()
       if (!res.ok) {
-        const data = await res.json()
         throw new Error(data.error || "Failed to submit bug report")
       }
 
+      setIssueUrl(data.issueUrl ?? null)
       setSubmitted(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred")
@@ -138,9 +141,19 @@ export function ReportBugModal({ isOpen, onClose }: ReportBugModalProps) {
             </div>
             <p className="font-medium text-gray-900">Bug report submitted!</p>
             <p className="text-sm text-gray-500">Thank you. A GitHub issue has been filed and our team will look into it.</p>
+            {issueUrl && (
+              <a
+                href={issueUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-blue-600 hover:underline"
+              >
+                View GitHub issue →
+              </a>
+            )}
             <button
               onClick={handleClose}
-              className="mt-4 px-4 py-2 rounded-md bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
+              className="mt-2 px-4 py-2 rounded-md bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
             >
               Close
             </button>
