@@ -36,7 +36,6 @@ export interface ResidueFactors {
 export interface FeedstockCharacteristics {
   category: string;
   moistureLevel: string;
-  energyLevel: string;
   processingSuitability: string[];
 }
 

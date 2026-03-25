@@ -361,15 +361,6 @@ const LayerControls: React.FC<LayerControlsProps> = ({
     });
   };
   
-  const handleEnergyLevelChange = (level: string, isChecked: boolean) => {
-    setSelectedEnergyLevels(prev => {
-      const newSelection = isChecked 
-        ? [...prev, level]
-        : prev.filter(l => l !== level);
-      return newSelection;
-    });
-  };
-
   // --- Crop filtering logic ---
   const filteredCropNames = useMemo(() => 
     allCropNames.filter(name => 
@@ -1562,42 +1553,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                 </div>
               </div>
               
-              {/* Energy Content Filter */}
-              <div className="space-y-3 pt-4 border-t border-gray-200">
-                <div className="px-2">
-                  <Label className="text-sm font-medium flex items-center">
-                    Energy Content
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span>
-                            <Info className="h-4 w-4 ml-1 inline-block text-gray-500 cursor-help transition-colors hover:text-gray-700" />
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent side="right" className="max-w-xs">
-                          <p>Filter by calorific value (energy content). Higher values (&gt;17 MJ/kg) are better for direct combustion and energy generation.</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </Label>
-                </div>
-                <div className="px-2 space-y-2">
-                  {Object.values(ENERGY_CONTENT_LEVELS).map((level) => (
-                    <div key={level} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`energy-${level}`}
-                        checked={selectedEnergyLevels.includes(level)}
-                        onCheckedChange={(checked) => handleEnergyLevelChange(level, !!checked)}
-                      />
-                      <Label htmlFor={`energy-${level}`} className="text-xs font-normal cursor-pointer">
-                        {level}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Composition Filters (API-driven) */}
+              {/* Composition Filters (API-driven, includes HHV slider for energy content) */}
               <div className="space-y-4 pt-4 border-t border-gray-200">
                 <div className="px-2 flex items-center justify-between">
                   <Label className="text-sm font-medium flex items-center">
@@ -1747,7 +1703,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                                 </span>
                               </TooltipTrigger>
                               <TooltipContent side="right" className="max-w-xs">
-                                <p>Higher Heating Value (MJ/kg, dry basis). Higher values indicate greater energy density, important for combustion and co-firing.</p>
+                                <p>Higher Heating Value (MJ/kg, dry basis) — the energy content of the feedstock. Higher values (&gt;17 MJ/kg) are better for direct combustion and co-firing. Values sourced from the Cal BioScape API where available; otherwise from peer-reviewed biomass literature.</p>
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
