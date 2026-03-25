@@ -4,6 +4,12 @@ import React, { useState } from 'react';
 import { Info, Zap } from 'lucide-react';
 import { EnergyTotals, EnergyUnit, convertGj, energyUnitLabel } from '@/lib/energy-calculations';
 import { formatNumberWithCommas } from '@/lib/utils';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface EnergyPotentialCardProps {
   totals: EnergyTotals | null;
@@ -97,21 +103,28 @@ const EnergyPotentialCard: React.FC<EnergyPotentialCardProps> = ({ totals, isLoa
               <p className="text-[10px] text-amber-600">
                 Some HHV values estimated from literature.
               </p>
-              <div className="relative group">
-                <Info className="h-3 w-3 text-amber-500 cursor-help flex-shrink-0" />
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-60 bg-gray-900 text-gray-100 text-[10px] leading-relaxed rounded-md px-2.5 py-2 hidden group-hover:block z-50 shadow-lg">
-                  Higher heating values (HHV) for crops without measured data are drawn from the{' '}
-                  <a
-                    href="https://phyllis.nl/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline text-blue-300 hover:text-blue-200"
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3 w-3 text-amber-500 cursor-help flex-shrink-0" />
+                  </TooltipTrigger>
+                  <TooltipContent
+                    side="top"
+                    className="bg-gray-900 text-gray-100 border-0 w-60 text-[10px] leading-relaxed"
                   >
-                    Phyllis2 biomass database
-                  </a>
-                  {' '}(TNO, Netherlands), which aggregates measured compositional data for agricultural residues and waste materials.
-                </div>
-              </div>
+                    Higher heating values (HHV) for crops without measured data are drawn from the{' '}
+                    <a
+                      href="https://phyllis.nl/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline text-blue-300 hover:text-blue-200"
+                    >
+                      Phyllis2 biomass database
+                    </a>
+                    {' '}(TNO, Netherlands), which aggregates measured compositional data for agricultural residues and waste materials.
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           )}
         </div>
