@@ -1621,18 +1621,18 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                           </span>
                         </TooltipTrigger>
                         <TooltipContent side="right" className="max-w-xs">
-                          <p>Filter crops by biochemical composition from the Cal BioScape analysis database. Crops without composition data are always shown. Adjust ranges to focus on feedstocks suited to specific conversion pathways.</p>
+                          <p>Filter crops by biochemical composition. Values sourced from the Cal BioScape API where available; otherwise estimated from peer-reviewed biomass literature (Phyllis2/ECN, NREL). Adjust ranges to focus on feedstocks suited to specific conversion pathways.</p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
                     {isCompositionFiltersActive(compositionFilters) && (
-                      <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-normal">active</span>
+                      <span className="ml-2 text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold uppercase tracking-wide">ACTIVE</span>
                     )}
                   </Label>
                   {isCompositionFiltersActive(compositionFilters) && (
                     <button
                       onClick={() => setCompositionFilters(DEFAULT_COMPOSITION_FILTERS)}
-                      className="text-xs text-blue-600 hover:underline"
+                      className="text-xs text-blue-600 hover:underline ml-4"
                     >
                       Reset
                     </button>

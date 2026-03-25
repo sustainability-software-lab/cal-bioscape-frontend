@@ -9,6 +9,7 @@
 import { getAnalysisByResource } from './api';
 import { AnalysisListResponse, DataItemResponse } from './api-types';
 import { LANDIQ_TO_API_RESOURCE } from './resource-mapping';
+import { COMPOSITION_FALLBACKS } from './composition-fallbacks';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -156,7 +157,10 @@ export function cropPassesCompositionFilters(
   lookup: CompositionLookup,
   filters: CompositionFilters
 ): boolean {
-  const comp = lookup[landiqCropName];
+  // Use API data first, then literature fallback, then pass-through
+  const apiComp = lookup[landiqCropName];
+  const comp: Partial<CompositionData> | undefined =
+    apiComp?.hasData ? apiComp : COMPOSITION_FALLBACKS[landiqCropName];
   if (!comp?.hasData) return true;
 
   const [celMin, celMax] = filters.cellulose;
