@@ -45,6 +45,15 @@ let processedResidueData: Record<string, ResidueFactors[]> = {};
 let processedFeedstockCharacteristics: Record<string, FeedstockCharacteristics> = {};
 let isDataLoaded = false;
 let loadPromise: Promise<void> | null = null;
+let onLoadedCallbacks: Array<() => void> = [];
+
+/** Subscribe to be notified once residue data finishes loading.
+ *  If already loaded, calls cb synchronously. Returns an unsubscribe fn. */
+export function onResidueDataLoaded(cb: () => void): () => void {
+  if (isDataLoaded) { cb(); return () => {}; }
+  onLoadedCallbacks.push(cb);
+  return () => { onLoadedCallbacks = onLoadedCallbacks.filter(f => f !== cb); };
+}
 
 // Month mapping helper
 const MONTH_MAP = [
@@ -170,6 +179,8 @@ export const fetchResidueData = async (): Promise<void> => {
 
       processedResidueData = newProcessedData;
       isDataLoaded = true;
+      onLoadedCallbacks.forEach(cb => cb());
+      onLoadedCallbacks = [];
       console.log('Residue data loaded successfully', Object.keys(processedResidueData).length, 'items');
       
     } catch (error) {
@@ -207,3 +218,9 @@ export const getResidueData = (cropName: string): ResidueFactors[] | null => {
 export const getAllResidueData = () => processedResidueData;
 
 export const isResidueDataLoaded = () => isDataLoaded;
+
+// Auto-start the fetch as soon as this module is imported on the client,
+// so data is ready (or loading) before any component renders.
+if (typeof window !== 'undefined') {
+  fetchResidueData().catch(err => console.error('[residue-data] preload failed:', err));
+}

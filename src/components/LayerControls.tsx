@@ -27,6 +27,7 @@ import {
   getFeedstockCharacteristics,
   getCropResidueFactors // Added this
 } from '@/lib/constants';
+import { onResidueDataLoaded } from '@/lib/residue-data';
 
 // Define a minimal type for the mapbox map instance to avoid using 'any'
 interface MapInstance {
@@ -69,7 +70,11 @@ const LayerControls: React.FC<LayerControlsProps> = ({
   // Local state to track layer visibility within the component
   // This helps keep UI in sync with actual map layer visibility
   const [localLayerVisibility, setLocalLayerVisibility] = useState<{ [key: string]: boolean }>(initialVisibility);
-  
+
+  // Re-render once residue data finishes loading so crop filters reflect actual data.
+  const [, setResidueReady] = useState(0);
+  useEffect(() => onResidueDataLoaded(() => setResidueReady(v => v + 1)), []);
+
   // Update local state when props change
   useEffect(() => {
     setLocalLayerVisibility(initialVisibility);

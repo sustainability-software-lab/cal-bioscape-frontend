@@ -13,6 +13,7 @@ import { layerLabelMappings } from '@/lib/labelMappings';
 import { getAvailability, getAnalysisByResource, getCensusByCrop } from '@/lib/api';
 import { getCountyGeoid } from '@/lib/county-lookup';
 import { getApiResource, getUsdaCropName } from '@/lib/resource-mapping';
+import { onResidueDataLoaded } from '@/lib/residue-data';
 
 // --- Configuration ---
 // IMPORTANT: Replace with your actual Mapbox access token if using the placeholder.
@@ -174,6 +175,11 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange })
   const mapContainer = useRef(null); // Reference to the map container div
   const map = useRef(null); // Reference to the map instance
   const [mapLoaded, setMapLoaded] = useState(false); // State to track map load status
+
+  // Re-render once residue data finishes loading so popup calculations use real data.
+  const [, setResidueReady] = useState(0);
+  useEffect(() => onResidueDataLoaded(() => setResidueReady(v => v + 1)), []);
+
   const currentPopup = useRef(null); // Reference to track the current popup
   const [currentPopupLayer, setCurrentPopupLayer] = useState(null); // State to track the layer of the current popup
   

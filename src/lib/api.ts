@@ -12,26 +12,20 @@ import {
   AvailabilityResponse,
 } from './api-types';
 
-const BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ??
-  'https://biocirv-webservice-194468397458.us-west1.run.app';
-
 // ---------------------------------------------------------------------------
-// Internal fetch helper
+// Internal fetch helper — routes through /api/proxy so auth and CORS
+// are handled server-side; no credentials reach the browser.
 // ---------------------------------------------------------------------------
 
 async function apiFetch<T>(path: string): Promise<T | null> {
   try {
-    const url = `${BASE_URL}${path}`;
-    const res = await fetch(url, {
-      // next.js cache: no-store so we always get fresh data
-      cache: 'no-store',
-    });
+    const url = `/api/proxy${path}`;
+    const res = await fetch(url, { cache: 'no-store' });
 
     if (!res.ok) {
       // 404 = "not found" is expected for sparse data; log quietly
       if (res.status !== 404) {
-        console.warn(`[api] ${res.status} ${res.statusText} — ${url}`);
+        console.warn(`[api] ${res.status} ${res.statusText} — ${path}`);
       }
       return null;
     }

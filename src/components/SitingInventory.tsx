@@ -8,6 +8,7 @@ import { formatNumberWithCommas, downloadCSV } from '@/lib/utils';
 import { getAvailability } from '@/lib/api';
 import { getApiResource } from '@/lib/resource-mapping';
 import { CROP_NAME_MAPPING } from '@/lib/constants';
+import { onResidueDataLoaded } from '@/lib/residue-data';
 
 interface CropInventory {
   name: string;
@@ -56,6 +57,10 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
   geoids,
 }) => {
   const [isCollapsed, setIsCollapsed] = React.useState(false);
+
+  // Re-render once residue data finishes loading so useMemos below see the data.
+  const [, setResidueReady] = React.useState(0);
+  React.useEffect(() => onResidueDataLoaded(() => setResidueReady(v => v + 1)), []);
 
   // ---- residue + availability state ----
   // availability map: LandIQ crop name → display string (or null)
