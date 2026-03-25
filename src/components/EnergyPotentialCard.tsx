@@ -52,7 +52,7 @@ const EnergyPotentialCard: React.FC<EnergyPotentialCardProps> = ({ totals, isLoa
         <div className="space-y-1.5">
           {/* Primary figure */}
           <div className="flex items-baseline gap-1.5">
-            <span className="text-xl font-bold text-emerald-700">
+            <span className="text-lg font-bold text-emerald-700">
               {formatNumberWithCommas(displayValue!)}
             </span>
             <span className="text-sm text-emerald-600">{energyUnitLabel(unit)}/year</span>
