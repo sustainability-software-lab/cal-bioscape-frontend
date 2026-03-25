@@ -502,7 +502,7 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
           )}
 
           <div className="text-xs text-gray-500 border-t pt-3 mt-1">
-            <p className="mb-1">This inventory shows annual crop residues available within the selected buffer zone, calculated based on <a href="https://www.sciencedirect.com/science/article/abs/pii/S0921344918303148" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">established crop residue yield factors</a>.
+            <p className="mb-1">This inventory shows annual crop residues available within the selected buffer zone, calculated using combined empirical field measurements and <a href="https://www.sciencedirect.com/science/article/abs/pii/S0921344918303148" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">established crop residue yield factors</a>.
             {availabilityLoading && <span className="ml-1 text-gray-400 italic">Loading availability data…</span>}
             </p>
             <div className="flex justify-between items-center">
