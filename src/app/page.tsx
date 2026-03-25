@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react'; // Added useEffect
 import dynamic from 'next/dynamic';
 import { fetchResidueData } from '@/lib/residue-data';
-import { batchFetchCompositionData, CompositionLookup } from '@/lib/composition-filters';
+import { batchFetchCompositionData, CompositionLookup, CompositionFilters, DEFAULT_COMPOSITION_FILTERS } from '@/lib/composition-filters';
 import CountyFeedstockPanel from '@/components/CountyFeedstockPanel';
 // Removed useSWRInfinite import
 const Map = dynamic(() => import('@/components/Map'), { ssr: false });
@@ -156,6 +156,7 @@ export default function Home() {
   const [visibleCrops, setVisibleCrops] = useState<string[]>(allCropNames); // Start with all crops visible
   const [bufferGeoids, setBufferGeoids] = useState<string[]>([]); // County GEOIDs within the siting buffer
   const [compositionLookup, setCompositionLookup] = useState<CompositionLookup>({});
+  const [compositionFilters, setCompositionFilters] = useState<CompositionFilters>(DEFAULT_COMPOSITION_FILTERS);
   const [selectedCounty, setSelectedCounty] = useState<{ name: string; geoid: string } | null>(null);
 
   // --- Removed feedstock data fetching logic (useSWRInfinite, getKey, combinedFeedstockData, etc.) ---
@@ -276,6 +277,8 @@ export default function Home() {
               onHideAllLayers={handleHideAllLayers}
               onClosePopupForLayer={handleClosePopupForLayer}
               compositionLookup={compositionLookup}
+              compositionFilters={compositionFilters}
+              onCompositionFiltersChange={setCompositionFilters}
             />
           </div>
         </div>
@@ -327,6 +330,8 @@ export default function Home() {
             croplandOpacity={croplandOpacity}
             onGeoidsChange={setBufferGeoids}
             onCountySelect={(name: string, geoid: string) => setSelectedCounty({ name, geoid })}
+            compositionFilters={compositionFilters}
+            compositionLookup={compositionLookup}
           />
           {selectedCounty && (
             <CountyFeedstockPanel
