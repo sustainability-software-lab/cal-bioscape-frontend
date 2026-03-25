@@ -95,17 +95,21 @@ const SeasonalSupplyTimeline: React.FC<SeasonalSupplyTimelineProps> = ({ crops, 
       {!isCollapsed && (
         <div className="px-3 pb-3 space-y-3">
           {/* Month header */}
-          <div className="grid grid-cols-12 gap-px">
-            {MONTHS.map((m, i) => (
-              <div
-                key={m}
-                className={`text-center text-[9px] font-medium ${
-                  i === peakMonthIdx ? 'text-blue-600' : 'text-gray-400'
-                }`}
-              >
-                {m}
-              </div>
-            ))}
+          <div className="flex items-center gap-2">
+            <div className="flex-shrink-0" style={{ width: '80px' }} />
+            <div className="grid grid-cols-12 gap-px flex-1">
+              {MONTHS.map((m, i) => (
+                <div
+                  key={m}
+                  className={`text-center text-[9px] font-medium ${
+                    i === peakMonthIdx ? 'text-blue-600' : 'text-gray-400'
+                  }`}
+                >
+                  {m}
+                </div>
+              ))}
+            </div>
+            <div className="flex-shrink-0 w-12" />
           </div>
 
           {/* Crop rows */}
@@ -162,24 +166,27 @@ const SeasonalSupplyTimeline: React.FC<SeasonalSupplyTimelineProps> = ({ crops, 
           {/* Monthly cumulative tonnage bar */}
           <div className="pt-1 border-t border-gray-100">
             <div className="text-[9px] text-gray-400 mb-1">Monthly feedstock supply (cumulative)</div>
-            <div className="grid grid-cols-12 gap-px" style={{ height: '18px' }}>
-              {monthlyTons.map((tons, i) => {
-                const pct = tons / maxMonthlyTons;
-                return (
-                  <div
-                    key={i}
-                    className="flex items-end"
-                    title={`${MONTHS[i]}: ${Math.round(tons).toLocaleString()} dry tons/yr`}
-                  >
+            <div className="flex items-end gap-2">
+              <div className="flex-shrink-0" style={{ width: '80px' }} />
+              <div className="grid grid-cols-12 gap-px flex-1" style={{ height: '18px' }}>
+                {monthlyTons.map((tons, i) => {
+                  const pct = tons / maxMonthlyTons;
+                  return (
                     <div
-                      className={`w-full rounded-sm ${i === peakMonthIdx ? 'bg-blue-400' : 'bg-gray-300'}`}
-                      style={{ height: `${Math.round(pct * 18)}px` }}
-                    />
-                  </div>
-                );
-              })}
+                      key={i}
+                      className="flex items-end"
+                      title={`${MONTHS[i]}: ${Math.round(tons).toLocaleString()} dry tons/yr`}
+                    >
+                      <div
+                        className={`w-full rounded-sm ${i === peakMonthIdx ? 'bg-blue-400' : 'bg-gray-300'}`}
+                        style={{ height: `${Math.round(pct * 18)}px` }}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex-shrink-0 w-12" />
             </div>
-          </div>
         </div>
       )}
     </div>
