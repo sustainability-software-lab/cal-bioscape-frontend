@@ -269,7 +269,9 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange })
         formattedValue = formatPhoneNumber(formattedValue);
       } else if (typeof formattedValue === 'number' || (typeof formattedValue === 'string' && !isNaN(Number(formattedValue)) && formattedValue.trim() !== '')) {
         const num = Number(formattedValue);
-        formattedValue = num.toLocaleString();
+        if (!label.toLowerCase().includes('year')) {
+          formattedValue = num.toLocaleString();
+        }
       }
       
       if (units) {
