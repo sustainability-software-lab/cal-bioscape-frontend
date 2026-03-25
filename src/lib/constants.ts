@@ -95,29 +95,43 @@ export const CROP_NAME_MAPPING = {
 };
 
 import { getResidueData, ResidueFactors } from './residue-data';
+import { RESIDUE_FALLBACKS } from './residue-fallbacks';
 
 // Helper functions for crop residue calculations
 // Returns an array of residue factors for the given crop (one per residue type)
 export const getCropResidueFactors = (cropName: string): ResidueFactors[] | null => {
   // Get the standardized crop name from mapping
   const standardizedName = CROP_NAME_MAPPING[cropName as keyof typeof CROP_NAME_MAPPING] || null;
-  
+
   if (!standardizedName) {
     return null;
   }
-  
+
   // Try to get data from the dynamic residue service (returns ResidueFactors[])
+  // Only use dynamic data if at least one factor has non-zero yield values.
+  // (Some entries in the JSON have "Missing" values which parse to 0.)
   const dynamicData = getResidueData(standardizedName);
-  
-  if (dynamicData && dynamicData.length > 0) {
-    // Ensure each factor has a category and residueType
-    return dynamicData.map(factor => ({
+  const hasYieldData = dynamicData && dynamicData.length > 0 &&
+    dynamicData.some(f => f.dryTonsPerAcre > 0 || f.wetTonsPerAcre > 0);
+
+  if (hasYieldData) {
+    return dynamicData!.map(factor => ({
       ...factor,
       category: factor.category || 'Crop Residue',
       residueType: factor.residueType || 'Residue'
     }));
   }
-  
+
+  // Fall back to literature-based estimates for crops missing from the primary data.
+  const fallbackData = RESIDUE_FALLBACKS[standardizedName];
+  if (fallbackData && fallbackData.length > 0) {
+    return fallbackData.map(factor => ({
+      ...factor,
+      category: factor.category || 'Crop Residue',
+      residueType: factor.residueType || 'Residue'
+    }));
+  }
+
   return null;
 };
 

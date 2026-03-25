@@ -37,7 +37,7 @@ export interface FeedstockCharacteristics {
 }
 
 // URLs for the static assets
-const RESOURCE_INFO_URL = 'https://uw-ssec.github.io/ca-biositing/resource_info.json';
+const RESOURCE_INFO_URL = 'https://sustainability-software-lab.github.io/ca-biositing/resource_info.json';
 // const HEADER_MAPPING_URL = 'https://uw-ssec.github.io/ca-biositing/resource_info_header_mapping.json'; // Not strictly needed for logic if keys are stable
 
 // Storage for the processed data - now storing arrays of factors per crop
