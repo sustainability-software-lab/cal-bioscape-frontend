@@ -1,12 +1,16 @@
 "use client";
 
+import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
+import { Bug } from 'lucide-react';
+import { ReportBugModal } from '@/components/bug-report/ReportBugModal';
 
 export default function Header() {
   const router = useRouter();
   const pathname = usePathname();
+  const [isBugModalOpen, setIsBugModalOpen] = useState(false);
 
   const handleLogoClick = () => {
     router.push('/');
@@ -38,31 +42,40 @@ export default function Header() {
 
           {/* Navigation */}
           <nav className="ml-auto flex items-center space-x-12 mr-8">
-            <Link 
+            <Link
               href="/"
               className={`text-sm font-medium ${pathname === '/' ? 'text-blue-600' : 'text-gray-600 hover:text-gray-900'} transition-colors duration-200`}
             >
               Map
             </Link>
-            <Link 
+            <Link
               href="/about"
               className={`text-sm font-medium ${pathname === '/about' ? 'text-blue-600' : 'text-gray-600 hover:text-gray-900'} transition-colors duration-200`}
             >
               About
             </Link>
-            <Link 
+            <Link
               href="/api"
               className={`text-sm font-medium ${pathname === '/api' ? 'text-blue-600' : 'text-gray-600 hover:text-gray-900'} transition-colors duration-200`}
             >
               API
             </Link>
-            <Link 
+            <Link
               href="/contact"
               className={`text-sm font-medium ${pathname === '/contact' ? 'text-blue-600' : 'text-gray-600 hover:text-gray-900'} transition-colors duration-200`}
             >
               Contact
             </Link>
+            <button
+              onClick={() => setIsBugModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-amber-400/60 bg-amber-50 text-amber-700 text-sm font-medium hover:bg-amber-100 transition-colors duration-200"
+            >
+              <Bug className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Report Bug</span>
+            </button>
           </nav>
+
+          <ReportBugModal isOpen={isBugModalOpen} onClose={() => setIsBugModalOpen(false)} />
         </div>
       </div>
     </header>
