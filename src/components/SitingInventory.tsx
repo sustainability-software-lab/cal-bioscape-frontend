@@ -43,7 +43,6 @@ interface SitingInventoryProps {
   /** County FIPS GEOIDs overlapping the buffer zone (derived from Map.js) */
   geoids?: string[];
   compositionFilters?: CompositionFilters;
-  compositionLookup?: CompositionLookup;
 }
 
 const MONTH_NAMES = [
@@ -66,7 +65,6 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
   location,
   geoids,
   compositionFilters,
-  compositionLookup,
 }) => {
   const [isCollapsed, setIsCollapsed] = React.useState(false);
 
@@ -213,16 +211,29 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
     });
   }, [inventory, availabilityMap, availabilityLoading, residueReady]);
 
+  // Build a LandIQ-name-keyed lookup from the per-county compositionByResource data.
+  // This is the authoritative data for filtering — fresh county-level API data per crop.
+  const compositionLookupFromInventory = React.useMemo<CompositionLookup>(() => {
+    const result: CompositionLookup = {};
+    for (const crop of inventory) {
+      const resource = getApiResource(crop.name);
+      if (resource && compositionByResource[resource]) {
+        result[crop.name] = compositionByResource[resource];
+      }
+    }
+    return result;
+  }, [inventory, compositionByResource]);
+
   // Filter out rows with NA values (null residue yields) and apply composition filters
   const filteredInventory = React.useMemo(() => {
     return inventoryWithResidues.filter((crop): crop is CropInventoryWithResidue & { dryResidueYield: number; wetResidueYield: number } => {
       if (crop.dryResidueYield === null || crop.wetResidueYield === null) return false;
-      if (compositionFilters && compositionLookup) {
-        if (!cropPassesCompositionFilters(crop.name, compositionLookup, compositionFilters)) return false;
+      if (compositionFilters) {
+        if (!cropPassesCompositionFilters(crop.name, compositionLookupFromInventory, compositionFilters)) return false;
       }
       return true;
     });
-  }, [inventoryWithResidues, compositionFilters, compositionLookup]);
+  }, [inventoryWithResidues, compositionFilters, compositionLookupFromInventory]);
 
   // Calculate total residue yields from filtered inventory
   const totalDryResidue = React.useMemo(() => {
