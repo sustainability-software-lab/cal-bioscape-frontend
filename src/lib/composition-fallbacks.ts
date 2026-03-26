@@ -1,6 +1,10 @@
 /**
- * Literature-based fallback biomass composition values for LandIQ crop types
- * that are not covered by the Cal BioScape API (i.e., not in LANDIQ_TO_API_RESOURCE).
+ * Literature-based fallback biomass composition values for LandIQ crop types.
+ *
+ * Covers two groups:
+ *   1. Crops NOT in LANDIQ_TO_API_RESOURCE (no API mapping — always use these values).
+ *   2. Crops WITH an API mapping but for which the API currently returns no data
+ *      (hasData: false). cropPassesCompositionFilters falls back here automatically.
  *
  * All values are on a dry basis:
  *   - cellulose, lignin, ash: % (w/w dry)
@@ -72,4 +76,26 @@ export const COMPOSITION_FALLBACKS: Record<string, Partial<CompositionData>> = {
   "Idle – Short Term":   { moisture: 20, cellulose: 34, lignin: 11,   ash: 8.0,  hhv: 17.2, hasData: true },
   "Unclassified Fallow": { moisture: 15, cellulose: 34, lignin: 12,   ash: 8.0,  hhv: 17.2, hasData: true },
   "Greenhouse":          { moisture: 65, cellulose: 25, lignin: 11,   ash: 12.5, hhv: 17.0, hasData: true },
+
+  // --- API-mapped crops: fallback used when API returns hasData:false ---
+  // HHV values match HHV_FALLBACKS in energy-calculations.ts (same source).
+  // Composition values from Phyllis2/ECN, NREL, and published biomass residue studies.
+  "Almonds":                   { moisture: 10, cellulose: 36, lignin: 16, ash:  4.0, hhv: 14.5, hasData: true }, // almond hulls
+  "Walnuts":                   { moisture:  8, cellulose: 25, lignin: 54, ash:  1.5, hhv: 18.6, hasData: true }, // walnut shells
+  "Pistachios":                { moisture:  8, cellulose: 27, lignin: 50, ash:  1.5, hhv: 20.1, hasData: true }, // pistachio shells
+  "Rice":                      { moisture: 15, cellulose: 36, lignin: 12, ash: 14.0, hhv: 14.9, hasData: true }, // rice straw
+  "Wild Rice":                 { moisture: 15, cellulose: 36, lignin: 12, ash: 14.0, hhv: 14.9, hasData: true }, // rice straw
+  "Wheat":                     { moisture: 10, cellulose: 38, lignin: 20, ash:  5.0, hhv: 17.5, hasData: true }, // wheat straw
+  "Cotton":                    { moisture: 10, cellulose: 28, lignin: 18, ash: 10.0, hhv: 16.0, hasData: true }, // cotton gin trash
+  "Tomatoes":                  { moisture: 75, cellulose: 25, lignin: 18, ash:  7.0, hhv: 15.5, hasData: true }, // tomato pomace
+  "Corn, Sorghum and Sudan":   { moisture: 15, cellulose: 37, lignin: 18, ash:  5.0, hhv: 17.4, hasData: true }, // corn stover
+  "Sorghum":                   { moisture: 15, cellulose: 37, lignin: 18, ash:  5.0, hhv: 17.4, hasData: true }, // corn stover
+  "Alfalfa & Alfalfa Mixtures":{ moisture: 15, cellulose: 32, lignin: 10, ash:  9.0, hhv: 17.0, hasData: true }, // alfalfa
+  "Grapes":                    { moisture: 65, cellulose: 27, lignin: 29, ash:  6.0, hhv: 17.0, hasData: true }, // grape pomace
+  "Olives":                    { moisture: 60, cellulose: 24, lignin: 20, ash:  2.0, hhv: 19.5, hasData: true }, // olive pomace
+  "Barley":                    { moisture: 10, cellulose: 36, lignin: 17, ash:  6.0, hhv: 17.5, hasData: true }, // barley straw
+  "Oats":                      { moisture: 10, cellulose: 37, lignin: 18, ash:  5.0, hhv: 17.3, hasData: true }, // oat straw
+  "Safflower":                 { moisture: 10, cellulose: 38, lignin: 20, ash:  5.0, hhv: 17.2, hasData: true }, // safflower straw
+  "Sunflowers":                { moisture: 15, cellulose: 37, lignin: 16, ash:  5.0, hhv: 17.0, hasData: true }, // sunflower stalk
+  "Sugar beets":               { moisture: 80, cellulose: 25, lignin:  8, ash: 12.0, hhv: 14.0, hasData: true }, // sugar beet tops
 };

@@ -331,7 +331,6 @@ export default function Home() {
             onGeoidsChange={setBufferGeoids}
             onCountySelect={(name: string, geoid: string) => setSelectedCounty({ name, geoid })}
             compositionFilters={compositionFilters}
-            compositionLookup={compositionLookup}
           />
           {selectedCounty && (
             <CountyFeedstockPanel
