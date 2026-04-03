@@ -1,14 +1,14 @@
 /**
  * Server-side service account token management.
- * Fetches and caches a GCP identity token for the backend Cloud Run service.
- * Uses Application Default Credentials (automatic on Cloud Run via metadata server).
+ * Fetches and caches a JWT for the CA Biositing API using
+ * credentials stored in server-only environment variables.
  *
  * Must only be imported in server-side code (API routes, Server Components).
  */
-import { GoogleAuth } from 'google-auth-library';
 
 const BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? 'https://api-staging.calbioscape.org';
+  process.env.NEXT_PUBLIC_API_BASE_URL ??
+  'https://api-staging.calbioscape.org';
 
 interface TokenCache {
   token: string;
@@ -18,22 +18,43 @@ interface TokenCache {
 let _cache: TokenCache | null = null;
 let _flight: Promise<string> | null = null;
 
-const _auth = new GoogleAuth();
-
 export async function getServiceToken(): Promise<string> {
   if (_cache && Date.now() < _cache.expiresAt) return _cache.token;
 
   if (!_flight) {
     _flight = (async () => {
-      const client = await _auth.getIdTokenClient(BASE_URL);
-      const headers = await client.getRequestHeaders();
-      const token = (headers['Authorization'] ?? '').replace('Bearer ', '');
-      // GCP identity tokens expire in 1 hour; cache for 55 minutes
-      if (token) _cache = { token, expiresAt: Date.now() + 55 * 60 * 1000 };
+      const username = process.env.CA_BIOSITE_API_USER;
+      const password = process.env.CA_BIOSITE_API_PASSWORD;
+
+      if (!username || !password) {
+        console.warn('[service-token] CA_BIOSITE_API_USER or CA_BIOSITE_API_PASSWORD not set');
+        return '';
+      }
+
+      const body = new URLSearchParams({ username, password, grant_type: 'password' });
+      const res = await fetch(`${BASE_URL}/v1/auth/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString(),
+        cache: 'no-store',
+      });
+
+      if (!res.ok) {
+        console.warn(`[service-token] Token exchange failed: ${res.status} ${res.statusText}`);
+        return '';
+      }
+
+      const data = await res.json();
+      const token: string = data.access_token ?? '';
+      const ttlMs =
+        typeof data.expires_in === 'number'
+          ? (data.expires_in - 60) * 1000
+          : 55 * 60 * 1000;
+      if (token) _cache = { token, expiresAt: Date.now() + ttlMs };
       return token;
     })()
       .catch((err) => {
-        console.warn('[service-token] Failed to fetch GCP identity token:', err);
+        console.warn('[service-token] Network error:', err);
         return '';
       })
       .finally(() => {
