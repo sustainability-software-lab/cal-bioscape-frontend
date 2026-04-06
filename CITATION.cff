@@ -4,7 +4,7 @@ message: >-
   If you use this software, please cite it using the
   metadata from this file.
 type: software
-license: BSD-3-Clause
+license: BSD-3-Clause-LBNL
 repository-code: "https://github.com/sustainability-software-lab/cal-bioscape-frontend"
 url: "https://calbioscape.org"
 # -------------------------------
