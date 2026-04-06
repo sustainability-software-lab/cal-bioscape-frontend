@@ -1,0 +1,30 @@
+cff-version: 1.2.0
+title: "California Bioscape Frontend"
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+license: BSD-3-Clause
+repository-code: "https://github.com/sustainability-software-lab/cal-bioscape-frontend"
+url: "https://calbioscape.org"
+# -------------------------------
+# Zenodo DOI will be added after the first release
+# doi: 10.xxxx/zenodo.xxxxxxx
+# -------------------------------
+abstract: >-
+  The California Bioscape Siting Tool provides an interactive map interface to help users identify suitable locations 
+  for bioenergy and biomanufacturing facilities. It allows for the visualization of various data layers,
+  analysis of siting constraints, and inventory assessment.
+authors:
+  - given-names: Tyler
+    family-names: Huntington
+    affiliation: Lawrence Berkeley National Laboratory
+    orcid: "https://orcid.org/0000-0002-3213-0382"
+keywords:
+  - bioeconomy
+  - biomass
+  - geospatial
+  - california
+  - agriculture
+version: "0.1.0"
+date-released: "2026-04-06"
