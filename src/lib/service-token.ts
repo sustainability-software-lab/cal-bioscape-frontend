@@ -1,7 +1,9 @@
 /**
- * Server-side service account token management.
- * Fetches and caches a JWT for the CA Biositing API using
- * credentials stored in server-only environment variables.
+ * Server-side service account credential management.
+ *
+ * Prefers API key auth (`CA_BIOSITE_API_KEY`) when configured.
+ * Falls back to JWT auth (`CA_BIOSITE_API_USER` / `CA_BIOSITE_API_PASSWORD`)
+ * for environments not yet migrated to per-client keys (e.g. production).
  *
  * Must only be imported in server-side code (API routes, Server Components).
  */
@@ -18,7 +20,21 @@ interface TokenCache {
 let _cache: TokenCache | null = null;
 let _flight: Promise<string> | null = null;
 
+/** Returns true when the environment is configured for API key auth. */
+export function isApiKeyAuth(): boolean {
+  return !!process.env.CA_BIOSITE_API_KEY;
+}
+
+/**
+ * Returns the credential value to attach to outgoing backend requests.
+ *
+ * - API key mode: returns the raw key immediately (no network call).
+ * - JWT mode: fetches and caches a JWT using the service account credentials.
+ */
 export async function getServiceToken(): Promise<string> {
+  const apiKey = process.env.CA_BIOSITE_API_KEY;
+  if (apiKey) return apiKey;
+
   if (_cache && Date.now() < _cache.expiresAt) return _cache.token;
 
   if (!_flight) {
@@ -27,7 +43,7 @@ export async function getServiceToken(): Promise<string> {
       const password = process.env.CA_BIOSITE_API_PASSWORD;
 
       if (!username || !password) {
-        console.warn('[service-token] CA_BIOSITE_API_USER or CA_BIOSITE_API_PASSWORD not set');
+        console.warn('[service-token] Neither CA_BIOSITE_API_KEY nor CA_BIOSITE_API_USER/PASSWORD are set');
         return '';
       }
 
@@ -65,7 +81,7 @@ export async function getServiceToken(): Promise<string> {
   return _flight;
 }
 
-/** Clear the cached token (e.g. after a 401 response). */
+/** Clear the cached JWT (e.g. after a 401 response). No-op in API key mode. */
 export function invalidateServiceToken(): void {
   _cache = null;
 }
