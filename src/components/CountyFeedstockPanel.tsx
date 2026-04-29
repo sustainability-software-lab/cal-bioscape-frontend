@@ -47,8 +47,8 @@ const CountyFeedstockPanel: React.FC<CountyFeedstockPanelProps> = ({
         setStats(data);
         setLoading(false);
       })
-      .catch(() => {
-        setError('Failed to load county data.');
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : 'Failed to load county data.');
         setLoading(false);
       });
   }, [geoid]);

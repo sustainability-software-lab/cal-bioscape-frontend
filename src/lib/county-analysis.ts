@@ -2,8 +2,8 @@
  * County-level feedstock statistics fetched from the USDA census/survey API.
  */
 
-import { getCensusByResource, getSurveyByResource } from './api';
-import { CensusDataResponse } from './api-types';
+import { ApiAuthError, getCensusByResource, getSurveyByResource } from './api';
+import { DataItemResponse } from './api-types';
 import { LANDIQ_TO_API_RESOURCE } from './resource-mapping';
 
 export interface CountyCropStat {
@@ -31,6 +31,8 @@ export const PRIORITY_PARAMS = [
 export async function fetchCountyFeedstockStats(
   geoid: string
 ): Promise<CountyCropStat[]> {
+  const authAwareFetch = { throwOnAuthError: true };
+
   // Deduplicate: same resource can map to multiple LandIQ names
   const resourceToName = new Map<string, string>();
   for (const [landiqName, resource] of Object.entries(LANDIQ_TO_API_RESOURCE)) {
@@ -41,25 +43,35 @@ export async function fetchCountyFeedstockStats(
 
   const results = await Promise.allSettled(
     Array.from(resourceToName.entries()).map(async ([resource, landiqName]) => {
-      let data: CensusDataResponse[] | null = await getCensusByResource(resource, geoid);
+      let response: { data: DataItemResponse[] } | null = await getCensusByResource(resource, geoid, authAwareFetch);
+      let data: DataItemResponse[] = response?.data ?? [];
       let source: 'census' | 'survey' = 'census';
 
-      if (!data || data.length === 0) {
-        data = await getSurveyByResource(resource, geoid);
+      if (data.length === 0) {
+        response = await getSurveyByResource(resource, geoid, authAwareFetch);
+        data = response?.data ?? [];
         source = 'survey';
       }
 
-      if (!data || data.length === 0) return null;
+      if (data.length === 0) return null;
 
-      const parameters = data.map(d => ({
-        parameter: d.parameter,
-        value: d.value,
-        unit: d.unit,
-      }));
+      const parameters = data
+        .filter(d => d.value != null)
+        .map(d => ({
+          parameter: d.parameter,
+          value: d.value!,
+          unit: d.unit,
+        }));
+
+      if (parameters.length === 0) return null;
 
       return { landiqName, resource, parameters, source } satisfies CountyCropStat;
     })
   );
+
+  if (results.some(r => r.status === 'rejected' && r.reason instanceof ApiAuthError)) {
+    throw new Error('County data API authentication failed. Check the production API credentials.');
+  }
 
   return results
     .filter((r): r is PromiseFulfilledResult<CountyCropStat> =>

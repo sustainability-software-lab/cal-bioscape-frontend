@@ -3,7 +3,7 @@ import { getServiceToken, invalidateServiceToken, isApiKeyAuth } from '@/lib/ser
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ??
-  'https://api-staging.calbioscape.org';
+  'https://api.calbioscape.org';
 
 async function proxyRequest(
   req: NextRequest,

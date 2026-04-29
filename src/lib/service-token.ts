@@ -10,7 +10,7 @@
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ??
-  'https://api-staging.calbioscape.org';
+  'https://api.calbioscape.org';
 
 interface TokenCache {
   token: string;

@@ -7,22 +7,44 @@
 import {
   CensusDataResponse,
   CensusListResponse,
+  SurveyDataResponse,
+  SurveyListResponse,
   AnalysisListResponse,
   AnalysisDataResponse,
   AvailabilityResponse,
 } from './api-types';
+
+export interface ApiFetchOptions {
+  throwOnAuthError?: boolean;
+}
+
+export class ApiAuthError extends Error {
+  status: number;
+  path: string;
+
+  constructor(status: number, path: string) {
+    super(`API authentication failed (${status})`);
+    this.name = 'ApiAuthError';
+    this.status = status;
+    this.path = path;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Internal fetch helper — routes through /api/proxy so auth and CORS
 // are handled server-side; no credentials reach the browser.
 // ---------------------------------------------------------------------------
 
-async function apiFetch<T>(path: string): Promise<T | null> {
+async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): Promise<T | null> {
   try {
     const url = `/api/proxy${path}`;
     const res = await fetch(url, { cache: 'no-store' });
 
     if (!res.ok) {
+      if (options.throwOnAuthError && (res.status === 401 || res.status === 403)) {
+        throw new ApiAuthError(res.status, path);
+      }
+
       // 404 = "not found" is expected for sparse data; log quietly
       if (res.status !== 404) {
         console.warn(`[api] ${res.status} ${res.statusText} — ${path}`);
@@ -32,6 +54,10 @@ async function apiFetch<T>(path: string): Promise<T | null> {
 
     return (await res.json()) as T;
   } catch (err) {
+    if (err instanceof ApiAuthError) {
+      throw err;
+    }
+
     console.warn('[api] fetch error:', err);
     return null;
   }
@@ -65,10 +91,12 @@ export async function getCensusByCropParam(
 /** List all census parameters for an internal resource name + geography */
 export async function getCensusByResource(
   resource: string,
-  geoid: string
+  geoid: string,
+  options?: ApiFetchOptions
 ): Promise<CensusListResponse | null> {
   return apiFetch<CensusListResponse>(
-    `/v1/feedstocks/usda/census/resources/${encodeURIComponent(resource)}/geoid/${encodeURIComponent(geoid)}/parameters`
+    `/v1/feedstocks/usda/census/resources/${encodeURIComponent(resource)}/geoid/${encodeURIComponent(geoid)}/parameters`,
+    options
   );
 }
 
@@ -91,8 +119,8 @@ export async function getCensusByResourceParam(
 export async function getSurveyByCrop(
   crop: string,
   geoid: string
-): Promise<CensusListResponse | null> {
-  return apiFetch<CensusListResponse>(
+): Promise<SurveyListResponse | null> {
+  return apiFetch<SurveyListResponse>(
     `/v1/feedstocks/usda/survey/crops/${encodeURIComponent(crop)}/geoid/${encodeURIComponent(geoid)}/parameters`
   );
 }
@@ -102,8 +130,8 @@ export async function getSurveyByCropParam(
   crop: string,
   geoid: string,
   parameter: string
-): Promise<CensusDataResponse | null> {
-  return apiFetch<CensusDataResponse>(
+): Promise<SurveyDataResponse | null> {
+  return apiFetch<SurveyDataResponse>(
     `/v1/feedstocks/usda/survey/crops/${encodeURIComponent(crop)}/geoid/${encodeURIComponent(geoid)}/parameters/${encodeURIComponent(parameter)}`
   );
 }
@@ -111,10 +139,12 @@ export async function getSurveyByCropParam(
 /** List all survey parameters for an internal resource name + geography */
 export async function getSurveyByResource(
   resource: string,
-  geoid: string
-): Promise<CensusListResponse | null> {
-  return apiFetch<CensusListResponse>(
-    `/v1/feedstocks/usda/survey/resources/${encodeURIComponent(resource)}/geoid/${encodeURIComponent(geoid)}/parameters`
+  geoid: string,
+  options?: ApiFetchOptions
+): Promise<SurveyListResponse | null> {
+  return apiFetch<SurveyListResponse>(
+    `/v1/feedstocks/usda/survey/resources/${encodeURIComponent(resource)}/geoid/${encodeURIComponent(geoid)}/parameters`,
+    options
   );
 }
 
@@ -123,8 +153,8 @@ export async function getSurveyByResourceParam(
   resource: string,
   geoid: string,
   parameter: string
-): Promise<CensusDataResponse | null> {
-  return apiFetch<CensusDataResponse>(
+): Promise<SurveyDataResponse | null> {
+  return apiFetch<SurveyDataResponse>(
     `/v1/feedstocks/usda/survey/resources/${encodeURIComponent(resource)}/geoid/${encodeURIComponent(geoid)}/parameters/${encodeURIComponent(parameter)}`
   );
 }
