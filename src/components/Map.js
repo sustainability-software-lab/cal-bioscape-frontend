@@ -2439,9 +2439,9 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
             const usdaCrop = getUsdaCropName(cropName);
             const apiSectionId = `api-data-${Date.now()}`;
 
-            // Initial loading HTML for the API section
+            // Empty hook for optional async API enrichment; render no placeholder.
             const apiLoadingHTML = countyGeoid && (apiResource || usdaCrop)
-              ? `<div id="${apiSectionId}" style="margin-top:10px;padding-top:10px;border-top:1px solid #eaeaea;font-size:0.85em;color:#777;">Loading live data…</div>`
+              ? `<div id="${apiSectionId}"></div>`
               : '';
 
             // Increase right padding for close button spacing, remove table
