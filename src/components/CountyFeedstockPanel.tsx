@@ -3,7 +3,12 @@
 import React from 'react';
 import { X, Download, MapPin } from 'lucide-react';
 import { Card } from '@/components/ui/card';
-import { CountyCropStat, PRIORITY_PARAMS, fetchCountyFeedstockStats } from '@/lib/county-analysis';
+import {
+  fetchCountyFeedstockStats,
+  getCountyMetric,
+  getDisplaySources,
+} from '@/lib/county-analysis';
+import type { CountyCropStat, CountyDataSource, CountyMetricValue } from '@/lib/county-analysis';
 import { downloadCSV } from '@/lib/utils';
 
 interface CountyFeedstockPanelProps {
@@ -12,22 +17,42 @@ interface CountyFeedstockPanelProps {
   onClose: () => void;
 }
 
-function getParamValue(
-  stat: CountyCropStat,
-  ...labels: string[]
-): { value: number; unit: string } | null {
-  for (const label of labels) {
-    const found = stat.parameters.find(p =>
-      p.parameter.toLowerCase().includes(label.toLowerCase())
-    );
-    if (found) return { value: found.value, unit: found.unit };
-  }
-  return null;
-}
+type CountyExportRow = Record<string, string | number | boolean | null | undefined>;
 
 function formatValue(value: number, unit: string): string {
-  const rounded = value >= 1000 ? Math.round(value).toLocaleString() : value.toFixed(1);
-  return `${rounded} ${unit}`;
+  const normalizedUnit = unit.toLowerCase();
+  const displayUnit =
+    normalizedUnit.startsWith('operation') && value === 1 ? 'operation' : unit;
+  const displayValue =
+    normalizedUnit.startsWith('operation') || Number.isInteger(value) || value >= 1000
+      ? Math.round(value).toLocaleString()
+      : value.toFixed(1);
+  return `${displayValue} ${displayUnit}`;
+}
+
+function SourceBadge({ source }: { source: CountyDataSource }) {
+  const classes =
+    source === 'census'
+      ? 'bg-blue-50 text-blue-700 border-blue-200'
+      : 'bg-purple-50 text-purple-700 border-purple-200';
+
+  return (
+    <span className={`rounded px-1 py-px text-[9px] font-medium leading-tight border ${classes}`}>
+      {source}
+    </span>
+  );
+}
+
+function MetricCell({ metric }: { metric: CountyMetricValue | null }) {
+  if (!metric) {
+    return <span className="text-gray-300">—</span>;
+  }
+
+  return (
+    <span title={`${metric.parameter} (${metric.source})`}>
+      {formatValue(metric.value, metric.unit)}
+    </span>
+  );
 }
 
 const CountyFeedstockPanel: React.FC<CountyFeedstockPanelProps> = ({
@@ -55,18 +80,37 @@ const CountyFeedstockPanel: React.FC<CountyFeedstockPanelProps> = ({
 
   const handleExport = () => {
     if (stats.length === 0) return;
-    const rows = stats.flatMap(stat =>
-      stat.parameters
-        .filter(p => PRIORITY_PARAMS.some(pp => p.parameter.toLowerCase().includes(pp.toLowerCase())))
-        .map(p => ({
+    const rows = stats.flatMap(stat => {
+      const acres = getCountyMetric(stat, 'acres');
+      const production = getCountyMetric(stat, 'production');
+      const rowsForStat: CountyExportRow[] = [];
+
+      if (acres) {
+        rowsForStat.push({
           Crop: stat.landiqName,
           Resource: stat.resource,
-          Parameter: p.parameter,
-          Value: p.value,
-          Unit: p.unit,
-          Source: stat.source,
-        }))
-    );
+          Metric: 'Acres Harvested',
+          Parameter: acres.parameter,
+          Value: acres.value,
+          Unit: acres.unit,
+          Source: acres.source,
+        });
+      }
+
+      if (production) {
+        rowsForStat.push({
+          Crop: stat.landiqName,
+          Resource: stat.resource,
+          Metric: 'Production',
+          Parameter: production.parameter,
+          Value: production.value,
+          Unit: production.unit,
+          Source: production.source,
+        });
+      }
+
+      return rowsForStat;
+    });
     downloadCSV(rows, `${countyName.replace(/\s/g, '-').toLowerCase()}-feedstock-stats.csv`, [
       `Cal BioScape — County Feedstock Profile: ${countyName} County`,
       `FIPS: ${geoid}`,
@@ -114,8 +158,9 @@ const CountyFeedstockPanel: React.FC<CountyFeedstockPanelProps> = ({
             </thead>
             <tbody className="divide-y divide-gray-100">
               {stats.map((stat, i) => {
-                const acres = getParamValue(stat, 'ACRES HARVESTED', 'ACRES PLANTED');
-                const production = getParamValue(stat, 'PRODUCTION');
+                const acres = getCountyMetric(stat, 'acres');
+                const production = getCountyMetric(stat, 'production');
+                const sources = getDisplaySources(acres, production);
                 return (
                   <tr key={i} className="hover:bg-gray-50">
                     <td className="py-2 px-3">
@@ -123,18 +168,16 @@ const CountyFeedstockPanel: React.FC<CountyFeedstockPanelProps> = ({
                       <span className="block text-[10px] text-gray-400">{stat.resource.replace(/_/g, ' ')}</span>
                     </td>
                     <td className="py-2 px-2 text-right text-gray-700">
-                      {acres ? formatValue(acres.value, acres.unit) : <span className="text-gray-300">—</span>}
+                      <MetricCell metric={acres} />
                     </td>
                     <td className="py-2 px-2 text-right text-gray-700">
-                      {production ? formatValue(production.value, production.unit) : <span className="text-gray-300">—</span>}
+                      <MetricCell metric={production} />
                     </td>
                     <td className="py-2 px-2 text-right">
-                      <span className={`rounded px-1 py-px text-[9px] font-medium leading-tight border ${
-                        stat.source === 'census'
-                          ? 'bg-blue-50 text-blue-700 border-blue-200'
-                          : 'bg-purple-50 text-purple-700 border-purple-200'
-                      }`}>
-                        {stat.source}
+                      <span className="inline-flex flex-col items-end gap-1">
+                        {sources.length > 0
+                          ? sources.map(source => <SourceBadge key={source} source={source} />)
+                          : <span className="text-gray-300">—</span>}
                       </span>
                     </td>
                   </tr>
