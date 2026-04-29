@@ -133,20 +133,34 @@ cal-bioscape-frontend/
 │   │   ├── residue-data.ts               # Async loader: resource_info.json
 │   │   ├── residue-fallbacks.ts          # Static residue factor fallbacks
 │   │   ├── resource-mapping.ts           # LANDIQ_TO_API_RESOURCE, LANDIQ_TO_USDA_CROP
-│   │   ├── service-token.ts              # Server-only JWT cache for backend auth
+│   │   ├── service-token.ts              # Server-only backend credential helper
 │   │   ├── technology-matcher.ts         # rankTechnologies(), computeMixSummary()
-│   │   ├── tileset-registry.ts           # 25 Mapbox tileset configs
+│   │   ├── tileset-registry.ts           # 25 Mapbox layer configs
 │   │   └── utils.ts                      # cn(), formatNumberWithCommas(), downloadCSV()
 │   └── data/
 │       └── tomato-processor-facilities.json  # Static GeoJSON (tomato processors)
 ├── scripts/
-│   ├── fetch-tomato-processor-facilities.ts  # npm run fetch-data
-│   └── data-manipulation.ts                  # npm run merge-data
+│   └── fetch-tomato-processor-facilities.ts  # npm run fetch-data (compiled .js also present)
+│   # Note: scripts/data-manipulation.ts does NOT exist — npm run merge-data will fail
 ├── public/
+├── docs/                         # Architecture and implementation docs (19 markdown files)
+│   ├── API_INTEGRATION_PLAN.md
+│   ├── CLOUDBUILD.md
+│   ├── CROP_RESIDUE_FACTORS.md
+│   ├── DEPLOYMENT_ARCHITECTURE.md
+│   ├── FEEDSTOCK_FILTERS_IMPLEMENTATION.md
+│   ├── TILESET_SPECIFICATIONS.md
+│   ├── TILESET_UPDATE_GUIDE.md
+│   └── ... (12 more)
+├── task-summaries-archive/       # Historical task summary files
 ├── Dockerfile
 ├── cloudbuild.yaml               # GCP Cloud Build: dev
 ├── cloudbuild-staging.yaml       # GCP Cloud Build: staging
 ├── cloudbuild-prod.yaml          # GCP Cloud Build: production
+├── .github/
+│   └── workflows/
+│       ├── google-cloudrun-source.yml  # Unconfigured stub (not used)
+│       └── security.yml               # Runs npm audit
 ├── next.config.*
 ├── tailwind.config.*
 ├── tsconfig.json
@@ -163,15 +177,17 @@ Create `.env.local` for local development. Never commit secrets.
 
 | Variable | Required | Description |
 |---|---|---|
-| `NEXT_PUBLIC_API_BASE_URL` | Yes | Backend base URL. Default: `https://api-staging.calbioscape.org` |
+| `NEXT_PUBLIC_API_BASE_URL` | Yes | Backend base URL. Staging/prod Cloud Build set this explicitly; code fallback is `https://api.calbioscape.org`. |
 | `NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN` | Yes | Current Mapbox token (sustainasoft account) |
 | `NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN_LEGACY` | No | Legacy Mapbox token (tylerhuntington222 account) |
+| `NEXT_PUBLIC_TILESET_FEEDSTOCK` | No | Override feedstock tileset ID (for testing) |
+| `NEXT_PUBLIC_TILESET_WASTEWATER` | No | Override wastewater tileset ID (for testing) |
 
 ### Server-only (never NEXT_PUBLIC)
 
 | Variable | Required | Description |
 |---|---|---|
-| `CA_BIOSITE_API_KEY` | Staging/prod | API key auth. If set, used instead of OAuth2 JWT and sent as `X-API-Key`. |
+| `CA_BIOSITE_API_KEY` | Staging/prod | API key auth — if set, used instead of OAuth2 JWT. Takes priority over username/password. |
 | `CA_BIOSITE_API_USER` | Legacy/local fallback | Service account username for backend JWT exchange (used only when `CA_BIOSITE_API_KEY` is absent) |
 | `CA_BIOSITE_API_PASSWORD` | Legacy/local fallback | Service account password for backend JWT exchange (used only when `CA_BIOSITE_API_KEY` is absent) |
 | `GITHUB_TOKEN` | No | PAT with `repo` scope from `lbl.github.com/settings/tokens` |
@@ -196,7 +212,7 @@ Create `.env.local` for local development. Never commit secrets.
 
 ### Backend credential isolation
 
-All calls to the Cal BioScape backend go through the Next.js server route `src/app/api/proxy/[...path]/route.ts`. This route injects the backend credential selected by `service-token.ts` (`X-API-Key` when `CA_BIOSITE_API_KEY` is configured, otherwise legacy `Authorization: Bearer`). The client never sees credentials.
+All calls to the Cal BioScape backend go through the Next.js server route `src/app/api/proxy/[...path]/route.ts`. This route injects the backend credential selected by `service-token.ts`: `X-API-Key` when `CA_BIOSITE_API_KEY` is configured, otherwise the legacy `Authorization: Bearer <jwt>` fallback. The client never sees credentials.
 
 ### Server-only modules
 
@@ -282,8 +298,8 @@ const [layerVisibility, setLayerVisibility] = useState({
 ### Composition & filtering
 
 ```typescript
-const [visibleCrops, setVisibleCrops] = useState<string[]>([])          // All crop names initially
-const [croplandOpacity, setCroplandOpacity] = useState(0.8)
+const [visibleCrops, setVisibleCrops] = useState<string[]>(allCropNames) // All 57 crop names on mount
+const [croplandOpacity, setCroplandOpacity] = useState<number>(0.6)
 const [compositionLookup, setCompositionLookup] = useState<CompositionLookup>({})
 const [compositionFilters, setCompositionFilters] = useState<CompositionFilters>(DEFAULT_COMPOSITION_FILTERS)
 ```
@@ -296,17 +312,24 @@ const [bufferGeoids, setBufferGeoids] = useState<string[]>([])           // Coun
 const [selectedCounty, setSelectedCounty] = useState<{ name: string; geoid: string } | null>(null)
 ```
 
-### Computed values
+### Derived values
 
 ```typescript
-const computedInfrastructureMaster = Object.entries(layerVisibility)
-  .filter(([key]) => INFRASTRUCTURE_LAYER_KEYS.includes(key))
-  .some(([, v]) => v)
+// Memoized list of all 57 crop names (sorted) — used to initialize visibleCrops
+const allCropNames = useMemo(() => [...new Set(CROP_NAME_MAPPING values)].sort(), [])
 
-const computedTransportationMaster = Object.entries(layerVisibility)
-  .filter(([key]) => TRANSPORTATION_LAYER_KEYS.includes(key))
-  .some(([, v]) => v)
+// useMemo booleans — true if any layer in the group is visible
+const infrastructureMaster = useMemo(
+  () => layerVisibility.anaerobicDigester || layerVisibility.biodieselPlants || ...,
+  [layerVisibility]
+)
+const transportationMaster = useMemo(
+  () => layerVisibility.railLines || layerVisibility.freightTerminals || ...,
+  [layerVisibility]
+)
 ```
+
+Note: there are no `INFRASTRUCTURE_LAYER_KEYS` or `TRANSPORTATION_LAYER_KEYS` constant arrays — the checks are explicit `||` chains inside `useMemo`.
 
 ### Handler functions
 
@@ -316,15 +339,17 @@ const computedTransportationMaster = Object.entries(layerVisibility)
 | `handleInfrastructureToggle` | `(isVisible: boolean)` | Toggles all infrastructure layer keys |
 | `handleTransportationToggle` | `(isVisible: boolean)` | Toggles all transportation layer keys |
 | `handleCropFilterChange` | `(crops: string[])` | Sets `visibleCrops` from LayerControls |
-| `handleCompositionFiltersChange` | `(filters: CompositionFilters)` | Updates composition filter state |
-| `togglePanelCollapse` | `()` | Toggles `isPanelCollapsed` + dispatches window resize |
+| `handleClosePopupForLayer` | `(layerId: string)` | Signals LayerControls to close a layer's popup |
+| `togglePanelCollapse` | `()` | Toggles `isPanelCollapsed` + schedules window resize after 350ms CSS transition |
 | `handleShowAllLayers` | `()` | Sets all layer visibility to true |
 | `handleHideAllLayers` | `()` | Sets all layer visibility to false |
+
+`setCompositionFilters` is passed directly as `onCompositionFiltersChange` — there is no wrapper handler for it.
 
 ### Effects
 
 - On mount: calls `fetchResidueData()` (residue-data.ts) and `batchFetchCompositionData('06')` (composition-filters.ts) to pre-populate `compositionLookup`
-- On `isPanelCollapsed` change: dispatches `window.dispatchEvent(new Event('resize'))` to force Mapbox to resize
+- On `isPanelCollapsed` change: schedules `window.dispatchEvent(new Event('resize'))` inside a 350ms `setTimeout` to fire after the CSS transition completes; cleans up the timeout on re-render
 
 ---
 
@@ -393,17 +418,18 @@ Left sidebar panel with all layer toggles and resource filters.
 | `initialVisibility` | `object` | Mirror of `layerVisibility` from page.tsx |
 | `onLayerToggle` | `(id: string, visible: boolean) => void` | Bubbles individual toggle to page.tsx |
 | `onCropFilterChange` | `(crops: string[]) => void` | Bubbles visible crop list to page.tsx |
-| `onCompositionFiltersChange` | `(filters: CompositionFilters) => void` | Bubbles composition filter state |
+| `onCompositionFiltersChange` | `React.Dispatch<SetStateAction<CompositionFilters>>` | `setCompositionFilters` passed directly |
 | `compositionLookup` | `CompositionLookup` | Crop name → CompositionData for filter application |
 | `compositionFilters` | `CompositionFilters` | Current filter state (controlled) |
 | `croplandOpacity` | `number` | Current feedstock layer opacity |
-| `onOpacityChange` | `(opacity: number) => void` | Bubbles opacity change |
-| `computedInfrastructureMaster` | `boolean` | Whether any infrastructure layer is visible |
-| `computedTransportationMaster` | `boolean` | Whether any transportation layer is visible |
+| `setCroplandOpacity` | `(opacity: number) => void` | Bubbles opacity change (note: prop is named `setCroplandOpacity`, not `onOpacityChange`) |
+| `infrastructureMaster` | `boolean` | Whether any infrastructure layer is visible (note: prop is `infrastructureMaster`, not `computedInfrastructureMaster`) |
+| `transportationMaster` | `boolean` | Whether any transportation layer is visible (note: prop is `transportationMaster`, not `computedTransportationMaster`) |
 | `onInfrastructureToggle` | `(visible: boolean) => void` | Toggles all infrastructure |
 | `onTransportationToggle` | `(visible: boolean) => void` | Toggles all transportation |
-| `onShowAll` | `() => void` | Show all layers |
-| `onHideAll` | `() => void` | Hide all layers |
+| `onShowAllLayers` | `() => void` | Show all layers (note: `onShowAllLayers`, not `onShowAll`) |
+| `onHideAllLayers` | `() => void` | Hide all layers (note: `onHideAllLayers`, not `onHideAll`) |
+| `onClosePopupForLayer` | `(layerId: string) => void` | Signals the component to close a specific layer's popup |
 
 **UI Sections:**
 
@@ -485,17 +511,26 @@ Detailed inventory table for all crop residues within the siting buffer zone, pl
 | `bufferRadius` | `number` | Radius value |
 | `bufferUnit` | `string` | "miles" or "km" |
 | `location` | `{ lng, lat } \| null` | Marker coordinates |
-| `geoids` | `string[]` | County FIPS codes in buffer |
-| `compositionFilters` | `CompositionFilters` | Applied filters |
+| `geoids` | `string[]` (optional) | County FIPS codes in buffer |
+| `compositionFilters` | `CompositionFilters` (optional) | Applied filters |
 
-**Internal state:**
-- `inventoryWithResidues` — crops augmented with dry/wet ton estimates
+**Internal state (useState):**
+- `isCollapsed` — whether the panel is collapsed
+- `residueReady` — whether residue data has finished loading
+- `availabilityMap` — `Record<cropName, string>` e.g. `"Aug–Oct"` (formatted)
+- `rawAvailabilityMap` — `Record<cropName, { fromMonth, toMonth }>` (raw month numbers)
+- `availabilityLoading` — whether availability data is still fetching
 - `compositionByResource` — `Record<apiResource, CompositionData>` fetched per unique resource
-- `availabilityMap` — `Record<cropName, string>` e.g. `"Aug–Oct"`
+- `compositionLoading` — whether composition data is still fetching
 - `expandedCrops` — `Set<string>` of crop names with expanded composition rows
-- `filteredInventory` — inventory after composition filter applied
+
+**Derived values (useMemo):**
+- `baseResidueRows` — crops augmented with dry/wet ton estimates (equivalent to `inventoryWithResidues`)
+- `filteredInventory` — `baseResidueRows` after composition filter applied
+- `compositionLookupFromInventory` — composition lookup scoped to crops in the buffer
 - `energyTotals` — result of `computeEnergyTotals()`
 - `techScores` — result of `rankTechnologies()`
+- `totalDryResidue`, `totalWetResidue` — aggregate tonnage
 
 **Data fetched on mount / when geoids change:**
 1. `getAvailability(apiResource, geoid)` for each crop's API resource
@@ -586,7 +621,7 @@ Floating card (bottom-right) showing USDA agricultural statistics for a clicked 
 
 **Internal state:** `stats: CountyCropStat[]`, `loading: boolean`, `error: string | null`
 
-**On mount:** Calls `fetchCountyFeedstockStats(geoid)`. Displays table with columns: Crop | Acres Harvested | Production | Source (census / survey badge). Max height 320px, scrollable. CSV export button.
+**On mount:** Calls `fetchCountyFeedstockStats(geoid)`. Displays table with columns: Crop | Acres Harvested | Production | Source. Sources are shown for the selected visible metrics, so one row can show both census and survey badges. Max height 320px, scrollable. CSV export button.
 
 ---
 
@@ -636,19 +671,19 @@ async function apiFetch<T>(path: string): Promise<T | null>
 
 **Exported functions:**
 
-| Function | Path | Returns |
+| Function | Backend path (via `/api/proxy`) | Returns |
 |---|---|---|
-| `getCensusByCrop(crop, geoid)` | `census/{crop}/{geoid}` | `CensusListResponse \| null` |
-| `getCensusByCropParam(crop, geoid, param)` | `census/{crop}/{geoid}/{param}` | `CensusDataResponse \| null` |
-| `getCensusByResource(resource, geoid)` | `census/resource/{resource}/{geoid}` | `CensusListResponse \| null` |
-| `getCensusByResourceParam(resource, geoid, param)` | `census/resource/{resource}/{geoid}/{param}` | `CensusDataResponse \| null` |
-| `getSurveyByCrop(crop, geoid)` | `survey/{crop}/{geoid}` | `CensusListResponse \| null` |
-| `getSurveyByCropParam(crop, geoid, param)` | `survey/{crop}/{geoid}/{param}` | `CensusDataResponse \| null` |
-| `getSurveyByResource(resource, geoid)` | `survey/resource/{resource}/{geoid}` | `CensusListResponse \| null` |
-| `getSurveyByResourceParam(resource, geoid, param)` | `survey/resource/{resource}/{geoid}/{param}` | `CensusDataResponse \| null` |
-| `getAnalysisByResource(resource, geoid)` | `analysis/{resource}/{geoid}` | `AnalysisListResponse \| null` |
-| `getAnalysisByResourceParam(resource, geoid, param)` | `analysis/{resource}/{geoid}/{param}` | `AnalysisDataResponse \| null` |
-| `getAvailability(resource, geoid)` | `availability/{resource}/{geoid}` | `AvailabilityResponse \| null` |
+| `getCensusByCrop(crop, geoid)` | `/v1/feedstocks/usda/census/crops/{crop}/geoid/{geoid}/parameters` | `CensusListResponse \| null` |
+| `getCensusByCropParam(crop, geoid, param)` | `/v1/feedstocks/usda/census/crops/{crop}/geoid/{geoid}/parameters/{param}` | `CensusDataResponse \| null` |
+| `getCensusByResource(resource, geoid)` | `/v1/feedstocks/usda/census/resources/{resource}/geoid/{geoid}/parameters` | `CensusListResponse \| null` |
+| `getCensusByResourceParam(resource, geoid, param)` | `/v1/feedstocks/usda/census/resources/{resource}/geoid/{geoid}/parameters/{param}` | `CensusDataResponse \| null` |
+| `getSurveyByCrop(crop, geoid)` | `/v1/feedstocks/usda/survey/crops/{crop}/geoid/{geoid}/parameters` | `SurveyListResponse \| null` |
+| `getSurveyByCropParam(crop, geoid, param)` | `/v1/feedstocks/usda/survey/crops/{crop}/geoid/{geoid}/parameters/{param}` | `SurveyDataResponse \| null` |
+| `getSurveyByResource(resource, geoid)` | `/v1/feedstocks/usda/survey/resources/{resource}/geoid/{geoid}/parameters` | `SurveyListResponse \| null` |
+| `getSurveyByResourceParam(resource, geoid, param)` | `/v1/feedstocks/usda/survey/resources/{resource}/geoid/{geoid}/parameters/{param}` | `SurveyDataResponse \| null` |
+| `getAnalysisByResource(resource, geoid)` | `/v1/feedstocks/analysis/resources/{resource}/geoid/{geoid}/parameters` | `AnalysisListResponse \| null` |
+| `getAnalysisByResourceParam(resource, geoid, param)` | `/v1/feedstocks/analysis/resources/{resource}/geoid/{geoid}/parameters/{param}` | `AnalysisDataResponse \| null` |
+| `getAvailability(resource, geoid)` | `/v1/feedstocks/availability/resources/{resource}/geoid/{geoid}` | `AvailabilityResponse \| null` |
 
 ---
 
@@ -659,33 +694,72 @@ All TypeScript interfaces for API responses.
 ```typescript
 interface DataItemResponse {
   parameter: string;   // e.g. "cellulose", "HHV", "moisture"
-  value: number;
+  value: number | null;
   unit: string;        // e.g. "%", "MJ/kg"
+  dimension?: string | null;
+  dimension_value?: number | null;
+  dimension_unit?: string | null;
 }
 
+// Census/survey single-row response
+interface CensusDataResponse {
+  usda_crop?: string | null;
+  resource?: string | null;
+  geoid: string;
+  parameter: string;
+  value: number | null;
+  unit: string;
+  dimension?: string | null;
+  dimension_value?: number | null;
+  dimension_unit?: string | null;
+}
+
+// Census list response — an object with a nested data array
 interface CensusListResponse {
-  usda_crop?: string;
-  resource?: string;
+  usda_crop?: string | null;
+  resource?: string | null;
   geoid: string;
   data: DataItemResponse[];
 }
 
-interface CensusDataResponse {
-  usda_crop?: string;
-  resource?: string;
-  geoid: string;
-  parameter: string;
-  value: number;
-  unit: string;
-  dimension?: string;
-  dimension_value?: number;
-  dimension_unit?: string;
+interface SurveyDataResponse extends CensusDataResponse {
+  survey_program_id?: number | null;
+  survey_period?: string | null;
+  reference_month?: string | null;
+  seasonal_flag?: boolean | null;
 }
 
-// AnalysisListResponse same shape as CensusListResponse (resource, geoid, data[])
-// AnalysisDataResponse same shape as CensusDataResponse
-// AvailabilityResponse: { resource, geoid, from_month: number, to_month: number }
-// ApiErrorResponse: { detail: string }
+interface SurveyListResponse extends CensusListResponse {
+  survey_program_id?: number | null;
+  survey_period?: string | null;
+  reference_month?: string | null;
+  seasonal_flag?: boolean | null;
+}
+
+// Analysis list response — an object with a nested data array
+interface AnalysisListResponse {
+  resource: string;
+  geoid: string;
+  data: DataItemResponse[];
+}
+
+// Analysis single-row response — simpler than CensusDataResponse (no dimension fields)
+interface AnalysisDataResponse {
+  resource: string;
+  geoid: string;
+  parameter: string;
+  value: number | null;
+  unit: string;
+}
+
+interface AvailabilityResponse {
+  resource: string;
+  geoid: string;
+  from_month: number;  // 1–12
+  to_month: number;    // 1–12
+}
+
+interface ApiErrorResponse { detail: string }
 ```
 
 ---
@@ -765,14 +839,13 @@ All values on dry basis (moisture as-received). Grouped by crop category.
 
 | Export | Description |
 |---|---|
-| `FEEDSTOCK_TILESET_ID` | Mapbox tileset ID for the LandIQ cropland layer |
-| `CROP_NAME_MAPPING` | `Record<string, string>` — 60+ LandIQ crop name standardizations |
-| `FEEDSTOCK_CATEGORIES` | `string[]` — 5 category names |
-| `FEEDSTOCK_CHARACTERISTICS` | `Record<string, { category, processingSuitability[] }>` — 60+ crops |
-| `PROCESSING_TYPES` | Enum-like object of 5 conversion technology names |
+| `FEEDSTOCK_TILESET_ID` | Mapbox tileset ID for the LandIQ cropland layer (deprecated — use `TILESET_REGISTRY`) |
+| `CROP_NAME_MAPPING` | `Record<string, string>` — 76 LandIQ crop name standardizations |
+| `FEEDSTOCK_CATEGORIES` | `{ TREE_VINE_NUT, GRAIN_FIELD, VEGETABLE_SPECIALTY, PASTURE_FORAGE, FALLOW_IDLE } as const` — an object with named keys, not a `string[]` |
+| `FEEDSTOCK_CHARACTERISTICS` | `Record<string, { category, processingSuitability[] }>` — 68 crops |
+| `PROCESSING_TYPES` | `{ ANAEROBIC_DIGESTION, PYROLYSIS, COMBUSTION, COMPOSTING, ANIMAL_BEDDING } as const` — feedstock suitability categories (distinct from the scored technology names in `technology-matcher.ts`) |
 | `getFeedstockCharacteristics(cropName)` | Lookup function → `{ category, processingSuitability }` |
-| `getCropResidueFactors(cropName)` | Returns `{ factors: ResidueFactors \| null, source: 'api' \| 'fallback' }` |
-| `RESIDUE_FALLBACKS` | Static residue factor fallbacks (used when residue-data.ts has no data) |
+| `getCropResidueFactors(cropName)` | Returns `ResidueFactorsResult \| null` where `ResidueFactorsResult = { factors: ResidueFactors[]; source: 'api' \| 'fallback' }` — `factors` is an array |
 
 ---
 
@@ -782,9 +855,13 @@ All values on dry basis (moisture as-received). Grouped by crop category.
 
 | Export | Description |
 |---|---|
-| `fetchCountyFeedstockStats(geoid)` | Fetches USDA stats for all mapped crops at a county. Tries census first, falls back to survey. Returns `CountyCropStat[]`. |
-| `CountyCropStat` | `{ landiqName, resource, parameters: [{parameter, value, unit}], source: 'census' \| 'survey' }` |
-| `PRIORITY_PARAMS` | `['ACRES HARVESTED', 'ACRES PLANTED', 'PRODUCTION', 'YIELD', 'PRICE RECEIVED']` |
+| `fetchCountyFeedstockStats(geoid)` | Fetches both census and survey stats for each mapped resource at a county, merges parameter-level facts, and returns rows with displayable acres or production metrics. |
+| `getCountyMetric(stat, metric)` | Selects the exact displayed acres or production metric. Production ignores `operations` unit rows such as `area in production`. |
+| `getDisplaySources(...metrics)` | Returns the unique census/survey sources used by the selected visible metrics. |
+| `CountyCropStat` | `{ landiqName, resource, parameters: CountyParameterStat[], source: 'census' \| 'survey' \| 'mixed' }` |
+| `CountyParameterStat` | `{ parameter, value, unit, source: 'census' \| 'survey' }` |
+| `CountyMetricValue` | `{ parameter, value, unit, source: 'census' \| 'survey' }` |
+| `PRIORITY_PARAMS` | `['area harvested', 'area planted', 'production', 'yield', 'price received']` |
 
 ---
 
@@ -884,8 +961,8 @@ Two key lookup tables that map LandIQ crop names to API identifiers.
 
 | Export | Description |
 |---|---|
-| `LANDIQ_TO_API_RESOURCE` | `Record<string, string>` — 19 crops → internal resource name (e.g. `"Almonds" → "almond_hulls"`) |
-| `LANDIQ_TO_USDA_CROP` | `Record<string, string>` — 27 crops → USDA NASS canonical name (e.g. `"Almonds" → "ALMONDS"`) |
+| `LANDIQ_TO_API_RESOURCE` | `Record<string, string>` — 18 crops → internal resource name (e.g. `"Almonds" → "almond hulls"`) |
+| `LANDIQ_TO_USDA_CROP` | `Record<string, string>` — 35 crops → USDA NASS canonical name (e.g. `"Almonds" → "ALMONDS"`) |
 | `getApiResource(landiqCropName)` | Returns resource name or `null` |
 | `getUsdaCropName(landiqCropName)` | Returns USDA name or `null` |
 
@@ -902,10 +979,10 @@ Server-only backend credential helper for the Cal BioScape backend.
 | Export | Description |
 |---|---|
 | `getServiceToken()` | Returns API key or cached JWT. If `CA_BIOSITE_API_KEY` is set, returns it immediately (no network call). Otherwise fetches a JWT via `POST {BASE_URL}/v1/auth/token`, caches it for `expires_in - 60s` (max 55 min), and deduplicates in-flight requests. Returns `""` on failure. |
-| `invalidateServiceToken()` | Clears the JWT cache (called by proxy route after 401 in JWT fallback mode). No-op in API key mode. |
-| `isApiKeyAuth()` | Returns `true` if `CA_BIOSITE_API_KEY` is set. Used by the proxy route to select `X-API-Key` vs `Authorization: Bearer`. |
+| `invalidateServiceToken()` | Clears the JWT cache (called by proxy route after 401 in JWT mode). No-op in API key mode. |
+| `isApiKeyAuth()` | Returns `true` if `CA_BIOSITE_API_KEY` is set. Used by the proxy route to select the auth header (`X-API-Key` vs `Authorization: Bearer`) and disable retry-on-401 in API key mode. |
 
-**Legacy JWT fallback credentials:** `CA_BIOSITE_API_USER` + `CA_BIOSITE_API_PASSWORD` -> `grant_type=password` form POST. Do not use this mode for Cloud Run staging or production deploys.
+**Legacy JWT fallback credentials:** `CA_BIOSITE_API_USER` + `CA_BIOSITE_API_PASSWORD` → `grant_type=password` form POST. Do not use this mode for Cloud Run staging or production deploys.
 
 **Never import this in client components.**
 
@@ -940,7 +1017,7 @@ Color thresholds: green ≥60, amber 35–59, gray <35.
 
 ### `src/lib/tileset-registry.ts`
 
-Registry of all 25 Mapbox tilesets used by the application.
+Registry of all 25 Mapbox layer configs used by the application. There are 24 unique custom tileset IDs because the SAF plants and renewable diesel layers share one Mapbox tileset/source layer.
 
 **TilesetConfig interface:**
 ```typescript
@@ -956,7 +1033,13 @@ interface TilesetConfig {
 
 Most tilesets use the legacy `tylerhuntington222.*` Mapbox account. Tomato processor facilities use the `sustainasoft.*` account. Source layer names are stable — only the tileset ID changes when data is updated.
 
-**Export:** `TILESET_REGISTRY: TilesetConfig[]`
+**Exports:**
+- `TILESET_REGISTRY: Record<string, TilesetConfig>` — the active registry (with env overrides applied); keyed by layer name (e.g. `"feedstock"`, `"anaerobicDigester"`)
+- `DEFAULT_TILESET_REGISTRY: Record<string, TilesetConfig>` — base registry before env overrides
+- `FEEDSTOCK_TILESET_ID` — deprecated compatibility export for the feedstock tileset ID
+- `INFRASTRUCTURE_LAYERS` — deprecated compatibility export for a small subset of infrastructure layers
+
+`ENV_OVERRIDES` is an internal, non-exported map of `NEXT_PUBLIC_TILESET_*` env var overrides applied at module load time.
 
 ---
 
@@ -980,37 +1063,45 @@ General utilities.
 
 ```
 Browser (client component)
-  → fetch('/api/proxy/analysis/almond_hulls/06001')
-  → src/app/api/proxy/[...path]/route.ts (server)
-      → getServiceToken() (cached JWT)
-      → fetch('https://api-staging.calbioscape.org/analysis/almond_hulls/06001', {
-           Authorization: 'Bearer <token>'
-         })
+  → fetch('/api/proxy/v1/feedstocks/analysis/resources/almond%20hulls/geoid/06001/parameters')
+  → src/app/api/proxy/[...path]/route.ts (server, GET only)
+      → isApiKeyAuth()?
+          YES → X-API-Key: <key>  (no retry on 401)
+          NO  → Authorization: Bearer <jwt>  (retry once on 401)
+      → fetch('https://api-staging.calbioscape.org/v1/feedstocks/...', { headers })
       → stream response back to browser
 ```
 
-- On 401: calls `invalidateServiceToken()` and retries once
+- **Only GET is exported** from the proxy route — POST is not supported
+- Auth header selection: `isApiKeyAuth()` → `X-API-Key` (API key mode) vs `Authorization: Bearer` (JWT mode)
+- On 401 in JWT mode: calls `invalidateServiceToken()` and retries once
+- On 401 in API key mode: returns 401 immediately — a revoked key cannot recover
 - Preserves all query params
-- Supports JSON and binary response types
 - `NEXT_PUBLIC_API_BASE_URL` controls the backend target
 
 ### Token lifecycle
 
+**Legacy JWT fallback mode** (when `CA_BIOSITE_API_KEY` is not set):
 1. First call → `POST /v1/auth/token` with username/password
 2. Token cached in module-level variable with `expiresAt`
 3. Subsequent calls return cached token (no network)
 4. On 401 from backend → `invalidateServiceToken()` → next call re-fetches
 5. In-flight deduplication: concurrent calls share one `Promise`
 
+**API key mode** (when `CA_BIOSITE_API_KEY` is set):
+1. `getServiceToken()` returns the key string immediately — no network, no caching needed
+2. `isApiKeyAuth()` returns `true`
+3. No retry on 401
+
 ---
 
 ## 11. API Routes
 
-### `POST /api/proxy/[...path]`
+### `GET /api/proxy/[...path]`
 
 **File:** `src/app/api/proxy/[...path]/route.ts`
 
-Proxies any path to the backend. Injects `Authorization: Bearer <token>`. Handles token refresh on 401. Supports GET and POST methods. Forwards query params.
+Proxies any GET path to the backend. Injects `X-API-Key` (API key mode) or `Authorization: Bearer` (JWT mode). In JWT mode, retries once on 401. Only `GET` is exported — no POST handler. Forwards query params.
 
 ### `POST /api/bug-reports`
 
@@ -1103,11 +1194,15 @@ Debug endpoint. Calls `getServiceToken()` and returns `{ hasToken: boolean }`. N
 
 2. CountyFeedstockPanel mounts
    → fetchCountyFeedstockStats(geoid):
-       for each crop in LANDIQ_TO_API_RESOURCE:
-         getCensusByResource(resource, geoid) — try census first
-         if null/empty: getSurveyByResource(resource, geoid) — fallback
-       → returns CountyCropStat[]
-   → Table renders with USDA statistics
+       for each resource in LANDIQ_TO_API_RESOURCE:
+         getCensusByResource(resource, geoid, { throwOnAuthError: true })
+         getSurveyByResource(resource, geoid, { throwOnAuthError: true })
+       → merges census and survey parameters into CountyParameterStat[]
+       → filters to rows with displayable acres or production metrics
+   → getCountyMetric(stat, 'acres' | 'production') selects exact metrics:
+       Acres Harvested: area harvested/acres harvested in acres, with planted-acre fallback
+       Production: exact production parameter only; operation-count rows are ignored
+   → Table renders USDA statistics and source badges for the selected metrics
 
 3. User clicks close
    → setSelectedCounty(null)
@@ -1137,16 +1232,17 @@ Debug endpoint. Calls `getServiceToken()` and returns `{ hasToken: boolean }`. N
 
 ### Cal BioScape Backend API
 
-- **Base URL:** `NEXT_PUBLIC_API_BASE_URL` (default: `https://api-staging.calbioscape.org`)
-- **Auth:** API key (`CA_BIOSITE_API_KEY` -> `X-API-Key`) for staging/production. Legacy OAuth2 password grant -> JWT fallback is retained only for local/backward compatibility.
-- **Endpoints used:** `/v1/auth/token`, `/census/*`, `/survey/*`, `/analysis/*`, `/availability/*`
+- **Base URL:** `NEXT_PUBLIC_API_BASE_URL` (Cloud Build sets staging/prod explicitly; code fallback is `https://api.calbioscape.org`)
+- **Auth:** API key mode (`CA_BIOSITE_API_KEY` → `X-API-Key`) for deployed staging/production; legacy OAuth2 password grant → JWT fallback only when the API key is absent
+- **Endpoints used:** `/v1/auth/token` (JWT fallback only), `/v1/feedstocks/usda/census/*`, `/v1/feedstocks/usda/survey/*`, `/v1/feedstocks/analysis/*`, `/v1/feedstocks/availability/*`
 - **All access via:** `/api/proxy` route — never called directly from browser
 
 ### Mapbox GL
 
 - **Style:** `mapbox://styles/mapbox/light-v11`
 - **Token:** `NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN`
-- **25 custom tilesets:** 1 feedstock (LandIQ 2023 cropland), 18 infrastructure, 6 transportation
+- **25 registry entries:** 1 feedstock (LandIQ 2023 cropland), 18 infrastructure, 6 transportation
+- **24 unique custom tileset IDs:** SAF plants and renewable diesel plants share one Mapbox tileset/source layer
 - **Accounts:** Most tilesets on `tylerhuntington222` (legacy), tomato processors on `sustainasoft`
 - **Source layers are stable** — only tileset IDs change between data updates
 
@@ -1174,17 +1270,17 @@ Debug endpoint. Calls `getServiceToken()` and returns `{ hasToken: boolean }`. N
 
 ### CROP_NAME_MAPPING (`src/lib/constants.ts`)
 
-60+ entries mapping raw LandIQ crop name strings to standardized internal names used throughout the app.
+76 entries mapping raw LandIQ crop name strings to standardized internal names used throughout the app.
 
 ### LANDIQ_TO_API_RESOURCE (`src/lib/resource-mapping.ts`)
 
-19 entries mapping LandIQ crop names to internal API resource identifiers (snake_case, e.g. `"Almonds" → "almond_hulls"`). Used in all API calls.
+18 entries mapping LandIQ crop names to internal API resource identifiers (e.g. `"Almonds" → "almond hulls"`). Used in all API calls.
 
 **When adding a crop that has backend API support:** add an entry here.
 
 ### LANDIQ_TO_USDA_CROP (`src/lib/resource-mapping.ts`)
 
-27 entries mapping LandIQ crop names to USDA NASS canonical crop names (ALLCAPS). Used by census/survey endpoints.
+35 entries mapping LandIQ crop names to USDA NASS canonical crop names (ALLCAPS). Used by census/survey endpoints.
 
 ### COUNTY_GEOID (`src/lib/county-lookup.ts`)
 
@@ -1210,14 +1306,16 @@ Static residue yield factors for crops not in the live `resource_info.json`.
 
 ## 15. Tileset Registry
 
-All 25 tilesets defined in `src/lib/tileset-registry.ts`:
+All layer configs are defined in `src/lib/tileset-registry.ts` (25 registry entries; 24 unique Mapbox tileset IDs):
 
 | Category | Count | Account | Notes |
 |---|---|---|---|
 | Feedstock | 1 | tylerhuntington222 (legacy) | LandIQ 2023 CA cropland |
-| Infrastructure | 18 | tylerhuntington222 (legacy) | All facility types except tomato processors |
+| Infrastructure | 17 | tylerhuntington222 (legacy) | All facility types except tomato processors |
 | Infrastructure | 1 | sustainasoft | Tomato processor facilities |
-| Transportation | 5 | tylerhuntington222 (legacy) | Rail, freight, pipelines |
+| Transportation | 6 | tylerhuntington222 (legacy) | Rail lines, freight terminals, freight routes, petroleum, crude oil, natural gas pipelines |
+
+Total: 25 registry entries (1 feedstock + 18 infrastructure + 6 transportation). SAF plants and renewable diesel plants share the same Mapbox tileset ID (`tylerhuntington222.6x05ytem`), so there are 24 unique custom tileset IDs.
 
 **Source layer names are stable across versions.** Only the tileset ID (which includes a `YYYY-MM` date suffix) changes when data is updated. Update `tilesetId` in the registry without changing any other code.
 
@@ -1231,20 +1329,44 @@ Transportation tilesets: rail lines, freight terminals, freight routes, petroleu
 
 ### Docker
 
-`Dockerfile` uses a multi-stage build:
-1. Node builder stage: installs dependencies, runs `npm run build`
-2. Production stage: copies `.next`, runs `npm start` on port 3000
+`Dockerfile` uses `node:20.20.0-slim` as the base image:
+1. `npm install` — installs dependencies
+2. Verifies `NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN` is non-empty (exits 1 if missing) — prevents silent broken builds
+3. `npm run build` — produces the Next.js production bundle
+4. Exposes port 3000, starts with `npm start`
+
+Mapbox tokens are passed as `--build-arg` at build time (baked into the client bundle).
 
 ### Google Cloud Run
 
-Three Cloud Build configs trigger deployments:
-- `cloudbuild.yaml` — development environment
-- `cloudbuild-staging.yaml` — staging environment
-- `cloudbuild-prod.yaml` — production environment
+Three Cloud Build pipelines deploy to Cloud Run:
 
-All target Cloud Run. Image stored in GCP Artifact Registry. Environment-specific configs injected at deploy time.
+| Config file | Cloud Run service | Backend API |
+|---|---|---|
+| `cloudbuild.yaml` | `cal-bioscape-frontend-dev` | Not set by Cloud Build; code fallback is `https://api.calbioscape.org` |
+| `cloudbuild-staging.yaml` | `cal-bioscape-frontend-staging` | `https://api-staging.calbioscape.org` |
+| `cloudbuild-prod.yaml` | `cal-bioscape-frontend-prod` | `https://api.calbioscape.org` |
 
-Staging and production runtime backend auth must use `CA_BIOSITE_API_KEY`. Staging uses Secret Manager secret `biocirv-staging-frontend-api-key`; production uses `biocirv-production-frontend-api-key`. Do not deploy production with `CA_BIOSITE_API_USER` / `CA_BIOSITE_API_PASSWORD`; the tightened backend rejects that legacy production credential path.
+**Pipeline steps** (common to all three):
+1. Pull `MAPBOX_ACCESS_TOKEN` and `MAPBOX_ACCESS_TOKEN_LEGACY` from GCP Secret Manager
+2. `docker build` with those tokens as `--build-arg`
+3. Push to Google Container Registry with `$SHORT_SHA` and `{env}-latest` tags
+4. `gcloud run deploy --allow-unauthenticated`
+5. `gcloud run services update-traffic --to-latest` (staging and prod only)
+
+Runtime secrets are injected differently per environment:
+
+| Environment | Runtime secrets injected |
+|---|---|
+| dev | None — only sets `ENVIRONMENT=development` env var |
+| staging | `CA_BIOSITE_API_KEY` (API key auth), `GITHUB_TOKEN` |
+| prod | `CA_BIOSITE_API_KEY` (API key auth), `GITHUB_TOKEN` |
+
+Staging and production use API key auth (`CA_BIOSITE_API_KEY`). Production expects Secret Manager secret `biocirv-production-frontend-api-key`. Dev gets no backend credential from Cloud Build and will fail backend calls without `.env.local`.
+
+The Cloud Run service runs under a **dedicated service account** (not the Compute Engine default SA).
+
+`.github/workflows/google-cloudrun-source.yml` is an unconfigured stub — CI uses Cloud Build directly. `.github/workflows/security.yml` runs npm audit.
 
 ### npm scripts
 
@@ -1253,9 +1375,10 @@ Staging and production runtime backend auth must use `CA_BIOSITE_API_KEY`. Stagi
 | `npm run dev` | `next dev` | Local development server |
 | `npm run build` | `next build` | Production build |
 | `npm run start` | `next start` | Run production build |
-| `npm run lint` | `next lint` | ESLint |
+| `npm run lint` | `next lint` | Configured script, but currently invalid under Next.js 16 because `next lint` was removed |
 | `npm run fetch-data` | `tsx scripts/fetch-tomato-processor-facilities.ts` | Refresh tomato processor GeoJSON |
-| `npm run merge-data` | `tsx scripts/data-manipulation.ts` | Merge/transform data files |
+| `npm run merge-data` | `tsx scripts/data-manipulation.ts` | **Broken** — `scripts/data-manipulation.ts` does not exist |
+| `npm audit` | `npm audit --audit-level=high` | Security audit (high severity) |
 
 ---
 
