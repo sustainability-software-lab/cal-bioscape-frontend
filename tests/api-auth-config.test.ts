@@ -19,18 +19,23 @@ test('production deployment uses API-key auth for backend access', () => {
   );
   assert.doesNotMatch(
     config,
-    /CA_BIOSITE_API_USER/,
+    /CA_BIOSITE_API_USER=/,
     'production should not deploy username-based JWT auth',
   );
   assert.doesNotMatch(
     config,
-    /CA_BIOSITE_API_PASSWORD/,
+    /CA_BIOSITE_API_PASSWORD=/,
     'production should not deploy password-based JWT auth',
   );
   assert.doesNotMatch(
     config,
     /biocirv-staging-frontend-prod-service-password/,
     'production should not depend on the legacy service password secret',
+  );
+  assert.match(
+    config,
+    /--remove-secrets[\s\S]*CA_BIOSITE_API_USER,CA_BIOSITE_API_PASSWORD/,
+    'production deploys should remove stale legacy JWT secret env vars from Cloud Run',
   );
 });
 
@@ -46,5 +51,20 @@ test('staging deployment remains on API-key auth for backend access', () => {
     config,
     /CA_BIOSITE_API_USER|CA_BIOSITE_API_PASSWORD/,
     'staging should not reintroduce username/password backend auth',
+  );
+});
+
+test('debug token route does not expose backend credentials', () => {
+  const route = readRepoFile('src/app/api/auth/token/route.ts');
+
+  assert.match(
+    route,
+    /hasToken:\s*true/,
+    'token diagnostics should only report credential availability',
+  );
+  assert.doesNotMatch(
+    route,
+    /access_token|token_type/,
+    'token diagnostics must not return the API key or JWT',
   );
 });

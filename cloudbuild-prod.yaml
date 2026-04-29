@@ -49,6 +49,8 @@ steps:
       - '--allow-unauthenticated'
       - '--set-env-vars'
       - 'ENVIRONMENT=${_ENVIRONMENT},NEXT_PUBLIC_API_BASE_URL=https://api.calbioscape.org,GITHUB_ISSUE_CREATE_ENABLED=true,GITHUB_REPO_OWNER=sustainability-software-lab,GITHUB_REPO_NAME=cal-bioscape-frontend'
+      - '--remove-secrets'
+      - 'CA_BIOSITE_API_USER,CA_BIOSITE_API_PASSWORD'
       - '--update-secrets'
       - 'CA_BIOSITE_API_KEY=biocirv-production-frontend-api-key:latest,GITHUB_TOKEN=github-issue-token:latest'
 
