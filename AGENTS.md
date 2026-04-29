@@ -40,7 +40,8 @@ Authoritative reference for AI agents working in this repository. Read this file
 
 **Organization:** Sustainability Software Lab, Lawrence Berkeley National Laboratory  
 **GitHub (Enterprise):** `lbl.github.com/sustainability-software-lab/cal-bioscape-frontend`  
-**Production backend:** `api-staging.calbioscape.org` (USDA data, biomass composition, seasonal availability)
+**Production backend:** `api.calbioscape.org` (USDA data, biomass composition, seasonal availability)
+**Staging backend:** `api-staging.calbioscape.org`
 
 ---
 
@@ -170,13 +171,16 @@ Create `.env.local` for local development. Never commit secrets.
 
 | Variable | Required | Description |
 |---|---|---|
-| `CA_BIOSITE_API_USER` | Yes | Service account username for backend JWT exchange |
-| `CA_BIOSITE_API_PASSWORD` | Yes | Service account password for backend JWT exchange |
+| `CA_BIOSITE_API_KEY` | Staging/prod | API key auth. If set, used instead of OAuth2 JWT and sent as `X-API-Key`. |
+| `CA_BIOSITE_API_USER` | Legacy/local fallback | Service account username for backend JWT exchange (used only when `CA_BIOSITE_API_KEY` is absent) |
+| `CA_BIOSITE_API_PASSWORD` | Legacy/local fallback | Service account password for backend JWT exchange (used only when `CA_BIOSITE_API_KEY` is absent) |
 | `GITHUB_TOKEN` | No | PAT with `repo` scope from `lbl.github.com/settings/tokens` |
 | `GITHUB_REPO_OWNER` | No | GitHub org, e.g. `sustainability-software-lab` |
 | `GITHUB_REPO_NAME` | No | GitHub repo name, e.g. `cal-bioscape-frontend` |
 | `GITHUB_ISSUE_CREATE_ENABLED` | No | Must be `"true"` to activate GitHub issue creation |
 | `GITHUB_BASE_URL` | No | Override for GitHub Enterprise API, e.g. `https://lbl.github.com/api/v3` |
+
+**Auth mode selection**: Deployed staging and production services should set `CA_BIOSITE_API_KEY`. If it is set, the proxy sends `X-API-Key: <key>` and never retries on 401. If only username/password are set, the proxy uses the legacy OAuth2 JWT fallback with one retry on 401.
 
 ---
 
@@ -192,7 +196,7 @@ Create `.env.local` for local development. Never commit secrets.
 
 ### Backend credential isolation
 
-All calls to the Cal BioScape backend go through the Next.js server route `src/app/api/proxy/[...path]/route.ts`. This route injects the service account JWT (managed by `service-token.ts`). The client never sees credentials.
+All calls to the Cal BioScape backend go through the Next.js server route `src/app/api/proxy/[...path]/route.ts`. This route injects the backend credential selected by `service-token.ts` (`X-API-Key` when `CA_BIOSITE_API_KEY` is configured, otherwise legacy `Authorization: Bearer`). The client never sees credentials.
 
 ### Server-only modules
 
@@ -891,16 +895,17 @@ Two key lookup tables that map LandIQ crop names to API identifiers.
 
 ### `src/lib/service-token.ts`
 
-Server-only JWT cache for the Cal BioScape backend.
+Server-only backend credential helper for the Cal BioScape backend.
 
 **Exports:**
 
 | Export | Description |
 |---|---|
-| `getServiceToken()` | Returns cached JWT or fetches a new one via `POST {BASE_URL}/v1/auth/token`. Deduplicates in-flight requests. Caches for 55 min (or `expires_in - 60s`). Returns `""` on failure. |
-| `invalidateServiceToken()` | Clears the cache (called by proxy route after 401). |
+| `getServiceToken()` | Returns API key or cached JWT. If `CA_BIOSITE_API_KEY` is set, returns it immediately (no network call). Otherwise fetches a JWT via `POST {BASE_URL}/v1/auth/token`, caches it for `expires_in - 60s` (max 55 min), and deduplicates in-flight requests. Returns `""` on failure. |
+| `invalidateServiceToken()` | Clears the JWT cache (called by proxy route after 401 in JWT fallback mode). No-op in API key mode. |
+| `isApiKeyAuth()` | Returns `true` if `CA_BIOSITE_API_KEY` is set. Used by the proxy route to select `X-API-Key` vs `Authorization: Bearer`. |
 
-**Credentials used:** `CA_BIOSITE_API_USER` + `CA_BIOSITE_API_PASSWORD` → `grant_type=password` form POST.
+**Legacy JWT fallback credentials:** `CA_BIOSITE_API_USER` + `CA_BIOSITE_API_PASSWORD` -> `grant_type=password` form POST. Do not use this mode for Cloud Run staging or production deploys.
 
 **Never import this in client components.**
 
@@ -1133,7 +1138,7 @@ Debug endpoint. Calls `getServiceToken()` and returns `{ hasToken: boolean }`. N
 ### Cal BioScape Backend API
 
 - **Base URL:** `NEXT_PUBLIC_API_BASE_URL` (default: `https://api-staging.calbioscape.org`)
-- **Auth:** OAuth2 password grant → JWT (managed by `service-token.ts`)
+- **Auth:** API key (`CA_BIOSITE_API_KEY` -> `X-API-Key`) for staging/production. Legacy OAuth2 password grant -> JWT fallback is retained only for local/backward compatibility.
 - **Endpoints used:** `/v1/auth/token`, `/census/*`, `/survey/*`, `/analysis/*`, `/availability/*`
 - **All access via:** `/api/proxy` route — never called directly from browser
 
@@ -1239,6 +1244,8 @@ Three Cloud Build configs trigger deployments:
 
 All target Cloud Run. Image stored in GCP Artifact Registry. Environment-specific configs injected at deploy time.
 
+Staging and production runtime backend auth must use `CA_BIOSITE_API_KEY`. Staging uses Secret Manager secret `biocirv-staging-frontend-api-key`; production uses `biocirv-production-frontend-api-key`. Do not deploy production with `CA_BIOSITE_API_USER` / `CA_BIOSITE_API_PASSWORD`; the tightened backend rejects that legacy production credential path.
+
 ### npm scripts
 
 | Script | Command | Description |
@@ -1263,8 +1270,7 @@ cp .env.example .env.local  # or create manually
 # Required vars:
 # NEXT_PUBLIC_API_BASE_URL=https://api-staging.calbioscape.org
 # NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN=<mapbox token>
-# CA_BIOSITE_API_USER=<service account user>
-# CA_BIOSITE_API_PASSWORD=<service account password>
+# CA_BIOSITE_API_KEY=<backend API key>
 # Optional (for bug reporting):
 # GITHUB_ISSUE_CREATE_ENABLED=true
 # GITHUB_TOKEN=<PAT>
