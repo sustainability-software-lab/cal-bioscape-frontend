@@ -31,6 +31,20 @@ export interface CountyMetricValue {
   source: CountyDataSource;
 }
 
+export interface SelectedCountyFeedstockStats {
+  name: string;
+  geoid: string;
+  stats: CountyCropStat[];
+}
+
+export interface CountyPanelSelectionResponse {
+  requestId: number;
+  activeRequestId: number;
+  countyName: string;
+  geoid: string;
+  stats: CountyCropStat[];
+}
+
 /** Key parameter labels to surface prominently in the UI */
 export const PRIORITY_PARAMS = [
   'area harvested',
@@ -131,6 +145,24 @@ export function getDisplaySources(...metrics: Array<CountyMetricValue | null>): 
   return Array.from(
     new Set(metrics.filter((metric): metric is CountyMetricValue => metric !== null).map(metric => metric.source))
   );
+}
+
+export function getCountyPanelSelectionForResponse({
+  requestId,
+  activeRequestId,
+  countyName,
+  geoid,
+  stats,
+}: CountyPanelSelectionResponse): SelectedCountyFeedstockStats | null {
+  if (requestId !== activeRequestId || stats.length === 0) {
+    return null;
+  }
+
+  return {
+    name: countyName,
+    geoid,
+    stats,
+  };
 }
 
 /**

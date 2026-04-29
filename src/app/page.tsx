@@ -1,10 +1,14 @@
 'use client'; // Needed because LayerControls uses useState
 
-import { useState, useMemo, useCallback, useEffect } from 'react'; // Added useEffect
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react'; // Added useEffect
 import dynamic from 'next/dynamic';
 import { fetchResidueData } from '@/lib/residue-data';
 import { batchFetchCompositionData, CompositionLookup, CompositionFilters, DEFAULT_COMPOSITION_FILTERS } from '@/lib/composition-filters';
-import { COUNTY_FEEDSTOCK_PANEL_ENABLED } from '@/lib/feature-flags';
+import {
+  fetchCountyFeedstockStats,
+  getCountyPanelSelectionForResponse,
+} from '@/lib/county-analysis';
+import type { SelectedCountyFeedstockStats } from '@/lib/county-analysis';
 import CountyFeedstockPanel from '@/components/CountyFeedstockPanel';
 // Removed useSWRInfinite import
 const Map = dynamic(() => import('@/components/Map'), { ssr: false });
@@ -158,7 +162,8 @@ export default function Home() {
   const [bufferGeoids, setBufferGeoids] = useState<string[]>([]); // County GEOIDs within the siting buffer
   const [compositionLookup, setCompositionLookup] = useState<CompositionLookup>({});
   const [compositionFilters, setCompositionFilters] = useState<CompositionFilters>(DEFAULT_COMPOSITION_FILTERS);
-  const [selectedCounty, setSelectedCounty] = useState<{ name: string; geoid: string } | null>(null);
+  const [selectedCounty, setSelectedCounty] = useState<SelectedCountyFeedstockStats | null>(null);
+  const countyRequestIdRef = useRef(0);
 
   // --- Removed feedstock data fetching logic (useSWRInfinite, getKey, combinedFeedstockData, etc.) ---
 
@@ -254,12 +259,33 @@ export default function Home() {
   };
 
   const handleCountySelect = useCallback((name: string, geoid: string) => {
-    if (!COUNTY_FEEDSTOCK_PANEL_ENABLED) {
-      setSelectedCounty(null);
-      return;
-    }
+    const requestId = countyRequestIdRef.current + 1;
+    countyRequestIdRef.current = requestId;
+    setSelectedCounty(null);
 
-    setSelectedCounty({ name, geoid });
+    fetchCountyFeedstockStats(geoid)
+      .then(stats => {
+        const nextSelection = getCountyPanelSelectionForResponse({
+          requestId,
+          activeRequestId: countyRequestIdRef.current,
+          countyName: name,
+          geoid,
+          stats,
+        });
+
+        if (nextSelection) {
+          setSelectedCounty(nextSelection);
+        }
+      })
+      .catch(err => {
+        if (requestId !== countyRequestIdRef.current) return;
+        console.warn(`[county] Failed to load feedstock stats for ${name} County (${geoid}):`, err);
+      });
+  }, []);
+
+  const handleCloseCountyPanel = useCallback(() => {
+    countyRequestIdRef.current += 1;
+    setSelectedCounty(null);
   }, []);
 
   // Removed feedstockError check UI
@@ -342,11 +368,12 @@ export default function Home() {
             onCountySelect={handleCountySelect}
             compositionFilters={compositionFilters}
           />
-          {COUNTY_FEEDSTOCK_PANEL_ENABLED && selectedCounty && (
+          {selectedCounty && (
             <CountyFeedstockPanel
               countyName={selectedCounty.name}
               geoid={selectedCounty.geoid}
-              onClose={() => setSelectedCounty(null)}
+              stats={selectedCounty.stats}
+              onClose={handleCloseCountyPanel}
             />
           )}
         </div>
