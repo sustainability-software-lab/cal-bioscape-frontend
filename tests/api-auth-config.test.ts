@@ -68,3 +68,30 @@ test('debug token route does not expose backend credentials', () => {
     'token diagnostics must not return the API key or JWT',
   );
 });
+
+test('client builds inline the public API base URL per environment', () => {
+  const dockerfile = readRepoFile('Dockerfile');
+  const productionConfig = readRepoFile('cloudbuild-prod.yaml');
+  const stagingConfig = readRepoFile('cloudbuild-staging.yaml');
+
+  assert.match(
+    dockerfile,
+    /ARG NEXT_PUBLIC_API_BASE_URL_BUILD=https:\/\/api\.calbioscape\.org/,
+    'Docker builds should accept a public API base URL build argument',
+  );
+  assert.match(
+    dockerfile,
+    /ENV NEXT_PUBLIC_API_BASE_URL=\$NEXT_PUBLIC_API_BASE_URL_BUILD/,
+    'Docker builds should expose the public API base URL before next build',
+  );
+  assert.match(
+    productionConfig,
+    /--build-arg NEXT_PUBLIC_API_BASE_URL_BUILD=https:\/\/api\.calbioscape\.org/,
+    'production client bundles should see the production API URL at build time',
+  );
+  assert.match(
+    stagingConfig,
+    /--build-arg NEXT_PUBLIC_API_BASE_URL_BUILD=https:\/\/api-staging\.calbioscape\.org/,
+    'staging client bundles should see the staging API URL at build time',
+  );
+});
