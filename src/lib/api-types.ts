@@ -1,32 +1,54 @@
 /**
  * TypeScript interfaces matching the CA Biositing backend API response schemas.
- * API Base URL: https://biocirv-webservice-194468397458.us-west1.run.app
+ * API Base URL: https://api.calbioscape.org
  */
 
-// Single data item inside AnalysisListResponse.data
+// Single data item inside list response .data arrays
 export interface DataItemResponse {
   parameter: string;
-  value: number;
+  value: number | null;
   unit: string;
+  dimension?: string | null;
+  dimension_value?: number | null;
+  dimension_unit?: string | null;
 }
 
-// Response from GET /v1/feedstocks/usda/census/crops/{crop}/geoid/{geoid}/parameters
-// or /v1/feedstocks/usda/census/resources/{resource}/geoid/{geoid}/parameters
-// (list form – the API actually returns an array of these)
+// Response from GET /v1/feedstocks/usda/census/.../parameters/{parameter}
 export interface CensusDataResponse {
-  usda_crop?: string;  // present when queried by crop name
-  resource?: string;   // present when queried by resource name
+  usda_crop?: string | null;  // present when queried by crop name
+  resource?: string | null;   // present when queried by resource name
   geoid: string;
   parameter: string;
-  value: number;
+  value: number | null;
   unit: string;
-  dimension?: string;
-  dimension_value?: number;
-  dimension_unit?: string;
+  dimension?: string | null;
+  dimension_value?: number | null;
+  dimension_unit?: string | null;
 }
 
-// Convenience alias – the "list" endpoints return CensusDataResponse[]
-export type CensusListResponse = CensusDataResponse[];
+// Response from GET /v1/feedstocks/usda/census/.../parameters
+export interface CensusListResponse {
+  usda_crop?: string | null;
+  resource?: string | null;
+  geoid: string;
+  data: DataItemResponse[];
+}
+
+// Response from GET /v1/feedstocks/usda/survey/.../parameters/{parameter}
+export interface SurveyDataResponse extends CensusDataResponse {
+  survey_program_id?: number | null;
+  survey_period?: string | null;
+  reference_month?: string | null;
+  seasonal_flag?: boolean | null;
+}
+
+// Response from GET /v1/feedstocks/usda/survey/.../parameters
+export interface SurveyListResponse extends CensusListResponse {
+  survey_program_id?: number | null;
+  survey_period?: string | null;
+  reference_month?: string | null;
+  seasonal_flag?: boolean | null;
+}
 
 // Response from GET /v1/feedstocks/analysis/resources/{resource}/geoid/{geoid}/parameters
 export interface AnalysisListResponse {
@@ -40,7 +62,7 @@ export interface AnalysisDataResponse {
   resource: string;
   geoid: string;
   parameter: string;
-  value: number;
+  value: number | null;
   unit: string;
 }
 

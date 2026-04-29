@@ -2509,9 +2509,10 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
 
                   // Census: harvested acres for county
                   const census = censusResult.status === 'fulfilled' ? censusResult.value : null;
-                  if (census && Array.isArray(census) && census.length > 0) {
-                    const acresRow = census.find(r => r.parameter && r.parameter.toUpperCase().includes('ACRES HARVESTED'));
-                    if (acresRow) {
+                  const censusRows = census?.data ?? [];
+                  if (censusRows.length > 0) {
+                    const acresRow = censusRows.find(r => r.parameter && r.parameter.toUpperCase().includes('ACRES HARVESTED'));
+                    if (acresRow?.value != null) {
                       apiHTML += `<div style="margin-bottom:3px;"><strong>County Harvested Acres (USDA):</strong> ${acresRow.value.toLocaleString()} ${acresRow.unit}</div>`;
                     }
                   }

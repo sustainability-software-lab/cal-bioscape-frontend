@@ -47,3 +47,4 @@ src/data/
 # google cloud credentials
 google-cloud-credentials.json
 venv
+.venv

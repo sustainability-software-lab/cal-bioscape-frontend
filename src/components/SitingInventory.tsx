@@ -22,13 +22,20 @@ interface CropInventory {
   color: string;
 }
 
-interface CropInventoryWithResidue extends CropInventory {
-  dryResidueYield: number | null;
-  wetResidueYield: number | null;
-  residueType: string | null;
-  /** Whether residue factors came from the live API JSON or literature-based fallbacks */
-  residueSource: 'api' | 'fallback' | null;
-  /** Human-readable availability window, e.g. "Aug–Oct" or null while loading */
+/** One row per individual residue type (e.g. "Almond Hulls", "Almond Shells"). */
+interface ResidueInventoryRow {
+  resourceName: string;         // Display label, e.g. "Almond Hulls"
+  cropName: string;             // Parent LandIQ crop, e.g. "Almonds" (for API lookups & color)
+  apiResource: string | null;   // API resource slug, e.g. "almond_hulls"
+  acres: number;                // Parent crop acreage
+  color: string;                // Parent crop map color
+  dryResidueYield: number;      // acres × factor.dryTonsPerAcre (individual residue)
+  wetResidueYield: number;      // acres × factor.wetTonsPerAcre
+  residueType: string;          // e.g. "Ag Residue"
+  residueSource: 'api' | 'fallback';
+  fromMonth: number | undefined;
+  toMonth: number | undefined;
+  // Populated after availability loads:
   availability: string | null;
   availabilityLoading: boolean;
 }
@@ -150,66 +157,34 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
     });
   }, [inventory, geoids]);
 
-  // Calculate residue yields for each crop in the inventory
-  const inventoryWithResidues: CropInventoryWithResidue[] = React.useMemo(() => {
-    return inventory.map(crop => {
+  // Expand each crop into individual residue-type rows (one per factor with non-zero yield).
+  // Each row represents a single convertible resource (e.g. "Almond Hulls", "Almond Shells").
+  const baseResidueRows: Omit<ResidueInventoryRow, 'availability' | 'availabilityLoading'>[] = React.useMemo(() => {
+    const rows: Omit<ResidueInventoryRow, 'availability' | 'availabilityLoading'>[] = [];
+    for (const crop of inventory) {
       const residueResult = getCropResidueFactors(crop.name);
-
-      // Derive static availability window from the first factor's from/to month.
-      // Used as fallback when the API availability endpoint has no data.
-      let staticAvailability: string | null = null;
-      if (residueResult && residueResult.factors.length > 0) {
-        const f = residueResult.factors[0];
-        if (f.fromMonth && f.toMonth) {
-          staticAvailability = formatAvailabilityWindow(f.fromMonth, f.toMonth);
-        }
-      }
-
-      // API result takes precedence; fall back to static from residue factors.
-      const availability = availabilityMap[crop.name] ?? staticAvailability;
-      // Only show the loading spinner if we have no static data to show yet.
-      const isLoading = availabilityLoading && availability === null;
-
-      if (residueResult && residueResult.factors.length > 0) {
-        let totalDryTonsPerAcre = 0;
-        let totalWetTonsPerAcre = 0;
-        const types = new Set<string>();
-
-        residueResult.factors.forEach(factor => {
-          totalDryTonsPerAcre += factor.dryTonsPerAcre || 0;
-          totalWetTonsPerAcre += factor.wetTonsPerAcre || 0;
-          if (factor.residueType) {
-            types.add(factor.residueType);
-          } else if (factor.resourceName) {
-            types.add(factor.resourceName);
-          }
-        });
-
-        const dryResidueYield = Math.round(crop.acres * totalDryTonsPerAcre);
-        const wetResidueYield = Math.round(crop.acres * totalWetTonsPerAcre);
-
-        return {
-          ...crop,
-          dryResidueYield,
-          wetResidueYield,
-          residueType: Array.from(types).join(', ') || 'Residue',
+      if (!residueResult) continue;
+      const apiResource = getApiResource(crop.name);
+      for (const factor of residueResult.factors) {
+        // Skip entries with no yield data (e.g. "Missing" values that parsed to 0)
+        if (!factor.dryTonsPerAcre && !factor.wetTonsPerAcre) continue;
+        rows.push({
+          resourceName: factor.resourceName,
+          cropName: crop.name,
+          apiResource,
+          acres: crop.acres,
+          color: crop.color,
+          dryResidueYield: Math.round(crop.acres * factor.dryTonsPerAcre),
+          wetResidueYield: Math.round(crop.acres * factor.wetTonsPerAcre),
+          residueType: factor.residueType || 'Residue',
           residueSource: residueResult.source,
-          availability,
-          availabilityLoading: isLoading,
-        };
+          fromMonth: factor.fromMonth,
+          toMonth: factor.toMonth,
+        });
       }
-
-      return {
-        ...crop,
-        dryResidueYield: null,
-        wetResidueYield: null,
-        residueType: null,
-        residueSource: null,
-        availability,
-        availabilityLoading: isLoading,
-      };
-    });
-  }, [inventory, availabilityMap, availabilityLoading, residueReady]);
+    }
+    return rows;
+  }, [inventory, residueReady]);
 
   // Build a LandIQ-name-keyed lookup from the per-county compositionByResource data.
   // This is the authoritative data for filtering — fresh county-level API data per crop.
@@ -224,16 +199,26 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
     return result;
   }, [inventory, compositionByResource]);
 
-  // Filter out rows with NA values (null residue yields) and apply composition filters
-  const filteredInventory = React.useMemo(() => {
-    return inventoryWithResidues.filter((crop): crop is CropInventoryWithResidue & { dryResidueYield: number; wetResidueYield: number } => {
-      if (crop.dryResidueYield === null || crop.wetResidueYield === null) return false;
-      if (compositionFilters) {
-        if (!cropPassesCompositionFilters(crop.name, compositionLookupFromInventory, compositionFilters)) return false;
-      }
-      return true;
-    });
-  }, [inventoryWithResidues, compositionFilters, compositionLookupFromInventory]);
+  // Filter residue rows by composition filters, then enrich with availability state.
+  const filteredInventory: ResidueInventoryRow[] = React.useMemo(() => {
+    return baseResidueRows
+      .filter(row => {
+        if (compositionFilters) {
+          if (!cropPassesCompositionFilters(row.cropName, compositionLookupFromInventory, compositionFilters)) return false;
+        }
+        return true;
+      })
+      .map(row => {
+        // API availability takes precedence; fall back to static months from factor.
+        const staticAvailability =
+          row.fromMonth && row.toMonth
+            ? formatAvailabilityWindow(row.fromMonth, row.toMonth)
+            : null;
+        const availability = availabilityMap[row.cropName] ?? staticAvailability;
+        const isLoading = availabilityLoading && availability === null;
+        return { ...row, availability, availabilityLoading: isLoading };
+      });
+  }, [baseResidueRows, compositionFilters, compositionLookupFromInventory, availabilityMap, availabilityLoading]);
 
   // Calculate total residue yields from filtered inventory
   const totalDryResidue = React.useMemo(() => {
@@ -254,10 +239,10 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
     for (const [resource, comp] of Object.entries(compositionByResource)) {
       hhvLookup[resource] = comp.hhv ?? null;
     }
-    const cropInputs = filteredInventory.map(crop => ({
-      cropName: crop.name,
-      dryTons: crop.dryResidueYield,
-      apiResource: getApiResource(crop.name),
+    const cropInputs = filteredInventory.map(row => ({
+      cropName: row.cropName,
+      dryTons: row.dryResidueYield,
+      apiResource: row.apiResource,
     }));
     return computeEnergyTotals(cropInputs, hhvLookup);
   }, [filteredInventory, compositionByResource]);
@@ -265,10 +250,10 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
   // Rank conversion technologies for the feedstock mix
   const techScores: TechScore[] = React.useMemo(() => {
     if (filteredInventory.length === 0) return [];
-    const cropInputs = filteredInventory.map(crop => ({
-      cropName: crop.name,
-      dryTons: crop.dryResidueYield,
-      apiResource: getApiResource(crop.name),
+    const cropInputs = filteredInventory.map(row => ({
+      cropName: row.cropName,
+      dryTons: row.dryResidueYield,
+      apiResource: row.apiResource,
     }));
     const summary = computeMixSummary(cropInputs, compositionByResource);
     // Only rank if we have at least some composition data
@@ -281,18 +266,20 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
     if (filteredInventory.length === 0) return;
 
     // Format data for CSV
-    const csvData = filteredInventory.map(crop => ({
-      'Crop Type': crop.name,
-      'Acres': Math.round(crop.acres),
-      'Percentage': Math.round((crop.acres / totalAcres) * 100) + '%',
-      'Dry Residue (tons/year)': crop.dryResidueYield,
-      'Wet Residue (tons/year)': crop.wetResidueYield,
-      'Availability': crop.availability ?? 'N/A',
+    const csvData = filteredInventory.map(row => ({
+      'Resource Type': row.resourceName,
+      'Crop': row.cropName,
+      'Acres': Math.round(row.acres),
+      'Percentage': Math.round((row.acres / totalAcres) * 100) + '%',
+      'Dry Residue (tons/year)': row.dryResidueYield,
+      'Wet Residue (tons/year)': row.wetResidueYield,
+      'Availability': row.availability ?? 'N/A',
     }));
 
     // Add a total row
     csvData.push({
-      'Crop Type': 'Total',
+      'Resource Type': 'Total',
+      'Crop': '',
       'Acres': Math.round(totalAcres),
       'Percentage': '100%',
       'Dry Residue (tons/year)': Math.round(totalDryResidue),
@@ -382,7 +369,7 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
             <div className="flex items-center justify-between mb-1">
               <p className="font-semibold text-sm">Resources within {bufferRadius} {bufferUnit} buffer zone:</p>
               <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs font-medium">
-                {filteredInventory.length} crop types
+                {filteredInventory.length} resource types
               </span>
             </div>
             <div className="mt-1 grid grid-cols-2 justify-between">
@@ -398,7 +385,7 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
               <table className="w-full text-xs">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="py-2 px-3 text-left font-medium text-gray-500 w-[28%]">Crop Type</th>
+                    <th className="py-2 px-3 text-left font-medium text-gray-500 w-[28%]">Resource Type</th>
                     <th className="py-2 px-2 text-right font-medium text-gray-500 w-[12%]">Acres</th>
                     <th className="py-2 px-2 text-right font-medium text-gray-500 w-[11%]">% of Area</th>
                     <th className="py-2 px-2 text-right font-medium text-gray-500 w-[18%]">Dry Residue (tons/year)</th>
@@ -408,12 +395,12 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {filteredInventory
-                    .sort((a, b) => b.acres - a.acres) // Sort by acres descending
-                    .map((crop, index) => {
-                      const apiResource = getApiResource(crop.name);
-                      const composition = apiResource ? compositionByResource[apiResource] : undefined;
+                    .sort((a, b) => b.dryResidueYield - a.dryResidueYield) // Sort by dry residue yield descending
+                    .map((row, index) => {
+                      const composition = row.apiResource ? compositionByResource[row.apiResource] : undefined;
                       const hasComposition = composition?.hasData === true;
-                      const isExpanded = expandedCrops.has(crop.name);
+                      const rowKey = `${row.cropName}:${row.resourceName}`;
+                      const isExpanded = expandedCrops.has(rowKey);
                       return (
                         <React.Fragment key={index}>
                           <tr
@@ -422,7 +409,7 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
                               if (!hasComposition) return;
                               setExpandedCrops(prev => {
                                 const next = new Set(prev);
-                                next.has(crop.name) ? next.delete(crop.name) : next.add(crop.name);
+                                next.has(rowKey) ? next.delete(rowKey) : next.add(rowKey);
                                 return next;
                               });
                             }}
@@ -436,16 +423,16 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
                                 )}
                                 <span
                                   className="inline-block h-3 w-3 rounded-sm flex-shrink-0"
-                                  style={{ backgroundColor: crop.color }}
+                                  style={{ backgroundColor: row.color }}
                                 />
-                                <span className="line-clamp-1 min-w-0" title={crop.name}>{crop.name}</span>
-                                {crop.residueSource === 'api' && (
+                                <span className="line-clamp-1 min-w-0" title={row.resourceName}>{row.resourceName}</span>
+                                {row.residueSource === 'api' && (
                                   <span
                                     className="flex-shrink-0 rounded px-1 py-px text-[9px] font-medium leading-tight bg-green-50 text-green-700 border border-green-200"
                                     title="Yield factors sourced from resource_info.json"
                                   >API</span>
                                 )}
-                                {crop.residueSource === 'fallback' && (
+                                {row.residueSource === 'fallback' && (
                                   <span
                                     className="flex-shrink-0 rounded px-1 py-px text-[9px] font-medium leading-tight bg-amber-50 text-amber-700 border border-amber-200"
                                     title="Yield factors estimated from published literature"
@@ -453,20 +440,20 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
                                 )}
                               </div>
                             </td>
-                            <td className="py-2 px-2 text-right">{formatNumberWithCommas(Math.round(crop.acres))}</td>
+                            <td className="py-2 px-2 text-right">{formatNumberWithCommas(Math.round(row.acres))}</td>
                             <td className="py-2 px-2 text-right">
-                              {Math.round((crop.acres / totalAcres) * 100)}%
+                              {Math.round((row.acres / totalAcres) * 100)}%
                             </td>
                             <td className="py-2 px-2 text-right">
-                              {formatNumberWithCommas(crop.dryResidueYield)}
+                              {formatNumberWithCommas(row.dryResidueYield)}
                             </td>
                             <td className="py-2 px-2 text-right">
-                              {formatNumberWithCommas(crop.wetResidueYield)}
+                              {formatNumberWithCommas(row.wetResidueYield)}
                             </td>
                             <td className="py-2 px-2 text-right text-gray-600">
-                              {crop.availabilityLoading
+                              {row.availabilityLoading
                                 ? <span className="text-gray-400 italic">…</span>
-                                : crop.availability ?? <span className="text-gray-400">—</span>}
+                                : row.availability ?? <span className="text-gray-400">—</span>}
                             </td>
                           </tr>
                           {isExpanded && hasComposition && composition && (
@@ -474,7 +461,7 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
                               <td colSpan={6} className="p-0">
                                 <FeedstockCompositionPanel
                                   composition={composition}
-                                  source={crop.residueSource ?? 'fallback'}
+                                  source={row.residueSource}
                                 />
                               </td>
                             </tr>
@@ -505,16 +492,14 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
           {filteredInventory.length > 0 && (
             <SeasonalSupplyTimeline
               isLoading={availabilityLoading}
-              crops={filteredInventory.map(crop => {
-                const raw = rawAvailabilityMap[crop.name];
-                // Fall back to static residue factor months if API unavailable
-                const factor = getCropResidueFactors(crop.name)?.factors[0];
+              crops={filteredInventory.map(row => {
+                const raw = rawAvailabilityMap[row.cropName];
                 return {
-                  name: crop.name,
-                  color: crop.color,
-                  dryTons: crop.dryResidueYield,
-                  fromMonth: raw?.fromMonth ?? factor?.fromMonth ?? null,
-                  toMonth: raw?.toMonth ?? factor?.toMonth ?? null,
+                  name: row.resourceName,
+                  color: row.color,
+                  dryTons: row.dryResidueYield,
+                  fromMonth: raw?.fromMonth ?? row.fromMonth ?? null,
+                  toMonth: raw?.toMonth ?? row.toMonth ?? null,
                 };
               })}
             />

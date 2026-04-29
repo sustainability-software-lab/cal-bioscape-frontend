@@ -1,6 +1,6 @@
 import Header from '@/components/Header';
 
-const API_DOCS_URL = `${process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api-staging.calbioscape.org'}/docs`;
+const API_DOCS_URL = `${process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.calbioscape.org'}/docs`;
 
 export default function ApiPage() {
   return (

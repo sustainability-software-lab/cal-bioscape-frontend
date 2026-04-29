@@ -77,7 +77,7 @@ export const DEFAULT_COMPOSITION_FILTERS: CompositionFilters = {
 function findParam(data: DataItemResponse[], ...names: string[]): number | undefined {
   for (const name of names) {
     const item = data.find(d => d.parameter.toLowerCase() === name.toLowerCase());
-    if (item !== undefined) return item.value;
+    if (item?.value != null) return item.value;
   }
   return undefined;
 }

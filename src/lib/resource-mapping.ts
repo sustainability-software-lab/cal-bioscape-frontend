@@ -1,33 +1,33 @@
 /**
  * Maps LandIQ / DWR crop names (used in the Mapbox tileset) to:
- *   - API internal resource names  (used with /resources/ endpoints)
+ *   - API resource display names   (used with /resources/ endpoints)
  *   - USDA NASS crop names          (used with /crops/ endpoints)
  *
  * Entries without a known mapping are intentionally omitted; callers
  * should check for undefined and fall back to static data.
  */
 
-/** LandIQ crop name → API internal resource name */
+/** LandIQ crop name → production API resource name */
 export const LANDIQ_TO_API_RESOURCE: Record<string, string> = {
   // Orchard & Vineyard
-  Almonds: 'almond_hulls',
-  Walnuts: 'walnut_shells',
-  Pistachios: 'pistachio_shells',
-  Rice: 'rice_straw',
-  Wheat: 'wheat_straw',
-  Cotton: 'cotton_gin_trash',
-  Tomatoes: 'tomato_pomace',
-  'Corn, Sorghum and Sudan': 'corn_stover',
-  Sorghum: 'corn_stover',
+  Almonds: 'almond hulls',
+  Walnuts: 'walnut shells',
+  Pistachios: 'pistachio shells',
+  Rice: 'rice straw',
+  Wheat: 'wheat straw',
+  Cotton: 'cotton stem mix',
+  Tomatoes: 'tomato pomace',
+  'Corn, Sorghum and Sudan': 'corn stover whole',
+  Sorghum: 'corn stover whole',
   'Alfalfa & Alfalfa Mixtures': 'alfalfa',
-  Grapes: 'grape_pomace',
-  Olives: 'olive_pomace',
-  Barley: 'barley_straw',
-  Oats: 'oat_straw',
-  Safflower: 'safflower_straw',
-  Sunflowers: 'sunflower_stalk',
-  'Sugar beets': 'sugar_beet_tops',
-  'Wild Rice': 'rice_straw',
+  Grapes: 'grape pomace',
+  Olives: 'olive pomace',
+  Barley: 'barley straw',
+  Oats: 'oats straw',
+  Safflower: 'safflower straw',
+  Sunflowers: 'sunflower stalks',
+  'Sugar beets': 'sugar beet tops',
+  'Wild Rice': 'rice straw',
 };
 
 /** LandIQ crop name → USDA NASS canonical crop name (uppercase) */

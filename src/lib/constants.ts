@@ -103,6 +103,110 @@ export type ResidueFactorsResult = {
   source: 'api' | 'fallback';
 };
 
+const CROP_RESOURCE_DISPLAY_NAMES: Record<string, string> = {
+  'Almonds': 'Almond',
+  'Apricots (D2)': 'Apricot',
+  'Corn, Sorghum (F16)': 'Corn stover',
+  'Grapes (V)': 'Grape',
+  'Misc. Deciduous (D10)': 'Mixed deciduous fruit',
+  'Olives (C6)': 'Olive',
+  'Oranges (C3)': 'Citrus',
+  'Peaches/Nect. (D5)': 'Peach/nectarine',
+  'Pears (D6)': 'Pear',
+  'Pistachios (D14)': 'Pistachio',
+  'Plums (D7)': 'Plum/prune',
+  'Potatoes (T12)': 'Potato',
+  'Sweet Potatoes (T13)': 'Sweet potato',
+  'Walnuts (D13)': 'Walnut',
+};
+
+const FIELD_RESIDUE_LABELS: Record<string, string> = {
+  'Corn, Sorghum (F16)': 'Corn stover (whole residue)',
+  'Wheat (G2)': 'Wheat straw',
+};
+
+function resourceDisplayBase(standardizedName: string): string {
+  return CROP_RESOURCE_DISPLAY_NAMES[standardizedName]
+    ?? standardizedName.replace(/\s*\([^)]*\)/g, '').trim();
+}
+
+function labelCollapsedFactors(standardizedName: string, factors: ResidueFactors[]): string {
+  if (factors.length === 1) {
+    return factors[0].resourceName || factors[0].residueType || 'Residue';
+  }
+
+  const base = resourceDisplayBase(standardizedName);
+  if (FIELD_RESIDUE_LABELS[standardizedName]) return FIELD_RESIDUE_LABELS[standardizedName];
+
+  const residueTypes = new Set(factors.map(f => f.residueType).filter(Boolean));
+  if (residueTypes.size === 1 && residueTypes.has('Processing Waste')) return `${base} processing residues`;
+  if (residueTypes.size === 1 && residueTypes.has('Ag Residue')) return `${base} agricultural residues`;
+  return `${base} residues`;
+}
+
+function residueYieldKey(factor: ResidueFactors): string {
+  return [
+    factor.wetTonsPerAcre,
+    factor.dryTonsPerAcre,
+    factor.moistureContent,
+  ].join('|');
+}
+
+function combineSeasonalAvailability(factors: ResidueFactors[]): ResidueFactors['seasonalAvailability'] {
+  return factors.reduce<ResidueFactors['seasonalAvailability']>((combined, factor) => {
+    for (const [month, available] of Object.entries(factor.seasonalAvailability)) {
+      combined[month] = Boolean(combined[month] || available);
+    }
+    return combined;
+  }, {});
+}
+
+function collapseEquivalentYieldFactors(
+  standardizedName: string,
+  factors: ResidueFactors[]
+): ResidueFactors {
+  const first = factors[0];
+  const sameWindow = factors.every(f => f.fromMonth === first.fromMonth && f.toMonth === first.toMonth);
+  const residueTypes = new Set(factors.map(f => f.residueType).filter(Boolean));
+  const collectedStates = new Set(factors.map(f => f.collected));
+
+  return {
+    ...first,
+    resourceName: labelCollapsedFactors(standardizedName, factors),
+    residueType: residueTypes.size === 1 ? first.residueType : 'Residue',
+    collected: collectedStates.size === 1 ? first.collected : false,
+    seasonalAvailability: combineSeasonalAvailability(factors),
+    fromMonth: sameWindow ? first.fromMonth : undefined,
+    toMonth: sameWindow ? first.toMonth : undefined,
+  };
+}
+
+function normalizeResidueFactors(standardizedName: string, factors: ResidueFactors[]): ResidueFactors[] {
+  if (standardizedName === 'Corn, Sorghum (F16)') {
+    const wholeStover = factors.find(f => f.resourceName === 'Corn stover whole')
+      ?? factors.find(f => f.resourceName === 'Corn stover stalks')
+      ?? factors[0];
+
+    return wholeStover
+      ? [{
+          ...wholeStover,
+          resourceName: FIELD_RESIDUE_LABELS[standardizedName],
+          residueType: wholeStover.residueType || 'Ag Residue',
+        }]
+      : [];
+  }
+
+  const grouped = new Map<string, ResidueFactors[]>();
+  for (const factor of factors) {
+    const key = residueYieldKey(factor);
+    grouped.set(key, [...(grouped.get(key) ?? []), factor]);
+  }
+
+  return Array.from(grouped.values()).map(group =>
+    group.length > 1 ? collapseEquivalentYieldFactors(standardizedName, group) : group[0]
+  );
+}
+
 // Helper functions for crop residue calculations
 // Returns factors for the given crop (one per residue type) plus a data-source tag.
 export const getCropResidueFactors = (cropName: string): ResidueFactorsResult | null => {
@@ -121,9 +225,11 @@ export const getCropResidueFactors = (cropName: string): ResidueFactorsResult | 
     dynamicData.some(f => f.dryTonsPerAcre > 0 || f.wetTonsPerAcre > 0);
 
   if (hasYieldData) {
+    const normalizedFactors = normalizeResidueFactors(standardizedName, dynamicData!);
+
     return {
       source: 'api',
-      factors: dynamicData!.map(factor => ({
+      factors: normalizedFactors.map(factor => ({
         ...factor,
         category: factor.category || 'Crop Residue',
         residueType: factor.residueType || 'Residue',
