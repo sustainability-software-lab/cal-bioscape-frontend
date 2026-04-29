@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   CountyCropStat,
+  getCountyPanelSelectionForResponse,
   getCountyMetric,
   getDisplaySources,
 } from '../src/lib/county-analysis';
@@ -48,4 +49,60 @@ test('display sources reflect only the selected visible metrics', () => {
   const production = getCountyMetric(tomatoStat, 'production');
 
   assert.deepEqual(getDisplaySources(acres, production), ['census', 'survey']);
+});
+
+test('latest county response with data selects a panel', () => {
+  assert.deepEqual(
+    getCountyPanelSelectionForResponse({
+      requestId: 2,
+      activeRequestId: 2,
+      countyName: 'San Joaquin',
+      geoid: '06077',
+      stats: [tomatoStat],
+    }),
+    {
+      name: 'San Joaquin',
+      geoid: '06077',
+      stats: [tomatoStat],
+    }
+  );
+});
+
+test('empty county response keeps the panel hidden', () => {
+  assert.equal(
+    getCountyPanelSelectionForResponse({
+      requestId: 2,
+      activeRequestId: 2,
+      countyName: 'Stanislaus',
+      geoid: '06099',
+      stats: [],
+    }),
+    null
+  );
+});
+
+test('stale county response cannot select a panel', () => {
+  assert.equal(
+    getCountyPanelSelectionForResponse({
+      requestId: 1,
+      activeRequestId: 2,
+      countyName: 'San Joaquin',
+      geoid: '06077',
+      stats: [tomatoStat],
+    }),
+    null
+  );
+});
+
+test('county response cannot reopen a panel after close increments request id', () => {
+  assert.equal(
+    getCountyPanelSelectionForResponse({
+      requestId: 3,
+      activeRequestId: 4,
+      countyName: 'San Joaquin',
+      geoid: '06077',
+      stats: [tomatoStat],
+    }),
+    null
+  );
 });
