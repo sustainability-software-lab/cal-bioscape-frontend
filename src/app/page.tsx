@@ -4,6 +4,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react'; // Added useE
 import dynamic from 'next/dynamic';
 import { fetchResidueData } from '@/lib/residue-data';
 import { batchFetchCompositionData, CompositionLookup, CompositionFilters, DEFAULT_COMPOSITION_FILTERS } from '@/lib/composition-filters';
+import { COUNTY_FEEDSTOCK_PANEL_ENABLED } from '@/lib/feature-flags';
 import CountyFeedstockPanel from '@/components/CountyFeedstockPanel';
 // Removed useSWRInfinite import
 const Map = dynamic(() => import('@/components/Map'), { ssr: false });
@@ -252,6 +253,15 @@ export default function Home() {
     console.log(`Request to close popup for layer: ${layerId}`);
   };
 
+  const handleCountySelect = useCallback((name: string, geoid: string) => {
+    if (!COUNTY_FEEDSTOCK_PANEL_ENABLED) {
+      setSelectedCounty(null);
+      return;
+    }
+
+    setSelectedCounty({ name, geoid });
+  }, []);
+
   // Removed feedstockError check UI
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden no-scroll">
@@ -329,10 +339,10 @@ export default function Home() {
             visibleCrops={visibleCrops}
             croplandOpacity={croplandOpacity}
             onGeoidsChange={setBufferGeoids}
-            onCountySelect={(name: string, geoid: string) => setSelectedCounty({ name, geoid })}
+            onCountySelect={handleCountySelect}
             compositionFilters={compositionFilters}
           />
-          {selectedCounty && (
+          {COUNTY_FEEDSTOCK_PANEL_ENABLED && selectedCounty && (
             <CountyFeedstockPanel
               countyName={selectedCounty.name}
               geoid={selectedCounty.geoid}
