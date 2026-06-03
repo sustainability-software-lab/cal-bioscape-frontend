@@ -58,7 +58,7 @@ export const DEFAULT_TILESET_REGISTRY: Record<string, TilesetConfig> = {
   safPlants: {
     tilesetId: 'tylerhuntington222.6x05ytem', // TODO: Update to sustainasoft.cal-bioscape-nrel-saf-plants-YYYY-MM
     sourceLayer: 'renewable_diesel_saf_plants-79er6d', // TODO: Backend should use stable name: renewable_diesel_saf_plants
-    displayName: 'SAF Plants',
+    displayName: 'Biorefineries',
     category: 'infrastructure',
     version: 'current',
     accountType: 'legacy'
