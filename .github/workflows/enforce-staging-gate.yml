@@ -1,0 +1,24 @@
+name: Enforce staging-first merge policy
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  check-source-branch:
+    name: Source branch must be staging
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reject PRs not based on staging
+        if: github.head_ref != 'staging'
+        run: |
+          echo "PRs to main must come from the staging branch."
+          echo "Current source branch: ${{ github.head_ref }}"
+          echo ""
+          echo "Correct workflow: feature branch -> staging -> main"
+          echo "Please merge your changes to staging first, then open a PR from staging to main."
+          exit 1
+
+      - name: Approved
+        run: echo "Source branch is staging -- PR to main is allowed."

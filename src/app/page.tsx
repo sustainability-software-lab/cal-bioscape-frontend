@@ -41,6 +41,7 @@ export default function Home() {
     combustionPlants: false,
     districtEnergySystems: false,
     foodProcessors: false,
+    tomatoProcessors: false,
     foodRetailers: false,
     powerPlants: false,
     foodBanks: false,
@@ -95,6 +96,7 @@ export default function Home() {
            layerVisibility.combustionPlants ||
            layerVisibility.districtEnergySystems ||
            layerVisibility.foodProcessors ||
+           layerVisibility.tomatoProcessors ||
            layerVisibility.foodRetailers ||
            layerVisibility.powerPlants ||
            layerVisibility.foodBanks ||
@@ -114,6 +116,7 @@ export default function Home() {
     layerVisibility.combustionPlants,
     layerVisibility.districtEnergySystems,
     layerVisibility.foodProcessors,
+    layerVisibility.tomatoProcessors,
     layerVisibility.foodRetailers,
     layerVisibility.powerPlants,
     layerVisibility.foodBanks,
@@ -198,6 +201,7 @@ export default function Home() {
       combustionPlants: isVisible,
       districtEnergySystems: isVisible,
       foodProcessors: isVisible,
+      tomatoProcessors: isVisible,
       foodRetailers: isVisible,
       powerPlants: isVisible,
       foodBanks: isVisible,
