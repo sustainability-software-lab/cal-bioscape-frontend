@@ -2566,7 +2566,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
           'biorefineries-layer': 'Biorefinery Details',
           'cement-plants-layer': 'Cement Plant Details',
           'mrf-layer': 'Material Recovery Facility Details',
-          'saf-plants-layer': 'Sustainable Aviation Fuel Plant Details',
+          'saf-plants-layer': 'Biorefinery Details',
           'renewable-diesel-layer': 'Renewable Diesel Plant Details',
           'landfill-lfg-layer': 'Landfill LFG Project Details',
           'wastewater-treatment-layer': 'Wastewater Treatment Plant Details',

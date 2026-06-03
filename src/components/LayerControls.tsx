@@ -816,7 +816,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                       </Label>
                     </div>
                     
-                    {/* SAF Plants Layer Toggle - Under Infrastructure */}
+                    {/* Biorefineries Layer Toggle - Under Infrastructure */}
                     <div className="flex items-center space-x-2 pl-6 mt-2">
                        <Checkbox
                         id="safPlants"
@@ -835,7 +835,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                             flexShrink: 0,
                           }}
                         ></span>
-                        Sustainable Aviation Fuel Plants
+                        Biorefineries
                       </Label>
                     </div>
                     
