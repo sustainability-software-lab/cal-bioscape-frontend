@@ -41,7 +41,7 @@ export const COMPOSITION_FALLBACKS: Record<string, Partial<CompositionData>> = {
 
   // --- Soft fruit / berry / vine ---
   "Bush Berries":           { moisture: 14, cellulose: 41.5, lignin: 18.5, ash: 3.0, hhv: 19.0, hasData: true },
-  "Strawberries":           { moisture: 70, cellulose: 27,   lignin: 10,   ash: 10,  hhv: 17.0, hasData: true },
+  "Strawberries":           { moisture: 70, cellulose: 27,   lignin: 10,   ash: 6.0, hhv: 17.0, hasData: true },
   "Citrus and Subtropical": { moisture: 65, cellulose: 18,   lignin: 7.5,  ash: 4.0, hhv: 17.5, hasData: true },
 
   // --- Legumes / field crops ---
@@ -56,16 +56,16 @@ export const COMPOSITION_FALLBACKS: Record<string, Partial<CompositionData>> = {
   "Induced high water table native pasture": { moisture: 65, cellulose: 33,   lignin: 9,   ash: 9.0, hhv: 16.8, hasData: true },
   "Turf Farms":                              { moisture: 60, cellulose: 37.5, lignin: 10,  ash: 8.0, hhv: 17.0, hasData: true },
 
-  // --- Vegetables / truck crops (high ash, lower HHV, very high moisture) ---
-  "Carrots":                      { moisture: 75, cellulose: 12.5, lignin: 3,   ash: 10,   hhv: 17.0, hasData: true },
-  "Cole Crops":                   { moisture: 75, cellulose: 20,   lignin: 10,  ash: 11.5, hhv: 16.5, hasData: true },
-  "Lettuce/Leafy Greens":         { moisture: 78, cellulose: 15,   lignin: 6,   ash: 12.5, hhv: 16.0, hasData: true },
-  "Melons, Squash and Cucumbers": { moisture: 75, cellulose: 21.5, lignin: 10,  ash: 10,   hhv: 17.0, hasData: true },
-  "Miscellaneous Truck Crops":    { moisture: 70, cellulose: 23,   lignin: 11,  ash: 11.5, hhv: 17.0, hasData: true },
+  // --- Vegetables / truck crops (moderate ash, lower HHV, very high moisture) ---
+  "Carrots":                      { moisture: 75, cellulose: 12.5, lignin: 3,   ash: 7.0,  hhv: 17.0, hasData: true },
+  "Cole Crops":                   { moisture: 75, cellulose: 20,   lignin: 10,  ash: 8.0,  hhv: 16.5, hasData: true },
+  "Lettuce/Leafy Greens":         { moisture: 78, cellulose: 15,   lignin: 6,   ash: 9.0,  hhv: 16.0, hasData: true },
+  "Melons, Squash and Cucumbers": { moisture: 75, cellulose: 21.5, lignin: 10,  ash: 7.0,  hhv: 17.0, hasData: true },
+  "Miscellaneous Truck Crops":    { moisture: 70, cellulose: 23,   lignin: 11,  ash: 8.0,  hhv: 17.0, hasData: true },
   "Onions and Garlic":            { moisture: 65, cellulose: 45.5, lignin: 7.2, ash: 6.5,  hhv: 17.2, hasData: true },
-  "Peppers":                      { moisture: 70, cellulose: 24,   lignin: 12,  ash: 10,   hhv: 17.2, hasData: true },
-  "Potatoes":                     { moisture: 75, cellulose: 24,   lignin: 8,   ash: 12.5, hhv: 16.5, hasData: true },
-  "Sweet Potatoes":               { moisture: 72, cellulose: 25,   lignin: 9,   ash: 8.0,  hhv: 17.0, hasData: true },
+  "Peppers":                      { moisture: 70, cellulose: 24,   lignin: 12,  ash: 7.0,  hhv: 17.2, hasData: true },
+  "Potatoes":                     { moisture: 75, cellulose: 24,   lignin: 8,   ash: 9.0,  hhv: 16.5, hasData: true },
+  "Sweet Potatoes":               { moisture: 72, cellulose: 25,   lignin: 9,   ash: 7.0,  hhv: 17.0, hasData: true },
 
   // --- Nursery / specialty ---
   "Flowers, Nursery and Christmas Tree Farms": { moisture: 55, cellulose: 40,   lignin: 21.5, ash: 3.5, hhv: 18.7, hasData: true },
@@ -75,7 +75,7 @@ export const COMPOSITION_FALLBACKS: Record<string, Partial<CompositionData>> = {
   "Idle – Long Term":    { moisture: 12, cellulose: 36, lignin: 12.5, ash: 7.5,  hhv: 17.5, hasData: true },
   "Idle – Short Term":   { moisture: 20, cellulose: 34, lignin: 11,   ash: 8.0,  hhv: 17.2, hasData: true },
   "Unclassified Fallow": { moisture: 15, cellulose: 34, lignin: 12,   ash: 8.0,  hhv: 17.2, hasData: true },
-  "Greenhouse":          { moisture: 65, cellulose: 25, lignin: 11,   ash: 12.5, hhv: 17.0, hasData: true },
+  "Greenhouse":          { moisture: 65, cellulose: 25, lignin: 11,   ash: 8.0,  hhv: 17.0, hasData: true },
 
   // --- API-mapped crops: fallback used when API returns hasData:false ---
   // HHV values match HHV_FALLBACKS in energy-calculations.ts (same source).

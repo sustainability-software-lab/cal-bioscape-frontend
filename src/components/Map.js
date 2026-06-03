@@ -2569,7 +2569,6 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
           'saf-plants-layer': 'Sustainable Aviation Fuel Plant Details',
           'renewable-diesel-layer': 'Renewable Diesel Plant Details',
           'landfill-lfg-layer': 'Landfill LFG Project Details',
-          'landfill-lfg-layer': 'Landfill LFG Project Details',
           'wastewater-treatment-layer': 'Wastewater Treatment Plant Details',
           'waste-to-energy-layer': 'Waste to Energy Plant Details',
     'combustion-plants-layer': 'Combustion Plant Details',

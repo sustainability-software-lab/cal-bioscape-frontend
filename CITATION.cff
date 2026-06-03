@@ -12,7 +12,7 @@ url: "https://calbioscape.org"
 # doi: 10.xxxx/zenodo.xxxxxxx
 # -------------------------------
 abstract: >-
-  The California Bioscape Siting Tool provides an interactive map interface to help users identify suitable locations 
+  The California Bioscape Siting Tool provides an interactive map interface to help users identify suitable locations
   for bioenergy and biomanufacturing facilities. It allows for the visualization of various data layers,
   analysis of siting constraints, and inventory assessment.
 authors:
