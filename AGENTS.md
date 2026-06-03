@@ -1339,6 +1339,17 @@ Mapbox tokens are passed as `--build-arg` at build time (baked into the client b
 
 ### Google Cloud Run
 
+**GCP Project ID:** `biocirv-470318`
+
+All `gcloud` commands must include `--project=biocirv-470318` explicitly. Never rely on the ambient `gcloud config get-value project` — it may point to a different project (e.g. `pisces-476117`) in a shared shell environment.
+
+```bash
+# Always use --project, e.g.:
+gcloud builds list --region=us-west1 --project=biocirv-470318 ...
+gcloud builds describe <BUILD_ID> --region=us-west1 --project=biocirv-470318
+gcloud run deploy ... --project=biocirv-470318
+```
+
 Three Cloud Build pipelines deploy to Cloud Run:
 
 | Config file | Cloud Run service | Backend API |
