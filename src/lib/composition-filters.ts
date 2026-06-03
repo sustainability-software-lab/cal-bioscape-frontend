@@ -57,7 +57,7 @@ export const COMPOSITION_FILTER_BOUNDS: CompositionFilters = {
   moisture: [0, 80],
   cellulose: [0, 60],
   lignin: [0, 40],
-  ash: [0, 30],
+  ash: [0, 15],
   hhv: [8, 22],
 };
 
@@ -65,7 +65,7 @@ export const DEFAULT_COMPOSITION_FILTERS: CompositionFilters = {
   moisture: [0, 80],
   cellulose: [0, 60],
   lignin: [0, 40],
-  ash: [0, 30],
+  ash: [0, 15],
   hhv: [8, 22],
 };
 
