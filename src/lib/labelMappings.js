@@ -231,6 +231,88 @@ export const FARMERS_MARKETS_LABELS = {
   'lon': 'Longitude',
 };
 
+export const WASTE_TO_ENERGY_LABELS = {
+  'Plant_Name': 'Plant Name',
+  'City': 'City',
+  'County': 'County',
+  'State': 'State',
+  'Technology': 'Technology',
+  'Total_MW': 'Total Capacity (MW)',
+  'Primary_Purpose': 'Primary Purpose',
+  'Status': 'Status',
+  'lat': 'Latitude',
+  'lon': 'Longitude',
+};
+
+export const COMBUSTION_PLANTS_LABELS = {
+  'Plant_Name': 'Plant Name',
+  'City': 'City',
+  'County': 'County',
+  'State': 'State',
+  'Technology': 'Technology',
+  'Energy_Source': 'Energy Source',
+  'Total_MW': 'Total Capacity (MW)',
+  'Status': 'Status',
+  'lat': 'Latitude',
+  'lon': 'Longitude',
+};
+
+export const DISTRICT_ENERGY_SYSTEMS_LABELS = {
+  'NAME': 'System Name',
+  'CITY': 'City',
+  'STATE': 'State',
+  'DES_TYPE': 'System Type',
+  'CAPACITY': 'Capacity',
+  'SERVICE_AREA': 'Service Area',
+  'lat': 'Latitude',
+  'lon': 'Longitude',
+};
+
+export const FREIGHT_TERMINALS_LABELS = {
+  'TERM_NAME': 'Terminal Name',
+  'MODE_TYPE': 'Mode Type',
+  'TERM_TYPE': 'Terminal Type',
+  'CITY': 'City',
+  'STATE_CD': 'State',
+  'COUNTY_NM': 'County',
+  'lat': 'Latitude',
+  'lon': 'Longitude',
+};
+
+export const FREIGHT_ROUTES_LABELS = {
+  'MODE': 'Mode',
+  'MILES': 'Miles',
+  'STATE': 'State',
+  'ROUTE_TYPE': 'Route Type',
+};
+
+export const PETROLEUM_PIPELINES_LABELS = {
+  'OPERATOR': 'Operator',
+  'TYPEPIPE': 'Pipe Type',
+  'DIAMETER': 'Diameter',
+  'CAPACITY': 'Capacity',
+  'STATUS': 'Status',
+  'STATE': 'State',
+};
+
+export const CRUDE_OIL_PIPELINES_LABELS = {
+  'OPERATOR': 'Operator',
+  'TYPEPIPE': 'Pipe Type',
+  'DIAMETER': 'Diameter',
+  'CAPACITY': 'Capacity',
+  'STATUS': 'Status',
+  'STATE': 'State',
+};
+
+export const NATURAL_GAS_PIPELINES_LABELS = {
+  'PIPELNNAME': 'Pipeline Name',
+  'OPERATOR': 'Operator',
+  'TYPEPIPE': 'Pipe Type',
+  'DIAMETER': 'Diameter',
+  'STATUS': 'Status',
+  'STATE': 'State',
+};
+
 export const layerLabelMappings = {
   'renewable-diesel': RENEWABLE_DIESEL_PLANTS_LABELS,
   'saf-plants': SUSTAINABLE_AVIATION_FUEL_PLANTS_LABELS,
@@ -247,4 +329,12 @@ export const layerLabelMappings = {
   'power-plants': POWER_PLANTS_LABELS,
   'food-banks': FOOD_BANKS_LABELS,
   'farmers-markets': FARMERS_MARKETS_LABELS,
+  'waste-to-energy': WASTE_TO_ENERGY_LABELS,
+  'combustion-plants': COMBUSTION_PLANTS_LABELS,
+  'district-energy-systems': DISTRICT_ENERGY_SYSTEMS_LABELS,
+  'freight-terminals': FREIGHT_TERMINALS_LABELS,
+  'freight-routes': FREIGHT_ROUTES_LABELS,
+  'petroleum-pipelines': PETROLEUM_PIPELINES_LABELS,
+  'crude-oil-pipelines': CRUDE_OIL_PIPELINES_LABELS,
+  'natural-gas-pipelines': NATURAL_GAS_PIPELINES_LABELS,
 };
