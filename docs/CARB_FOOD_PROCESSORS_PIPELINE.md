@@ -6,7 +6,7 @@ Pipeline for converting the CARB food processors CSV into a Mapbox tileset and r
 
 | Item | Value |
 |---|---|
-| Tileset ID | `sustainasoft.cal-bioscape-carb-food-processors-2026-06` |
+| Tileset ID | `sustainasoft.carb-food-processors-2026-06` |
 | Source layer | `carb_food_processors` |
 | Source CSV | `src/data/food_manufacturers_and_processor_facilities_carb.csv` |
 | App visibility key | `carbFoodProcessors` |
@@ -47,4 +47,11 @@ When the source CSV is updated:
 
 ## Environment variable
 
-`MAPBOX_SECRET_TOKEN` -- sustainasoft `sk.*` Mapbox token with `tilesets:write` and `tilesets:read` scopes. Server/CLI-only; never expose as `NEXT_PUBLIC_`. Add to your local `.env` for development.
+`MAPBOX_SECRET_TOKEN` -- sustainasoft `sk.*` Mapbox token with `tilesets:write` and `tilesets:read` scopes. Server/CLI-only; never expose as `NEXT_PUBLIC_`.
+
+Stored in GCP Secret Manager: `mapbox-secret-token` (project `biocirv-470318`).
+
+To fetch it locally:
+```bash
+export MAPBOX_SECRET_TOKEN=$(gcloud secrets versions access latest --secret=mapbox-secret-token --project=biocirv-470318)
+```

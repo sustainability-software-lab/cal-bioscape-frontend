@@ -164,7 +164,7 @@ export const DEFAULT_TILESET_REGISTRY: Record<string, TilesetConfig> = {
   },
 
   carbFoodProcessors: {
-    tilesetId: 'sustainasoft.cal-bioscape-carb-food-processors-2026-06',
+    tilesetId: 'sustainasoft.carb-food-processors-2026-06',
     sourceLayer: 'carb_food_processors',
     displayName: 'Food Processing Facilities (CARB)',
     category: 'infrastructure',

@@ -4,7 +4,7 @@ import * as dotenv from 'dotenv';
 
 dotenv.config();
 
-const TILESET_ID = 'sustainasoft.cal-bioscape-carb-food-processors-2026-06';
+const TILESET_ID = 'sustainasoft.carb-food-processors-2026-06';
 const SOURCE_ID = 'carb_food_processors';
 const SOURCE_NAME = `mapbox://tileset-source/sustainasoft/${SOURCE_ID}`;
 const BASE_URL = 'https://api.mapbox.com';
@@ -52,22 +52,31 @@ async function uploadTilesetSource(token: string): Promise<void> {
 async function createOrUpdateTileset(token: string): Promise<void> {
   console.log(`Step 2: Creating/updating tileset ${TILESET_ID}...`);
   const recipe = buildRecipe();
-  const body = { recipe, name: 'CARB Food Processors (Cal BioScape 2026-06)' };
 
-  const res = await fetch(apiUrl(`/tilesets/v1/${TILESET_ID}`, token), {
-    method: 'PUT',
+  // Try to create (POST); if it already exists (409) patch the recipe instead
+  const createRes = await fetch(apiUrl(`/tilesets/v1/${TILESET_ID}`, token), {
+    method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ recipe, name: 'CARB Food Processors Cal BioScape 2026-06' }),
   });
 
-  if (!res.ok && res.status !== 422) {
-    const text = await res.text();
-    throw new Error(`Tileset create/update failed (${res.status}): ${text}`);
-  }
-  if (res.status === 422) {
-    console.log('  Tileset already exists, recipe will be updated via publish...');
+  if (createRes.status === 409) {
+    console.log('  Tileset already exists, patching recipe...');
+    const patchRes = await fetch(apiUrl(`/tilesets/v1/${TILESET_ID}/recipe`, token), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(recipe),
+    });
+    if (!patchRes.ok) {
+      const text = await patchRes.text();
+      throw new Error(`Recipe patch failed (${patchRes.status}): ${text}`);
+    }
+    console.log('  Recipe patched successfully.');
+  } else if (!createRes.ok) {
+    const text = await createRes.text();
+    throw new Error(`Tileset create failed (${createRes.status}): ${text}`);
   } else {
-    console.log('  Tileset created/updated successfully.');
+    console.log('  Tileset created successfully.');
   }
 }
 
