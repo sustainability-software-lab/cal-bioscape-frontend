@@ -485,4 +485,13 @@ For questions or issues with tileset updates:
 
 ## Version History
 
+- **v2.0 (2026-06-17)**: Feedstock tileset updated to LandIQ 2024 data
+  - **New tileset ID**: `sustainasoft.cal-bioscape-landiq-cropland-2026-06`
+  - **Source**: LandIQ 2024 provisional data, Peter's cleaned GeoJSON (`landiq_tileset_20260609_122659.geojson`, 625 MB, 456,223 polygons)
+  - **Source layer**: `cropland_land_iq` (unchanged)
+  - **Preprocessing**: `scripts/preprocess_landiq.py` -- streaming normalization (no full-file load); lowercase `main_crop` -> canonical Title-Case `main_crop_name`; synthesizes `main_crop_code='U'` for urban values `u`/`ul2`; encodes `resources` JSON array as pipe-delimited string; aborts on any unmapped non-urban crop value
+  - **tippecanoe flags**: `-Z6 -z14 --drop-densest-as-needed --coalesce-smallest-as-needed --extend-zooms-if-still-dropping --no-tile-size-limit`
+  - **Mapbox account**: `sustainasoft` (accountType changed from `legacy` to `default`; public token via Cloud Build Secret Manager `mapbox-access-token`)
+  - **GitHub epic**: #70
+
 - **v1.0 (2024-10-16)**: Initial guide for simplified tileset management system
