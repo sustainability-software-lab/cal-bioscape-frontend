@@ -338,13 +338,24 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
       content = nameContent + latLongContent + otherContent;
 
     } else {
-      // Fallback for other layers, preserving original behavior
-      for (const key in properties) {
-        const excludedKeys = ['id', 'layer', 'source', 'source-layer', 'tile-id', 'Lat/Long Info'];
-        const nullValues = ['NA', 'N/A', 'null', '', ' '];
+      const excludedKeys = ['id', 'layer', 'source', 'source-layer', 'tile-id', 'Lat/Long Info'];
+      const nullValues = ['NA', 'N/A', 'null', '', ' '];
+      const labelKeys = Object.keys(labels);
 
-        if (Object.prototype.hasOwnProperty.call(properties, key) && !excludedKeys.includes(key) && !nullValues.includes(String(properties[key]).trim())) {
-          content += formatAndBuildLine(key, properties[key]);
+      if (labelKeys.length > 0) {
+        labelKeys.forEach(key => {
+          if (Object.prototype.hasOwnProperty.call(properties, key) &&
+              !nullValues.includes(String(properties[key]).trim())) {
+            content += formatAndBuildLine(key, properties[key]);
+          }
+        });
+      } else {
+        for (const key in properties) {
+          if (Object.prototype.hasOwnProperty.call(properties, key) &&
+              !excludedKeys.includes(key) &&
+              !nullValues.includes(String(properties[key]).trim())) {
+            content += formatAndBuildLine(key, properties[key]);
+          }
         }
       }
     }
