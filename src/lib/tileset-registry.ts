@@ -28,7 +28,7 @@ export interface TilesetConfig {
 export const DEFAULT_TILESET_REGISTRY: Record<string, TilesetConfig> = {
   // FEEDSTOCK LAYERS
   feedstock: {
-    tilesetId: 'sustainasoft.cal-bioscape-landiq-cropland-2026-06',
+    tilesetId: 'sustainasoft.landiq-cropland-2026-06',
     sourceLayer: 'cropland_land_iq',
     displayName: 'Crop Residues',
     category: 'feedstock',

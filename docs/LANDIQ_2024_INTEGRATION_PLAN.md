@@ -45,7 +45,7 @@ Explicit overrides:
 
 ## Confirmed decisions
 
-1. **Upload target:** `sustainasoft` account -> `sustainasoft.cal-bioscape-landiq-cropland-2026-06`, `accountType: 'default'`. User provides a sustainasoft secret write-token.
+1. **Upload target:** `sustainasoft` account -> `sustainasoft.landiq-cropland-2026-06`, `accountType: 'default'`. User provides a sustainasoft secret write-token.
 2. **`resources` array is a new PRIMARY tier.** When a polygon carries `resources`, query the API per-resource for residue quantities first, fall back to the existing three-tier chain.
 
 ## Workstream 1: Rebuild and swap the tileset (ships independently)
@@ -79,7 +79,7 @@ Verify with `tippecanoe-decode`/Mapbox Studio: source layer `cropland_land_iq`, 
 ### Phase C: Upload to Mapbox (blocked: sustainasoft write-token from user)
 
 - Account: `sustainasoft`
-- Tileset ID: `sustainasoft.cal-bioscape-landiq-cropland-2026-06`
+- Tileset ID: `sustainasoft.landiq-cropland-2026-06`
 - Upload method: Mapbox Uploads API via curl, or `pip install mapbox-tilesets`
 - No env changes needed: Cloud Build already injects `mapbox-access-token` from Secret Manager
 
@@ -87,7 +87,7 @@ Verify with `tippecanoe-decode`/Mapbox Studio: source layer `cropland_land_iq`, 
 
 In `src/lib/tileset-registry.ts`, update the `feedstock` entry:
 
-- `tilesetId` -> `sustainasoft.cal-bioscape-landiq-cropland-2026-06`
+- `tilesetId` -> `sustainasoft.landiq-cropland-2026-06`
 - `sourceLayer` -> `cropland_land_iq`
 - `version` -> `2026-06`
 - `accountType` -> `default`

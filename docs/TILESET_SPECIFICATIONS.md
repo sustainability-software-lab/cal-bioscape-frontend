@@ -75,7 +75,7 @@ This allows different environments (dev, staging, prod) to use different tileset
 This tileset contains agricultural cropland data from LandIQ's 2024 Crop Mapping Dataset for California.
 
 ### Tileset Details
-- **Tileset ID**: `sustainasoft.cal-bioscape-landiq-cropland-2026-06`
+- **Tileset ID**: `sustainasoft.landiq-cropland-2026-06`
 - **Source Layer Name**: `cropland_land_iq` (stable across versions)
 - **Geometry Type**: Polygon/MultiPolygon
 - **Data Source**: LandIQ 2024 provisional data (Peter's cleaned GeoJSON `landiq_tileset_20260609_122659.geojson`)
@@ -1046,7 +1046,7 @@ When updating tilesets, also update:
 - Goal: Keep tile sizes <500kb for fast rendering; ensure data freshness for transactional attributes
 
 ### Version 2.1 (2026-06-17)
-- **Feedstock tileset updated to LandIQ 2024 data**: new ID `sustainasoft.cal-bioscape-landiq-cropland-2026-06`
+- **Feedstock tileset updated to LandIQ 2024 data**: new ID `sustainasoft.landiq-cropland-2026-06`
 - Source layer name unchanged: `cropland_land_iq`
 - Schema updated: `feedstock_id`, `residue_type`, `total_yield` removed (not in 2024 source); `main_crop_code` added (synthesized urban filter); `resources` added (pipe-delimited residue feedstock names, ~40% populated)
 - Preprocessing: `scripts/preprocess_landiq.py` normalizes lowercase `main_crop` -> canonical Title-Case `main_crop_name`; encodes `resources` JSON array as pipe-delimited string; asserts 100% crop coverage (exits non-zero on unmapped values)
