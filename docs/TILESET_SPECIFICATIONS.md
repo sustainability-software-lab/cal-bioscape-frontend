@@ -72,15 +72,15 @@ This allows different environments (dev, staging, prod) to use different tileset
 ## Feedstock/Crop Residues Tileset
 
 ### Overview
-This tileset contains agricultural cropland data from LandIQ's 2023 Crop Mapping Dataset for California.
+This tileset contains agricultural cropland data from LandIQ's 2024 Crop Mapping Dataset for California.
 
 ### Tileset Details
-- **Tileset ID**: `sustainasoft.cal-bioscape-landiq-cropland-2024-10`
+- **Tileset ID**: `sustainasoft.landiq-cropland-2026-06`
 - **Source Layer Name**: `cropland_land_iq` (stable across versions)
 - **Geometry Type**: Polygon/MultiPolygon
-- **Data Source**: LandIQ 2023 Crop Mapping Dataset
+- **Data Source**: LandIQ 2024 provisional data (Peter's cleaned GeoJSON `landiq_tileset_20260609_122659.geojson`)
 - **URL**: https://www.landiq.com/data/
-- **Version**: 2024-10
+- **Version**: 2026-06
 
 **Note**: The tileset ID includes a date-based version identifier (YYYY-MM). When this tileset is regenerated with updated data, only the version identifier changes. The source layer name remains stable to minimize code changes.
 
@@ -104,14 +104,13 @@ The feedstock data is partitioned into three accessibility tiers to optimize per
 
 | Field Name | Data Type | Description | Required | Example |
 |------------|-----------|-------------|----------|---------|
-| `feedstock_id` | String (UUID) | Unique identifier for the feedstock polygon. **Critical join key** for API lookups and static data joins. | Yes | "550e8400-e29b-41d4-a716-446655440000" |
-| `residue_type` | String | Type of crop residue. **Must match keys in `feedstock_definitions.json` exactly.** | Yes | "Prunings", "Stover", "Straw & Stubble" |
-| `total_yield` | Float | Total yield (dry tons) for quantitative scaling/opacity | Yes | 225.75 |
-| `main_crop_name` | String | Full name of the crop type (for display) | Yes | "Almonds", "Grapes", "Corn" |
-| `acres` | Float | Area of the field in acres | Yes | 145.67 |
-| `county` | String | County name where field is located | Yes | "Fresno" |
+| `main_crop_name` | String | Canonical Title-Case crop name (56 classes from cropColorMapping). Synthesized from source `main_crop` (lowercase) during preprocessing. | Yes | `"Almonds"`, `"Citrus and Subtropical"`, `"Unclassified"` |
+| `main_crop_code` | String | Urban filter code. `'U'` for urban parcels (source values `u`/`ul2`), empty string otherwise. Used to hide urban land from the map. | Yes | `""` or `"U"` |
+| `acres` | Float | Area of the parcel in acres. | Yes | `145.67` |
+| `county` | String | County name (lowercase passthrough from source). `"****"` for masked parcels -- frontend handles gracefully. | Yes | `"fresno"` |
+| `resources` | String | Pipe-delimited list of API resource names for residue feedstocks mapped to this crop (e.g. `"almond hulls\|almond shells"`). **Absent** when the source polygon has no resource mapping (~60% of features). Client reads via `.split('\|')`. | No | `"almond hulls\|almond shells\|almond branches"` |
 
-**Note**: The `residue_type` string in tiles MUST strictly match the keys in the static JSON lookup. A shared Enum definition should be used to ensure consistency.
+**Preprocessing note**: Peter's source GeoJSON uses `main_crop` (lowercase) with no `main_crop_code`. The script `scripts/preprocess_landiq.py` normalizes these to the canonical frontend vocabulary and encodes the `resources` array as a pipe-delimited string. Fields `geoid` (100% null), `tileset_id`, and the raw `main_crop` are dropped.
 
 ---
 
@@ -1045,6 +1044,14 @@ When updating tilesets, also update:
 - Defined shared `ResidueType` Enum for data consistency between tiles and static JSON
 - Specified API endpoint patterns using Query Parameters (`GET /api/feedstocks?id={feedstock_uuid}`)
 - Goal: Keep tile sizes <500kb for fast rendering; ensure data freshness for transactional attributes
+
+### Version 2.1 (2026-06-17)
+- **Feedstock tileset updated to LandIQ 2024 data**: new ID `sustainasoft.landiq-cropland-2026-06`
+- Source layer name unchanged: `cropland_land_iq`
+- Schema updated: `feedstock_id`, `residue_type`, `total_yield` removed (not in 2024 source); `main_crop_code` added (synthesized urban filter); `resources` added (pipe-delimited residue feedstock names, ~40% populated)
+- Preprocessing: `scripts/preprocess_landiq.py` normalizes lowercase `main_crop` -> canonical Title-Case `main_crop_name`; encodes `resources` JSON array as pipe-delimited string; asserts 100% crop coverage (exits non-zero on unmapped values)
+- `accountType` changed from `legacy` to `default` (sustainasoft public token now used via Cloud Build Secret Manager)
+- `region` and `hydro_region` not present in 2024 source; popup rows omitted gracefully
 
 ### Version 1.2 (2025-10-16)
 - **MAJOR UPDATE**: Implemented standardized tileset naming convention with versioning
