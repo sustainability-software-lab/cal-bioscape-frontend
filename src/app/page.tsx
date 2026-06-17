@@ -60,9 +60,9 @@ export default function Home() {
       .catch(err => console.error("Failed to load residue data:", err));
   }, []);
 
-  // Batch-fetch composition analysis data for all mapped crops (state-level, geoid "06")
+  // Batch-fetch composition analysis data for all mapped crops (state-level geoid)
   useEffect(() => {
-    batchFetchCompositionData('06')
+    batchFetchCompositionData()
       .then(setCompositionLookup)
       .catch(err => console.warn('[composition] Failed to fetch composition data:', err));
   }, []);

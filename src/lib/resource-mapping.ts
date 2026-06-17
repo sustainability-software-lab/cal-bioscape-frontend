@@ -7,6 +7,14 @@
  * should check for undefined and fall back to static data.
  */
 
+/**
+ * State-level GEOID for California. The backend's analysis (composition) and
+ * availability datasets are keyed ONLY by this geoid -- they hold no county-level
+ * rows -- so resource composition and seasonal-window lookups must query this,
+ * not a county FIPS or the bare "06". (USDA census/survey remain county-level.)
+ */
+export const STATE_GEOID = '06000';
+
 /** LandIQ crop name → production API resource name */
 export const LANDIQ_TO_API_RESOURCE: Record<string, string> = {
   // Orchard & Vineyard
