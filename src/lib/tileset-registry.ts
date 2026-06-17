@@ -36,14 +36,15 @@ export const DEFAULT_TILESET_REGISTRY: Record<string, TilesetConfig> = {
     accountType: 'legacy'
   },
 
-  // County boundary layer -- CA TIGER/Line polygons carrying GEOID (5-digit FIPS) and NAME.
-  // tilesetId/sourceLayer must be updated after the manual Mapbox upload (see issue #61).
+  // County boundary layer -- CA counties from US Atlas (simplified TopoJSON converted to GeoJSON).
+  // Served as a static GeoJSON asset from /public/ca-counties.geojson (no Mapbox tileset upload needed).
+  // Features carry GEOID (5-digit FIPS, e.g. "06019") and NAME (county name, e.g. "Fresno").
   county: {
-    tilesetId: 'tylerhuntington222.ca_county_boundaries', // PLACEHOLDER: update after Mapbox upload
-    sourceLayer: 'ca_county_boundaries',
+    tilesetId: 'geojson:///ca-counties.geojson', // Signals GeoJSON source -- Map.js reads this path
+    sourceLayer: '',
     displayName: 'County Level Stats',
     category: 'feedstock',
-    version: '2022',
+    version: '2022-usatlas',
     accountType: 'legacy'
   },
 

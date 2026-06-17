@@ -1315,16 +1315,27 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
           }
         });
 
-        // County boundary layer (mutually exclusive with feedstock layer)
-        map.current.addSource('county-source', {
-          type: 'vector',
-          url: `mapbox://${TILESET_REGISTRY.county.tilesetId}`
-        });
+        // County boundary layer (mutually exclusive with feedstock layer).
+        // tilesetId starting with 'geojson:///' signals a static GeoJSON asset path.
+        const countyTilesetId = TILESET_REGISTRY.county.tilesetId;
+        const isCountyGeoJson = countyTilesetId.startsWith('geojson:///');
+        if (isCountyGeoJson) {
+          const geojsonPath = countyTilesetId.slice('geojson://'.length); // e.g. '/ca-counties.geojson'
+          map.current.addSource('county-source', { type: 'geojson', data: geojsonPath });
+        } else {
+          map.current.addSource('county-source', {
+            type: 'vector',
+            url: `mapbox://${countyTilesetId}`
+          });
+        }
+        const countyLayerBase = {
+          source: 'county-source',
+          ...(isCountyGeoJson ? {} : { 'source-layer': TILESET_REGISTRY.county.sourceLayer }),
+        };
         map.current.addLayer({
           id: 'county-layer',
           type: 'fill',
-          source: 'county-source',
-          'source-layer': TILESET_REGISTRY.county.sourceLayer,
+          ...countyLayerBase,
           layout: {
             visibility: layerVisibility?.county ? 'visible' : 'none'
           },
@@ -1336,8 +1347,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
         map.current.addLayer({
           id: 'county-outline',
           type: 'line',
-          source: 'county-source',
-          'source-layer': TILESET_REGISTRY.county.sourceLayer,
+          ...countyLayerBase,
           layout: {
             visibility: layerVisibility?.county ? 'visible' : 'none'
           },
