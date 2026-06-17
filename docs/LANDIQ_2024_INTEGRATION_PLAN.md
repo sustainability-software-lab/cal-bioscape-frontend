@@ -166,9 +166,9 @@ Goal: when a polygon carries `resources: string[]`, use those API resource names
 
 | Placeholder | Title | Issue # |
 |---|---|---|
-| S1 | Write streaming GeoJSON preprocessing script | #?S1 |
-| S2 | Update frontend tileset registry for 2024 data | #?S2 |
-| S3 | Update tileset specification docs | #?S3 |
-| S4 | Cut tippecanoe tileset and upload to Mapbox | #?S4 |
-| S5 | End-to-end verification and staging deploy | #?S5 |
-| S6 | Workstream 2: four-tier residue wiring | #?S6 |
+| S1 | Write streaming GeoJSON preprocessing script | #77 |
+| S2 | Update frontend tileset registry for 2024 data | #71 |
+| S3 | Update tileset specification docs | #72 |
+| S4 | Cut tippecanoe tileset and upload to Mapbox | #73 |
+| S5 | End-to-end verification and staging deploy | #74 |
+| S6 | Workstream 2: four-tier residue wiring | #75 |
