@@ -28,12 +28,12 @@ export interface TilesetConfig {
 export const DEFAULT_TILESET_REGISTRY: Record<string, TilesetConfig> = {
   // FEEDSTOCK LAYERS
   feedstock: {
-    tilesetId: 'tylerhuntington222.cropland_landiq_2023', // TODO: Update to sustainasoft.cal-bioscape-landiq-cropland-YYYY-MM
-    sourceLayer: 'cropland_land_iq_2023', // TODO: Backend should use stable name: cropland_land_iq
+    tilesetId: 'sustainasoft.cal-bioscape-landiq-cropland-2026-06',
+    sourceLayer: 'cropland_land_iq',
     displayName: 'Crop Residues',
     category: 'feedstock',
-    version: 'current',
-    accountType: 'legacy'
+    version: '2026-06',
+    accountType: 'default'
   },
 
   // County boundary layer -- CA counties from US Atlas (simplified TopoJSON converted to GeoJSON).
