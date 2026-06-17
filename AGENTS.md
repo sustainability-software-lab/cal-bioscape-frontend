@@ -195,7 +195,7 @@ Create `.env.local` for local development. Never commit secrets.
 | `GITHUB_REPO_NAME` | No | GitHub repo name, e.g. `cal-bioscape-frontend` |
 | `GITHUB_ISSUE_CREATE_ENABLED` | No | Must be `"true"` to activate GitHub issue creation |
 | `GITHUB_BASE_URL` | No | Override for GitHub Enterprise API, e.g. `https://lbl.github.com/api/v3` |
-| `MAPBOX_SECRET_TOKEN` | CLI only | sustainasoft `sk.*` Mapbox token with `tilesets:write` and `tilesets:read` scopes; used by `npm run upload-carb-tileset` to publish the CARB food processors tileset; never `NEXT_PUBLIC_` |
+| `MAPBOX_SECRET_TOKEN` | CLI only | sustainasoft `sk.*` Mapbox token with `tilesets:write` and `tilesets:read` scopes; used by `npm run upload-carb-tileset` to publish the CARB food processors tileset; never `NEXT_PUBLIC_`; stored in GCP Secret Manager as `mapbox-secret-token` (project biocirv-470318) |
 
 **Auth mode selection**: Deployed staging and production services should set `CA_BIOSITE_API_KEY`. If it is set, the proxy sends `X-API-Key: <key>` and never retries on 401. If only username/password are set, the proxy uses the legacy OAuth2 JWT fallback with one retry on 401.
 

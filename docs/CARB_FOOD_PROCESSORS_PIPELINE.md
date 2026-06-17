@@ -47,4 +47,11 @@ When the source CSV is updated:
 
 ## Environment variable
 
-`MAPBOX_SECRET_TOKEN` -- sustainasoft `sk.*` Mapbox token with `tilesets:write` and `tilesets:read` scopes. Server/CLI-only; never expose as `NEXT_PUBLIC_`. Add to your local `.env` for development.
+`MAPBOX_SECRET_TOKEN` -- sustainasoft `sk.*` Mapbox token with `tilesets:write` and `tilesets:read` scopes. Server/CLI-only; never expose as `NEXT_PUBLIC_`.
+
+Stored in GCP Secret Manager: `mapbox-secret-token` (project `biocirv-470318`).
+
+To fetch it locally:
+```bash
+export MAPBOX_SECRET_TOKEN=$(gcloud secrets versions access latest --secret=mapbox-secret-token --project=biocirv-470318)
+```
