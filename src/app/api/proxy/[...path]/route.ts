@@ -30,7 +30,11 @@ async function proxyRequest(
 
   const contentType = res.headers.get('content-type') ?? '';
   if (contentType.includes('application/json')) {
-    return NextResponse.json(await res.json(), { status: res.status });
+    const response = NextResponse.json(await res.json(), { status: res.status });
+    if (res.status >= 200 && res.status < 300) {
+      response.headers.set('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+    }
+    return response;
   }
   return new NextResponse(res.body, { status: res.status });
 }

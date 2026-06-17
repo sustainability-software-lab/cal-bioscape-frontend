@@ -38,7 +38,7 @@ export class ApiAuthError extends Error {
 async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): Promise<T | null> {
   try {
     const url = `/api/proxy${path}`;
-    const res = await fetch(url, { cache: 'no-store' });
+    const res = await fetch(url, { cache: 'default' });
 
     if (!res.ok) {
       if (options.throwOnAuthError && (res.status === 401 || res.status === 403)) {
