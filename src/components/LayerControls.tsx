@@ -742,7 +742,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                         const infrastructureLayers = [
                           'anaerobicDigester', 'biodieselPlants', 'biorefineries', 'safPlants',
                           'renewableDiesel', 'mrf', 'cementPlants', 'landfillLfg',
-                          'wastewaterTreatment', 'wasteToEnergy', 'combustionPlants', 'districtEnergySystems', 'foodProcessors', 'tomatoProcessors', 'foodRetailers',
+                          'wastewaterTreatment', 'wasteToEnergy', 'combustionPlants', 'districtEnergySystems', 'foodProcessors', 'tomatoProcessors', 'carbFoodProcessors', 'foodRetailers',
                           'powerPlants', 'foodBanks', 'farmersMarkets'
                         ];
 
@@ -1145,17 +1145,17 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                           <Checkbox
                             id="foodProcessorsMaster"
                             checked={
-                              (localLayerVisibility?.foodProcessors && localLayerVisibility?.tomatoProcessors) 
-                                ? true 
-                                : (localLayerVisibility?.foodProcessors || localLayerVisibility?.tomatoProcessors) 
-                                  ? 'indeterminate' 
+                              (localLayerVisibility?.foodProcessors && localLayerVisibility?.tomatoProcessors && localLayerVisibility?.carbFoodProcessors)
+                                ? true
+                                : (localLayerVisibility?.foodProcessors || localLayerVisibility?.tomatoProcessors || localLayerVisibility?.carbFoodProcessors)
+                                  ? 'indeterminate'
                                   : false
                             }
                             onCheckedChange={(checked: boolean | 'indeterminate') => {
                               const isChecked = checked === true;
-                              // Toggle both subtypes
                               directLayerToggle('foodProcessors', isChecked, true);
                               directLayerToggle('tomatoProcessors', isChecked, true);
+                              directLayerToggle('carbFoodProcessors', isChecked, true);
                             }}
                           />
                           <Label htmlFor="foodProcessorsMaster" className="flex items-center text-xs font-medium">
@@ -1215,7 +1215,30 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                                   flexShrink: 0,
                                 }}
                               ></span>
-                              Other Processors
+                              Other Processors (EPA)
+                            </Label>
+                          </div>
+
+                          {/* CARB Food Processors Layer Toggle - Subtype */}
+                          <div className="flex items-center space-x-2 pl-12">
+                            <Checkbox
+                              id="carbFoodProcessorsLayer"
+                              checked={localLayerVisibility?.carbFoodProcessors ?? false}
+                              onCheckedChange={(checked: boolean | 'indeterminate') => directLayerToggle('carbFoodProcessors', !!checked)}
+                            />
+                            <Label htmlFor="carbFoodProcessorsLayer" className="flex items-center text-xs">
+                              <span
+                                style={{
+                                  display: 'inline-block',
+                                  width: '10px',
+                                  height: '10px',
+                                  backgroundColor: '#14B8A6',
+                                  borderRadius: '50%',
+                                  marginRight: '2px',
+                                  flexShrink: 0,
+                                }}
+                              ></span>
+                              Other Processors (CARB)
                             </Label>
                           </div>
                         </div>

@@ -17,6 +17,7 @@ const EXPECTED_LAYER_KEYS = [
   'landfill-lfg',
   'wastewater-treatment',
   'food-processors',
+  'carb-food-processors',
   'food-retailers',
   'power-plants',
   'food-banks',
