@@ -161,6 +161,57 @@ export function getCountyMetric(
     : null;
 }
 
+export function getCountyMetricOperations(stat: CountyCropStat): CountyMetricValue | null {
+  const candidates = stat.parameters
+    .map(p => {
+      if (!isOperationsUnit(p.unit)) return null;
+      const label = normalizeLabel(p.parameter);
+      if (label === 'area harvested' || label === 'acres harvested') return { p, rank: 0 };
+      if (label === 'area bearing & non-bearing' || label === 'area in production') return { p, rank: 1 };
+      return { p, rank: 2 };
+    })
+    .filter((c): c is { p: CountyParameterStat; rank: number } => c !== null)
+    .sort((a, b) => a.rank - b.rank || sourceRank(a.p.source) - sourceRank(b.p.source));
+  const sel = candidates[0]?.p;
+  return sel ? { parameter: sel.parameter, value: sel.value, unit: sel.unit, source: sel.source } : null;
+}
+
+export function getCountyMetricYield(stat: CountyCropStat): CountyMetricValue | null {
+  const candidates = stat.parameters
+    .filter(p => normalizeLabel(p.parameter) === 'yield' && !isOperationsUnit(p.unit))
+    .sort((a, b) => sourceRank(a.source) - sourceRank(b.source));
+  const sel = candidates[0];
+  return sel ? { parameter: sel.parameter, value: sel.value, unit: sel.unit, source: sel.source } : null;
+}
+
+export function getCountyMetricAreaPlanted(stat: CountyCropStat): CountyMetricValue | null {
+  const candidates = stat.parameters
+    .filter(p => {
+      const label = normalizeLabel(p.parameter);
+      return (label === 'area planted' || label === 'acres planted') && normalizeLabel(p.unit) === 'acres';
+    })
+    .sort((a, b) => sourceRank(a.source) - sourceRank(b.source));
+  const sel = candidates[0];
+  return sel ? { parameter: sel.parameter, value: sel.value, unit: sel.unit, source: sel.source } : null;
+}
+
+export function getCountyMetricSales(stat: CountyCropStat): CountyMetricValue | null {
+  const candidates = stat.parameters
+    .filter(p => normalizeLabel(p.parameter) === 'sales' && !isOperationsUnit(p.unit))
+    .sort((a, b) => sourceRank(a.source) - sourceRank(b.source));
+  const sel = candidates[0];
+  return sel ? { parameter: sel.parameter, value: sel.value, unit: sel.unit, source: sel.source } : null;
+}
+
+export function getCountyMetricBearing(stat: CountyCropStat, kind: 'bearing' | 'nonBearing'): CountyMetricValue | null {
+  const targetLabel = kind === 'bearing' ? 'area bearing' : 'area non-bearing';
+  const candidates = stat.parameters
+    .filter(p => normalizeLabel(p.parameter) === targetLabel && normalizeLabel(p.unit) === 'acres')
+    .sort((a, b) => sourceRank(a.source) - sourceRank(b.source));
+  const sel = candidates[0];
+  return sel ? { parameter: sel.parameter, value: sel.value, unit: sel.unit, source: sel.source } : null;
+}
+
 export function getDisplaySources(...metrics: Array<CountyMetricValue | null>): CountyDataSource[] {
   return Array.from(
     new Set(metrics.filter((metric): metric is CountyMetricValue => metric !== null).map(metric => metric.source))
@@ -285,6 +336,10 @@ export interface CountyAggregates {
   /** Residue-tonnage-weighted average cellulose (%). NaN if no cellulose data available. */
   avgCelluloseContent: number;
   cropsCounted: number;
+  /** Top crops sorted by acreage descending (up to 3). */
+  topCropsByAcreage: Array<{ landiqName: string; acres: number }>;
+  /** Sum of per-crop sales values where reported. null if no crop reported sales. */
+  totalCropSales: number | null;
 }
 
 /**
@@ -304,6 +359,9 @@ export function computeCountyAggregates(
   let totalResidueTons = 0;
   let weightedCelluloseSum = 0;
   let celluloseWeightTotal = 0;
+  const topCropsArr: Array<{ landiqName: string; acres: number }> = [];
+  let salesSum = 0;
+  let hasSalesData = false;
 
   for (const stat of stats) {
     const acresMetric = getCountyMetric(stat, 'acres');
@@ -313,6 +371,16 @@ export function computeCountyAggregates(
 
     totalCropAcreage += acres;
     totalCropProduction += production;
+
+    if (acres > 0) {
+      topCropsArr.push({ landiqName: stat.landiqName, acres });
+    }
+
+    const salesMetric = getCountyMetricSales(stat);
+    if (salesMetric != null) {
+      salesSum += salesMetric.value;
+      hasSalesData = true;
+    }
 
     const dryTonsPerAcre = residueLookup[stat.landiqName] ?? 0;
     const residueTons = acres * dryTonsPerAcre;
@@ -329,12 +397,16 @@ export function computeCountyAggregates(
     ? weightedCelluloseSum / celluloseWeightTotal
     : NaN;
 
+  topCropsArr.sort((a, b) => b.acres - a.acres);
+
   return {
     totalCropAcreage,
     totalCropProduction,
     totalResidueTons,
     avgCelluloseContent,
     cropsCounted: stats.length,
+    topCropsByAcreage: topCropsArr.slice(0, 3),
+    totalCropSales: hasSalesData ? salesSum : null,
   };
 }
 

@@ -183,6 +183,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
   useEffect(() => onResidueDataLoaded(() => setResidueReady(v => v + 1)), []);
 
   const currentPopup = useRef(null); // Reference to track the current popup
+  const hoverPopupRef = useRef(null); // Dedicated ref for county-name hover tooltip
   const [currentPopupLayer, setCurrentPopupLayer] = useState(null); // State to track the layer of the current popup
   
   // Siting analysis state
@@ -1504,14 +1505,25 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
               ? 'N/A'
               : `${aggregates.avgCelluloseContent.toFixed(1)}%`;
 
+            const escapedName = name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            const topCrop = aggregates.topCropsByAcreage[0];
+            const topCropStr = topCrop
+              ? `${topCrop.landiqName} (${formatNumberWithCommas(Math.round(topCrop.acres))} ac)`
+              : 'N/A';
+            const salesRow = aggregates.totalCropSales != null
+              ? `<tr style="border-top:1px solid #e5e7eb"><td>Reported crop sales</td><td style="text-align:right;padding-left:12px">$${formatNumberWithCommas(Math.round(aggregates.totalCropSales))}</td></tr>`
+              : '';
             popup.setHTML(`
               <div class="county-popup" style="font-size:13px;line-height:1.6">
-                <strong style="font-size:14px">${name} County</strong>
+                <strong style="font-size:14px">${escapedName} County</strong>
                 <table style="width:100%;margin-top:6px;border-collapse:collapse">
                   <tr><td>Total Crop Acreage</td><td style="text-align:right;padding-left:12px">${formatNumberWithCommas(Math.round(aggregates.totalCropAcreage))} ac</td></tr>
                   <tr><td>Total Production</td><td style="text-align:right;padding-left:12px">${formatNumberWithCommas(Math.round(aggregates.totalCropProduction))} tons</td></tr>
                   <tr><td>Collectable Residue</td><td style="text-align:right;padding-left:12px">${formatNumberWithCommas(Math.round(aggregates.totalResidueTons))} dry tons</td></tr>
                   <tr><td>Avg Cellulose</td><td style="text-align:right;padding-left:12px">${avgCelluloseStr}</td></tr>
+                  <tr style="border-top:1px solid #e5e7eb"><td>Feedstock types</td><td style="text-align:right;padding-left:12px">${aggregates.cropsCounted} crops</td></tr>
+                  <tr><td>Top crop</td><td style="text-align:right;padding-left:12px">${topCropStr}</td></tr>
+                  ${salesRow}
                 </table>
                 <p style="margin-top:6px;font-size:11px;color:#6b7280">Source: 2022 USDA Census</p>
               </div>
@@ -1523,7 +1535,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
           }
         });
 
-        // Hover shading + pointer cursor for county layer
+        // Hover shading + pointer cursor + county-name tooltip for county layer
         let hoveredCountyId = null;
         map.current.on('mousemove', 'county-layer', (e) => {
           map.current.getCanvas().style.cursor = 'pointer';
@@ -1535,12 +1547,34 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
           }
           hoveredCountyId = id;
           map.current.setFeatureState({ source: 'county-source', id }, { hover: true });
+
+          // County-name hover tooltip — suppressed in siting mode
+          if (sitingModeRef.current) {
+            if (hoverPopupRef.current) {
+              hoverPopupRef.current.remove();
+              hoverPopupRef.current = null;
+            }
+            return;
+          }
+          const countyName = feature.properties.NAME || 'Unknown County';
+          if (!hoverPopupRef.current) {
+            hoverPopupRef.current = new mapboxgl.Popup({
+              closeButton: false,
+              closeOnClick: false,
+              className: 'county-hover-popup',
+            });
+          }
+          hoverPopupRef.current.setLngLat(e.lngLat).setHTML(countyName).addTo(map.current);
         });
         map.current.on('mouseleave', 'county-layer', () => {
           map.current.getCanvas().style.cursor = '';
           if (hoveredCountyId !== null) {
             map.current.setFeatureState({ source: 'county-source', id: hoveredCountyId }, { hover: false });
             hoveredCountyId = null;
+          }
+          if (hoverPopupRef.current) {
+            hoverPopupRef.current.remove();
+            hoverPopupRef.current = null;
           }
         });
 
