@@ -6,7 +6,7 @@ import { ChevronDown, Leaf } from 'lucide-react';
 import { getCropResidueFactors } from '@/lib/constants';
 import { formatNumberWithCommas, downloadCSV } from '@/lib/utils';
 import { getAvailability, getAnalysisByResource } from '@/lib/api';
-import { getApiResource } from '@/lib/resource-mapping';
+import { getApiResource, STATE_GEOID } from '@/lib/resource-mapping';
 import { getResidueFactorsByResourceNames } from '@/lib/resource-residues';
 import { onResidueDataLoaded } from '@/lib/residue-data';
 import { computeEnergyTotals, EnergyTotals } from '@/lib/energy-calculations';
@@ -73,7 +73,6 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
   bufferRadius,
   bufferUnit,
   location,
-  geoids,
   compositionFilters,
 }) => {
   const [isCollapsed, setIsCollapsed] = React.useState(false);
@@ -96,12 +95,12 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
   // Per-crop expand state for the composition panel
   const [expandedCrops, setExpandedCrops] = React.useState<Set<string>>(new Set());
 
-  // Fetch availability from the API whenever the inventory or geoids change
+  // Fetch availability from the API whenever the inventory changes.
+  // Availability is state-level only (STATE_GEOID); county geoids hold no rows.
   React.useEffect(() => {
     if (!inventory || inventory.length === 0) return;
 
-    // Pick the first (primary) geoid if available; fall back to state-level "06"
-    const geoid = geoids && geoids.length > 0 ? geoids[0] : '06';
+    const geoid = STATE_GEOID;
 
     setAvailabilityLoading(true);
     const newMap: Record<string, string | null> = {};
@@ -134,31 +133,42 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
       setRawAvailabilityMap({ ...newRawMap });
       setAvailabilityLoading(false);
     });
-  }, [inventory, geoids]);
+  }, [inventory]);
 
-  // Fetch full composition data for each crop — used by both the energy card and composition panel
+  // Fetch full composition data — used by the energy card and composition panel.
+  // Composition is state-level only (STATE_GEOID). Resources-first: query each
+  // per-polygon residue name plus the crop's primary resource, deduplicated.
   React.useEffect(() => {
     if (!inventory || inventory.length === 0) return;
-    const geoid = geoids && geoids.length > 0 ? geoids[0] : '06';
 
     setCompositionLoading(true);
     const newByResource: Record<string, CompositionData> = {};
 
-    // Deduplicate: same API resource may appear for multiple LandIQ crops
     const resourcesSeen = new Set<string>();
-    const promises = inventory.map(async (crop) => {
-      const apiResource = getApiResource(crop.name);
-      if (!apiResource || resourcesSeen.has(apiResource)) return;
-      resourcesSeen.add(apiResource);
-      const result = await getAnalysisByResource(apiResource, geoid);
-      newByResource[apiResource] = parseCompositionData(result);
-    });
+    const promises: Promise<void>[] = [];
+    const fetchResource = (rawName: string | null) => {
+      if (!rawName) return;
+      const name = rawName.trim().toLowerCase();
+      if (resourcesSeen.has(name)) return;
+      resourcesSeen.add(name);
+      promises.push(
+        (async () => {
+          const result = await getAnalysisByResource(name, STATE_GEOID);
+          newByResource[name] = parseCompositionData(result);
+        })()
+      );
+    };
+
+    for (const crop of inventory) {
+      fetchResource(getApiResource(crop.name));
+      crop.resources?.forEach(fetchResource);
+    }
 
     Promise.allSettled(promises).then(() => {
       setCompositionByResource({ ...newByResource });
       setCompositionLoading(false);
     });
-  }, [inventory, geoids]);
+  }, [inventory]);
 
   // Expand each crop into individual residue-type rows (one per factor with non-zero yield).
   // Each row represents a single convertible resource (e.g. "Almond Hulls", "Almond Shells").
@@ -167,15 +177,21 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
     for (const crop of inventory) {
       // Resources-first: when the polygon carries explicit residue names, resolve
       // them directly; otherwise fall back to the crop-name-based chain.
-      const residueResult =
-        (crop.resources && crop.resources.length > 0
-          ? getResidueFactorsByResourceNames(crop.resources)
-          : null) ?? getCropResidueFactors(crop.name);
+      let residueResult = crop.resources && crop.resources.length > 0
+        ? getResidueFactorsByResourceNames(crop.resources)
+        : null;
+      const perResidue = residueResult !== null;
+      if (!residueResult) residueResult = getCropResidueFactors(crop.name);
       if (!residueResult) continue;
-      const apiResource = getApiResource(crop.name);
+      const cropApiResource = getApiResource(crop.name);
       for (const factor of residueResult.factors) {
         // Skip entries with no yield data (e.g. "Missing" values that parsed to 0)
         if (!factor.dryTonsPerAcre && !factor.wetTonsPerAcre) continue;
+        // Resources-tier rows key composition off the residue's own name;
+        // crop-tier rows fall back to the crop's primary resource.
+        const apiResource = perResidue
+          ? factor.resourceName.trim().toLowerCase()
+          : cropApiResource;
         rows.push({
           resourceName: factor.resourceName,
           cropName: crop.name,
@@ -217,12 +233,13 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
         return true;
       })
       .map(row => {
-        // API availability takes precedence; fall back to static months from factor.
+        // Per-residue static window is the most granular source; the crop-level
+        // API window is only a fallback when a residue has no static months.
         const staticAvailability =
           row.fromMonth && row.toMonth
             ? formatAvailabilityWindow(row.fromMonth, row.toMonth)
             : null;
-        const availability = availabilityMap[row.cropName] ?? staticAvailability;
+        const availability = staticAvailability ?? availabilityMap[row.cropName];
         const isLoading = availabilityLoading && availability === null;
         return { ...row, availability, availabilityLoading: isLoading };
       });

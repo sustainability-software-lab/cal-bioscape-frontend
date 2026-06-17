@@ -12,7 +12,7 @@ import { TILESET_REGISTRY } from '@/lib/tileset-registry'; // Import centralized
 import { layerLabelMappings } from '@/lib/labelMappings';
 import { getAvailability, getAnalysisByResource, getCensusByCrop } from '@/lib/api';
 import { getCountyGeoid } from '@/lib/county-lookup';
-import { getApiResource, getUsdaCropName } from '@/lib/resource-mapping';
+import { getApiResource, getUsdaCropName, STATE_GEOID } from '@/lib/resource-mapping';
 import { parseFeatureResources, getResidueFactorsByResourceNames } from '@/lib/resource-residues';
 import { onResidueDataLoaded } from '@/lib/residue-data';
 import { getCountyAggregateStats } from '@/lib/county-analysis';
@@ -2719,11 +2719,15 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
               onCountySelect(properties.county, countyGeoid);
             }
             const apiResource = getApiResource(cropName);
+            // Resources-first: enrich from this polygon's own residue when present.
+            const popupResource = featureResources.length > 0
+              ? featureResources[0].trim().toLowerCase()
+              : apiResource;
             const usdaCrop = getUsdaCropName(cropName);
             const apiSectionId = `api-data-${Date.now()}`;
 
             // Empty hook for optional async API enrichment; render no placeholder.
-            const apiLoadingHTML = countyGeoid && (apiResource || usdaCrop)
+            const apiLoadingHTML = popupResource || (countyGeoid && usdaCrop)
               ? `<div id="${apiSectionId}"></div>`
               : '';
 
@@ -2761,13 +2765,14 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
             });
 
             // --- Async API enrichment ---
-            if (countyGeoid && (apiResource || usdaCrop)) {
+            // Composition + availability are state-level (STATE_GEOID); census is county-level.
+            if (popupResource || (countyGeoid && usdaCrop)) {
               (async () => {
                 try {
                   const [availResult, analysisResult, censusResult] = await Promise.allSettled([
-                    apiResource ? getAvailability(apiResource, countyGeoid) : Promise.resolve(null),
-                    apiResource ? getAnalysisByResource(apiResource, countyGeoid) : Promise.resolve(null),
-                    usdaCrop   ? getCensusByCrop(usdaCrop, countyGeoid) : Promise.resolve(null),
+                    popupResource ? getAvailability(popupResource, STATE_GEOID) : Promise.resolve(null),
+                    popupResource ? getAnalysisByResource(popupResource, STATE_GEOID) : Promise.resolve(null),
+                    (usdaCrop && countyGeoid) ? getCensusByCrop(usdaCrop, countyGeoid) : Promise.resolve(null),
                   ]);
 
                   const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
