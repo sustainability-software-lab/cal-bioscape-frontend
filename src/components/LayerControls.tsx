@@ -34,6 +34,14 @@ import {
   cropPassesCompositionFilters,
   isCompositionFiltersActive,
 } from '@/lib/composition-filters';
+import { applyLayerMutualExclusivity, MUTUALLY_EXCLUSIVE_LAYERS } from '@/lib/layer-utils';
+
+// Pre-built lookup: layerId -> [partnerId, ...] for O(1) partner resolution in directLayerToggle
+const MUTUALLY_EXCLUSIVE_PAIRS: Record<string, string[]> = {};
+for (const [a, b] of MUTUALLY_EXCLUSIVE_LAYERS) {
+  (MUTUALLY_EXCLUSIVE_PAIRS[a] ??= []).push(b);
+  (MUTUALLY_EXCLUSIVE_PAIRS[b] ??= []).push(a);
+}
 
 // Define a minimal type for the mapbox map instance to avoid using 'any'
 interface MapInstance {
@@ -496,11 +504,8 @@ const LayerControls: React.FC<LayerControlsProps> = ({
   
   // Robust function to toggle layer visibility directly on the map and update local state
   const directLayerToggle = (layerId: string, isVisible: boolean, updateParentState: boolean = true): boolean => {
-    // Update local state first for immediate UI feedback
-    setLocalLayerVisibility(prev => ({
-      ...prev,
-      [layerId]: isVisible
-    }));
+    // Apply mutual exclusivity and update local state for immediate UI feedback
+    setLocalLayerVisibility(prev => applyLayerMutualExclusivity({ ...prev }, layerId, isVisible));
     
     // Get map instance
     const mapInstance = getMapInstance();
@@ -522,17 +527,32 @@ const LayerControls: React.FC<LayerControlsProps> = ({
         // Set the visibility property directly on the map layer
         mapInstance.setLayoutProperty(mapboxLayerId, 'visibility', isVisible ? 'visible' : 'none');
         console.log(`Set ${mapboxLayerId} visibility to ${isVisible ? 'visible' : 'none'} directly`);
-        
+
         // If the layer is being hidden, close any associated popup
         if (!isVisible) {
           onClosePopupForLayer(layerId);
+        }
+
+        // Hide the mutually exclusive partner layer on the map canvas
+        if (isVisible) {
+          const partnerIds = MUTUALLY_EXCLUSIVE_PAIRS[layerId] ?? [];
+          for (const partnerId of partnerIds) {
+            const partnerMapboxId = layerIdMapping[partnerId];
+            if (partnerMapboxId && mapInstance.getLayer(partnerMapboxId)) {
+              mapInstance.setLayoutProperty(partnerMapboxId, 'visibility', 'none');
+            }
+            onClosePopupForLayer(partnerId);
+            if (updateParentState) {
+              onLayerToggle(partnerId, false);
+            }
+          }
         }
 
         // Update parent state if requested (to keep the overall app state in sync)
         if (updateParentState) {
           onLayerToggle(layerId, isVisible);
         }
-        
+
         return true; // Successfully toggled directly
       } else {
         console.warn(`Layer ${mapboxLayerId} not found in map`);
@@ -547,6 +567,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
   // Define a map of layer IDs to their corresponding Mapbox layer IDs
   const layerIdMapping: { [key: string]: string } = {
     feedstock: 'feedstock-vector-layer',
+    county: 'county-layer',
     railLines: 'rail-lines-layer',
     freightTerminals: 'freight-terminals-layer',
     freightRoutes: 'freight-routes-layer',
@@ -567,6 +588,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
     districtEnergySystems: 'district-energy-systems-layer',
     foodProcessors: 'food-processors-layer',
     tomatoProcessors: 'tomato-processors-layer',
+    carbFoodProcessors: 'carb-food-processors-layer',
     foodRetailers: 'food-retailers-layer',
     powerPlants: 'power-plants-layer',
     foodBanks: 'food-banks-layer',
@@ -615,6 +637,33 @@ const LayerControls: React.FC<LayerControlsProps> = ({
           <AccordionContent>
             <div className="space-y-2 pl-4">
               
+              {/* County Level Stats Toggle */}
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="countyLayer"
+                  data-layer-checkbox="county"
+                  data-testid="layer-checkbox-county"
+                  checked={localLayerVisibility?.county ?? false}
+                  onCheckedChange={(checked: boolean | 'indeterminate') => directLayerToggle('county', !!checked)}
+                />
+                <Label htmlFor="countyLayer" className="flex items-center font-medium">
+                  County Level Stats
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span>
+                          <Info className="h-4 w-4 ml-1 inline-block text-gray-500 cursor-help transition-colors hover:text-gray-700" />
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="right">
+                        <p>Source: 2022 USDA Census of Agriculture</p>
+                        <p className="text-xs text-gray-400 mt-1">Mutually exclusive with Crop Residues layer</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </Label>
+              </div>
+
               {/* Crop Residues Header */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -622,6 +671,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                     <Checkbox
                       id="feedstockLayer"
                       data-layer-checkbox="feedstock"
+                      data-testid="layer-checkbox-feedstock"
                       checked={localLayerVisibility?.feedstock ?? false}
                       onCheckedChange={(checked: boolean | 'indeterminate') => directLayerToggle('feedstock', !!checked)}
                     />

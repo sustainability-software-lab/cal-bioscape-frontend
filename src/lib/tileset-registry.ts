@@ -36,6 +36,18 @@ export const DEFAULT_TILESET_REGISTRY: Record<string, TilesetConfig> = {
     accountType: 'legacy'
   },
 
+  // County boundary layer -- CA counties from US Atlas (simplified TopoJSON converted to GeoJSON).
+  // Served as a static GeoJSON asset from /public/ca-counties.geojson (no Mapbox tileset upload needed).
+  // Features carry GEOID (5-digit FIPS, e.g. "06019") and NAME (county name, e.g. "Fresno").
+  county: {
+    tilesetId: 'geojson:///ca-counties.geojson', // Signals GeoJSON source -- Map.js reads this path
+    sourceLayer: '',
+    displayName: 'County Level Stats',
+    category: 'feedstock',
+    version: '2022-usatlas',
+    accountType: 'legacy'
+  },
+
   // INFRASTRUCTURE LAYERS - Processing Facilities
   anaerobicDigester: {
     tilesetId: 'tylerhuntington222.8lsxssgz', // TODO: Update to sustainasoft.cal-bioscape-epa-agstar-digesters-YYYY-MM
@@ -164,7 +176,7 @@ export const DEFAULT_TILESET_REGISTRY: Record<string, TilesetConfig> = {
   },
 
   carbFoodProcessors: {
-    tilesetId: 'sustainasoft.cal-bioscape-carb-food-processors-2026-06',
+    tilesetId: 'sustainasoft.carb-food-processors-2026-06',
     sourceLayer: 'carb_food_processors',
     displayName: 'Food Processing Facilities (CARB)',
     category: 'infrastructure',
