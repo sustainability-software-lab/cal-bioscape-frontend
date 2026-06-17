@@ -1322,7 +1322,99 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
                 // --- Default ---
                 "#808080" // Default Gray for unmatched crops (including None)
             ],
-            'fill-opacity': 0.6
+            'fill-opacity': [
+              'interpolate', ['linear'], ['zoom'],
+              5, 0.9,
+              10, 0.75,
+              14, 0.6
+            ]
+          }
+        });
+
+        // Soft-outline companion layer: thin blurred strokes expand each parcel's apparent
+        // size at low zoom without the hard color-clash overlap of thick lines.
+        map.current.addLayer({
+          id: 'feedstock-line-layer',
+          type: 'line',
+          source: 'feedstock-vector-source',
+          'source-layer': TILESET_REGISTRY.feedstock.sourceLayer,
+          maxzoom: 13,
+          filter: ['!=', ['get', 'main_crop_code'], 'U'],
+          paint: {
+            'line-width': [
+              'interpolate', ['linear'], ['zoom'],
+              5, 2.5,
+              9, 1.5,
+              11, 0.5,
+              13, 0
+            ],
+            'line-blur': [
+              'interpolate', ['linear'], ['zoom'],
+              5, 1,
+              9, 0.5,
+              11, 0
+            ],
+            'line-color': [
+              'match', ['get', 'main_crop_name'],
+              "Alfalfa & Alfalfa Mixtures", "#90EE90",
+              "Almonds", "#8B4513",
+              "Apples", "#FF0000",
+              "Apricots", "#FFA500",
+              "Avocados", "#556B2F",
+              "Beans (Dry)", "#F5DEB3",
+              "Bush Berries", "#BA55D3",
+              "Carrots", "#FF8C00",
+              "Cherries", "#DC143C",
+              "Citrus and Subtropical", "#FFD700",
+              "Cole Crops", "#2E8B57",
+              "Corn, Sorghum and Sudan", "#DAA520",
+              "Cotton", "#FFFAF0",
+              "Dates", "#A0522D",
+              "Eucalyptus", "#778899",
+              "Flowers, Nursery and Christmas Tree Farms", "#FF69B4",
+              "Grapes", "#800080",
+              "Greenhouse", "#AFEEEE",
+              "Idle – Long Term", "#D3D3D3",
+              "Idle – Short Term", "#A9A9A9",
+              "Induced high water table native pasture", "#ADD8E6",
+              "Kiwis", "#9ACD32",
+              "Lettuce/Leafy Greens", "#32CD32",
+              "Melons, Squash and Cucumbers", "#FFDAB9",
+              "Miscellaneous Deciduous", "#BDB76B",
+              "Miscellaneous Field Crops", "#DEB887",
+              "Miscellaneous Grain and Hay", "#F5F5DC",
+              "Miscellaneous Grasses", "#98FB98",
+              "Miscellaneous Subtropical Fruits", "#FF7F50",
+              "Miscellaneous Truck Crops", "#66CDAA",
+              "Mixed Pasture", "#006400",
+              "Native Pasture", "#228B22",
+              "Olives", "#808000",
+              "Onions and Garlic", "#FFF8DC",
+              "Peaches/Nectarines", "#FFC0CB",
+              "Pears", "#ADFF2F",
+              "Pecans", "#D2691E",
+              "Peppers", "#B22222",
+              "Pistachios", "#93C572",
+              "Plums", "#DDA0DD",
+              "Pomegranates", "#E34234",
+              "Potatoes", "#CD853F",
+              "Prunes", "#702963",
+              "Rice", "#FFFFE0",
+              "Safflower", "#FFEC8B",
+              "Strawberries", "#FF1493",
+              "Sugar beets", "#D8BFD8",
+              "Sunflowers", "#FFDB58",
+              "Sweet Potatoes", "#D2B48C",
+              "Tomatoes", "#FF6347",
+              "Turf Farms", "#00FF7F",
+              "Unclassified Fallow", "#696969",
+              "Walnuts", "#A52A2A",
+              "Wheat", "#F4A460",
+              "Wild Rice", "#EEE8AA",
+              "Young Perennials", "#C19A6B",
+              "#808080"
+            ],
+            'line-opacity': 0.35
           }
         });
 
@@ -2822,6 +2914,9 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
     const visibility = isFeedstockVisible ? 'visible' : 'none';
     console.log(`Setting feedstock layer visibility to: ${visibility}`);
     map.current.setLayoutProperty('feedstock-vector-layer', 'visibility', visibility); // Use new layer ID
+    if (map.current.getLayer('feedstock-line-layer')) {
+      map.current.setLayoutProperty('feedstock-line-layer', 'visibility', visibility);
+    }
 
     // Close popup when feedstock layer is hidden
     if (!isFeedstockVisible && currentPopup.current) {
@@ -2866,6 +2961,9 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
 
     console.log("Setting crop filter:", JSON.stringify(combinedFilter));
     map.current.setFilter('feedstock-vector-layer', combinedFilter);
+    if (map.current.getLayer('feedstock-line-layer')) {
+      map.current.setFilter('feedstock-line-layer', combinedFilter);
+    }
 
     // Close popup when no crops are visible (all crops filtered out)
     if (!visibleCrops || visibleCrops.length === 0) {
@@ -2898,7 +2996,15 @@ useEffect(() => {
   // Check if croplandOpacity is a valid number before setting
   if (typeof croplandOpacity === 'number' && croplandOpacity >= 0 && croplandOpacity <= 1) {
     console.log(`Setting feedstock layer opacity to: ${croplandOpacity}`);
-    map.current.setPaintProperty('feedstock-vector-layer', 'fill-opacity', croplandOpacity);
+    map.current.setPaintProperty('feedstock-vector-layer', 'fill-opacity', [
+      'interpolate', ['linear'], ['zoom'],
+      5, Math.min(croplandOpacity * 1.5, 1.0),
+      10, Math.min(croplandOpacity * 1.25, 1.0),
+      14, croplandOpacity
+    ]);
+    if (map.current.getLayer('feedstock-line-layer')) {
+      map.current.setPaintProperty('feedstock-line-layer', 'line-opacity', Math.min(croplandOpacity * 0.6, 0.5));
+    }
   } else {
     console.warn(`Invalid croplandOpacity value received: ${croplandOpacity}. Opacity not set.`);
     // Optionally set a default opacity here if the value is invalid
