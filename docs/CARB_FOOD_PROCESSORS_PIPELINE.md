@@ -6,7 +6,7 @@ Pipeline for converting the CARB food processors CSV into a Mapbox tileset and r
 
 | Item | Value |
 |---|---|
-| Tileset ID | `sustainasoft.cal-bioscape-carb-food-processors-2026-06` |
+| Tileset ID | `sustainasoft.carb-food-processors-2026-06` |
 | Source layer | `carb_food_processors` |
 | Source CSV | `src/data/food_manufacturers_and_processor_facilities_carb.csv` |
 | App visibility key | `carbFoodProcessors` |
