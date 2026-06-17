@@ -1530,6 +1530,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                       <div className="flex justify-between items-center">
                         <Label className="text-xs font-normal text-gray-700">
                           Moisture Content
+                          <span className="ml-1 text-[10px] font-normal text-gray-400">(wet basis)</span>
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -1538,7 +1539,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                                 </span>
                               </TooltipTrigger>
                               <TooltipContent side="right" className="max-w-xs">
-                                <p>As-received moisture content (%). Lower values (&lt;15%) indicate drier feedstocks better suited for direct combustion and pyrolysis; higher values (&gt;30%) favour anaerobic digestion. Values sourced from the Cal BioScape API where available; otherwise from peer-reviewed biomass literature.</p>
+                                <p>As-received moisture content (% wet basis). Lower values (&lt;15%) indicate drier feedstocks better suited for direct combustion and pyrolysis; higher values (&gt;30%) favour anaerobic digestion. Values sourced from the Cal BioScape API where available; otherwise from peer-reviewed biomass literature.</p>
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
@@ -1564,6 +1565,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                       <div className="flex justify-between items-center">
                         <Label className="text-xs font-normal text-gray-700">
                           Cellulose
+                          <span className="ml-1 text-[10px] font-normal text-gray-400">(dry basis)</span>
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -1572,7 +1574,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                                 </span>
                               </TooltipTrigger>
                               <TooltipContent side="right" className="max-w-xs">
-                                <p>Higher cellulose (%) favours fermentation (ethanol) and fast pyrolysis pathways.</p>
+                                <p>Cellulose as % of dry mass. Higher cellulose favours fermentation (ethanol) and fast pyrolysis pathways.</p>
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
@@ -1598,6 +1600,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                       <div className="flex justify-between items-center">
                         <Label className="text-xs font-normal text-gray-700">
                           Lignin
+                          <span className="ml-1 text-[10px] font-normal text-gray-400">(dry basis)</span>
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -1606,7 +1609,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                                 </span>
                               </TooltipTrigger>
                               <TooltipContent side="right" className="max-w-xs">
-                                <p>Low lignin (%) is preferred for biochemical conversion; high lignin suits thermochemical gasification.</p>
+                                <p>Lignin as % of dry mass. Low lignin is preferred for biochemical conversion; high lignin suits thermochemical gasification.</p>
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
@@ -1632,6 +1635,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                       <div className="flex justify-between items-center">
                         <Label className="text-xs font-normal text-gray-700">
                           Ash Content
+                          <span className="ml-1 text-[10px] font-normal text-gray-400">(dry basis)</span>
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -1640,7 +1644,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                                 </span>
                               </TooltipTrigger>
                               <TooltipContent side="right" className="max-w-xs">
-                                <p>Lower ash (%) improves combustion efficiency and reduces fouling in boilers and gasifiers.</p>
+                                <p>Ash as % of dry mass. Lower ash improves combustion efficiency and reduces fouling in boilers and gasifiers.</p>
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
@@ -1666,6 +1670,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                       <div className="flex justify-between items-center">
                         <Label className="text-xs font-normal text-gray-700">
                           Heating Value (HHV)
+                          <span className="ml-1 text-[10px] font-normal text-gray-400">(dry basis)</span>
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
