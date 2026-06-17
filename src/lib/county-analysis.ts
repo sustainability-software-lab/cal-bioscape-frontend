@@ -2,6 +2,24 @@
  * County-level feedstock statistics fetched from the USDA census/survey API.
  */
 
+/**
+ * Creates a keyed promise cache. Concurrent calls with the same key share one promise.
+ * Rejected promises are evicted so the next call can retry.
+ */
+export function makePromiseCache<T>(
+  factory: (key: string) => Promise<T>
+): (key: string) => Promise<T> {
+  const cache = new Map<string, Promise<T>>();
+  return (key: string) => {
+    const cached = cache.get(key);
+    if (cached) return cached;
+    const p = factory(key);
+    cache.set(key, p);
+    p.catch(() => cache.delete(key));
+    return p;
+  };
+}
+
 import { ApiAuthError, getCensusByResource, getSurveyByResource } from './api';
 import { DataItemResponse } from './api-types';
 import { LANDIQ_TO_API_RESOURCE } from './resource-mapping';
@@ -320,11 +338,7 @@ export function computeCountyAggregates(
   };
 }
 
-/**
- * Async orchestrator: fetches county feedstock stats then computes aggregates
- * using live residue factors and composition fallbacks.
- */
-export async function getCountyAggregateStats(geoid: string): Promise<CountyAggregates | null> {
+async function computeCountyAggregateStats(geoid: string): Promise<CountyAggregates | null> {
   const stats = await fetchCountyFeedstockStats(geoid);
   if (stats.length === 0) return null;
 
@@ -349,3 +363,7 @@ export async function getCountyAggregateStats(geoid: string): Promise<CountyAggr
 
   return computeCountyAggregates(stats, residueLookup, compositionLookup);
 }
+
+// Session-scoped in-memory cache: USDA data is static, so a second click on any
+// county is instant. Rejected entries are evicted so retries are possible.
+export const getCountyAggregateStats = makePromiseCache(computeCountyAggregateStats);

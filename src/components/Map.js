@@ -1333,7 +1333,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
         try {
           if (isCountyGeoJson) {
             const geojsonPath = countyTilesetId.slice('geojson://'.length); // e.g. '/ca-counties.geojson'
-            map.current.addSource('county-source', { type: 'geojson', data: geojsonPath });
+            map.current.addSource('county-source', { type: 'geojson', data: geojsonPath, promoteId: 'GEOID' });
           } else {
             map.current.addSource('county-source', {
               type: 'vector',
@@ -1353,7 +1353,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
             },
             paint: {
               'fill-color': '#3B82F6',
-              'fill-opacity': 0.15
+              'fill-opacity': ['case', ['boolean', ['feature-state', 'hover'], false], 0.35, 0.15]
             }
           });
           map.current.addLayer({
@@ -1365,7 +1365,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
             },
             paint: {
               'line-color': '#1D4ED8',
-              'line-width': 1.5
+              'line-width': ['case', ['boolean', ['feature-state', 'hover'], false], 1.5, 0.5]
             }
           });
         } catch(countyErr) { console.error('[county] init failed:', countyErr.message); }
@@ -1404,7 +1404,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
             if (currentPopup.current !== popup || popup._countyRequestId !== requestId) return;
 
             if (!aggregates || aggregates.cropsCounted === 0) {
-              popup.setHTML(`<div class="county-popup"><strong>${name} County</strong><br/><em>No county data available.</em></div>`);
+              popup.setHTML(`<div class="county-popup"><strong>${name} County</strong><br/><em>No USDA cropland reported for this county.</em></div>`);
               return;
             }
 
@@ -1426,17 +1426,30 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
             `);
           } catch {
             if (currentPopup.current === popup) {
-              popup.setHTML(`<div class="county-popup"><strong>${name} County</strong><br/><em>No county data available.</em></div>`);
+              popup.setHTML(`<div class="county-popup"><strong>${name} County</strong><br/><em>Couldn't load county data -- please try again.</em></div>`);
             }
           }
         });
 
-        // Cursor handling for county layer
-        map.current.on('mouseenter', 'county-layer', () => {
+        // Hover shading + pointer cursor for county layer
+        let hoveredCountyId = null;
+        map.current.on('mousemove', 'county-layer', (e) => {
           map.current.getCanvas().style.cursor = 'pointer';
+          const feature = e.features && e.features[0];
+          if (!feature) return;
+          const id = feature.id ?? feature.properties.GEOID;
+          if (hoveredCountyId !== null && hoveredCountyId !== id) {
+            map.current.setFeatureState({ source: 'county-source', id: hoveredCountyId }, { hover: false });
+          }
+          hoveredCountyId = id;
+          map.current.setFeatureState({ source: 'county-source', id }, { hover: true });
         });
         map.current.on('mouseleave', 'county-layer', () => {
           map.current.getCanvas().style.cursor = '';
+          if (hoveredCountyId !== null) {
+            map.current.setFeatureState({ source: 'county-source', id: hoveredCountyId }, { hover: false });
+            hoveredCountyId = null;
+          }
         });
 
         // Persistent siting buffer source and layers
