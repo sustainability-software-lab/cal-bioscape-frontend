@@ -567,6 +567,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
     districtEnergySystems: 'district-energy-systems-layer',
     foodProcessors: 'food-processors-layer',
     tomatoProcessors: 'tomato-processors-layer',
+    carbFoodProcessors: 'carb-food-processors-layer',
     foodRetailers: 'food-retailers-layer',
     powerPlants: 'power-plants-layer',
     foodBanks: 'food-banks-layer',
