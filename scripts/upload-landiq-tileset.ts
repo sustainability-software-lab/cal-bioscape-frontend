@@ -100,20 +100,24 @@ async function publishTileset(token: string): Promise<string> {
 async function pollUntilComplete(token: string, jobId: string): Promise<void> {
   console.log('Step 4: Polling for publish status ...');
   const maxAttempts = 90; // 15 minutes at 10s intervals
+  const [username, tilesetName] = TILESET_ID.split('.');
   for (let i = 0; i < maxAttempts; i++) {
     await new Promise(resolve => setTimeout(resolve, 10000));
-    const res = await fetch(apiUrl(`/tilesets/v1/${TILESET_ID}/status`, token));
+    // Use the list endpoint to check status (detail endpoint requires tilesets:read scope)
+    const res = await fetch(apiUrl(`/tilesets/v1/${username}`, token));
     if (!res.ok) {
       console.warn(`  Status check failed (${res.status}), retrying...`);
       continue;
     }
-    const data = await res.json() as { status: string; jobId?: string };
-    console.log(`  Status: ${data.status} (attempt ${i + 1}/${maxAttempts})`);
-    if (data.status === 'success') {
+    const tilesets = await res.json() as Array<{ id: string; status: string }>;
+    const entry = tilesets.find(t => t.id === TILESET_ID);
+    const status = entry?.status ?? 'unknown';
+    console.log(`  Status: ${status} (attempt ${i + 1}/${maxAttempts})`);
+    if (status === 'available') {
       console.log(`  Tileset published successfully. Job ID: ${jobId}`);
       return;
     }
-    if (data.status === 'failed') {
+    if (status === 'failed') {
       console.error('  Tileset publish failed. Check Mapbox Studio for error details.');
       process.exit(1);
     }
