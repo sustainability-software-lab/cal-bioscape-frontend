@@ -1317,45 +1317,47 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
 
         // County boundary layer (mutually exclusive with feedstock layer).
         // tilesetId starting with 'geojson:///' signals a static GeoJSON asset path.
-        const countyTilesetId = TILESET_REGISTRY.county.tilesetId;
-        const isCountyGeoJson = countyTilesetId.startsWith('geojson:///');
-        if (isCountyGeoJson) {
-          const geojsonPath = countyTilesetId.slice('geojson://'.length); // e.g. '/ca-counties.geojson'
-          map.current.addSource('county-source', { type: 'geojson', data: geojsonPath });
-        } else {
-          map.current.addSource('county-source', {
-            type: 'vector',
-            url: `mapbox://${countyTilesetId}`
+        const countyTilesetId = TILESET_REGISTRY.county?.tilesetId;
+        const isCountyGeoJson = countyTilesetId?.startsWith('geojson:///');
+        try {
+          if (isCountyGeoJson) {
+            const geojsonPath = countyTilesetId.slice('geojson://'.length); // e.g. '/ca-counties.geojson'
+            map.current.addSource('county-source', { type: 'geojson', data: geojsonPath });
+          } else {
+            map.current.addSource('county-source', {
+              type: 'vector',
+              url: `mapbox://${countyTilesetId}`
+            });
+          }
+          const countyLayerBase = {
+            source: 'county-source',
+            ...(isCountyGeoJson ? {} : { 'source-layer': TILESET_REGISTRY.county.sourceLayer }),
+          };
+          map.current.addLayer({
+            id: 'county-layer',
+            type: 'fill',
+            ...countyLayerBase,
+            layout: {
+              visibility: layerVisibility?.county ? 'visible' : 'none'
+            },
+            paint: {
+              'fill-color': '#3B82F6',
+              'fill-opacity': 0.15
+            }
           });
-        }
-        const countyLayerBase = {
-          source: 'county-source',
-          ...(isCountyGeoJson ? {} : { 'source-layer': TILESET_REGISTRY.county.sourceLayer }),
-        };
-        map.current.addLayer({
-          id: 'county-layer',
-          type: 'fill',
-          ...countyLayerBase,
-          layout: {
-            visibility: layerVisibility?.county ? 'visible' : 'none'
-          },
-          paint: {
-            'fill-color': '#3B82F6',
-            'fill-opacity': 0.15
-          }
-        });
-        map.current.addLayer({
-          id: 'county-outline',
-          type: 'line',
-          ...countyLayerBase,
-          layout: {
-            visibility: layerVisibility?.county ? 'visible' : 'none'
-          },
-          paint: {
-            'line-color': '#1D4ED8',
-            'line-width': 1.5
-          }
-        });
+          map.current.addLayer({
+            id: 'county-outline',
+            type: 'line',
+            ...countyLayerBase,
+            layout: {
+              visibility: layerVisibility?.county ? 'visible' : 'none'
+            },
+            paint: {
+              'line-color': '#1D4ED8',
+              'line-width': 1.5
+            }
+          });
+        } catch(countyErr) { console.error('[county] init failed:', countyErr.message); }
 
         // County click -> async stats popup
         map.current.on('click', 'county-layer', async (e) => {
