@@ -5,6 +5,8 @@
 import { ApiAuthError, getCensusByResource, getSurveyByResource } from './api';
 import { DataItemResponse } from './api-types';
 import { LANDIQ_TO_API_RESOURCE } from './resource-mapping';
+import { getResidueData } from './residue-data';
+import { COMPOSITION_FALLBACKS } from './composition-fallbacks';
 
 export type CountyDataSource = 'census' | 'survey';
 export type CountyRowSource = CountyDataSource | 'mixed';
@@ -219,4 +221,98 @@ export async function fetchCountyFeedstockStats(
       r.status === 'fulfilled' && r.value !== null
     )
     .map(r => r.value);
+}
+
+// ---------------------------------------------------------------------------
+// County aggregate computation (WS2)
+// ---------------------------------------------------------------------------
+
+export interface CountyAggregates {
+  totalCropAcreage: number;
+  totalCropProduction: number;
+  totalResidueTons: number;
+  /** Residue-tonnage-weighted average cellulose (%). NaN if no cellulose data available. */
+  avgCelluloseContent: number;
+  cropsCounted: number;
+}
+
+/**
+ * Pure function: aggregates per-crop county stats into four headline metrics.
+ *
+ * @param stats - Per-crop USDA census/survey data from fetchCountyFeedstockStats.
+ * @param residueLookup - Map of landiqName -> dryTonsPerAcre. Missing keys contribute 0 residue tons.
+ * @param compositionLookup - Map of landiqName -> cellulose %. Missing keys are excluded from the average.
+ */
+export function computeCountyAggregates(
+  stats: CountyCropStat[],
+  residueLookup: Record<string, number>,
+  compositionLookup: Record<string, number>
+): CountyAggregates {
+  let totalCropAcreage = 0;
+  let totalCropProduction = 0;
+  let totalResidueTons = 0;
+  let weightedCelluloseSum = 0;
+  let celluloseWeightTotal = 0;
+
+  for (const stat of stats) {
+    const acresMetric = getCountyMetric(stat, 'acres');
+    const productionMetric = getCountyMetric(stat, 'production');
+    const acres = acresMetric?.value ?? 0;
+    const production = productionMetric?.value ?? 0;
+
+    totalCropAcreage += acres;
+    totalCropProduction += production;
+
+    const dryTonsPerAcre = residueLookup[stat.landiqName] ?? 0;
+    const residueTons = acres * dryTonsPerAcre;
+    totalResidueTons += residueTons;
+
+    const cellulose = compositionLookup[stat.landiqName];
+    if (cellulose != null && residueTons > 0) {
+      weightedCelluloseSum += residueTons * cellulose;
+      celluloseWeightTotal += residueTons;
+    }
+  }
+
+  const avgCelluloseContent = celluloseWeightTotal > 0
+    ? weightedCelluloseSum / celluloseWeightTotal
+    : NaN;
+
+  return {
+    totalCropAcreage,
+    totalCropProduction,
+    totalResidueTons,
+    avgCelluloseContent,
+    cropsCounted: stats.length,
+  };
+}
+
+/**
+ * Async orchestrator: fetches county feedstock stats then computes aggregates
+ * using live residue factors and composition fallbacks.
+ */
+export async function getCountyAggregateStats(geoid: string): Promise<CountyAggregates | null> {
+  const stats = await fetchCountyFeedstockStats(geoid);
+  if (stats.length === 0) return null;
+
+  // Build residue lookup from loaded residue data
+  const residueLookup: Record<string, number> = {};
+  for (const stat of stats) {
+    const factors = getResidueData(stat.landiqName);
+    if (factors && factors.length > 0) {
+      const maxDryTons = Math.max(...factors.map(f => f.dryTonsPerAcre));
+      residueLookup[stat.landiqName] = maxDryTons;
+    }
+  }
+
+  // Build cellulose lookup from composition fallbacks
+  const compositionLookup: Record<string, number> = {};
+  for (const stat of stats) {
+    const fallback = COMPOSITION_FALLBACKS[stat.landiqName];
+    if (fallback?.cellulose != null) {
+      compositionLookup[stat.landiqName] = fallback.cellulose;
+    }
+  }
+
+  return computeCountyAggregates(stats, residueLookup, compositionLookup);
 }

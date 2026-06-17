@@ -6,6 +6,7 @@ import {
   getCountyPanelSelectionForResponse,
   getCountyMetric,
   getDisplaySources,
+  computeCountyAggregates,
 } from '../src/lib/county-analysis';
 
 const tomatoStat: CountyCropStat = {
@@ -105,4 +106,75 @@ test('county response cannot reopen a panel after close increments request id', 
     }),
     null
   );
+});
+
+// WS2: computeCountyAggregates tests
+const cornStat: CountyCropStat = {
+  landiqName: 'Corn',
+  resource: 'corn stover',
+  source: 'census',
+  parameters: [
+    { parameter: 'area harvested', value: 10000, unit: 'acres', source: 'census' },
+    { parameter: 'production', value: 50000, unit: 'tons', source: 'census' },
+  ],
+};
+
+const wheatStat: CountyCropStat = {
+  landiqName: 'Wheat',
+  resource: 'wheat straw',
+  source: 'census',
+  parameters: [
+    { parameter: 'area harvested', value: 5000, unit: 'acres', source: 'census' },
+    { parameter: 'production', value: 20000, unit: 'tons', source: 'census' },
+  ],
+};
+
+const stubResidueFactors: Record<string, number> = {
+  'Corn': 1.5,
+  'Wheat': 2.0,
+};
+const stubCellulose: Record<string, number> = {
+  'Corn': 40,
+  'Wheat': 35,
+};
+
+test('computeCountyAggregates sums acreage/production and residue-weights cellulose', () => {
+  const result = computeCountyAggregates(
+    [cornStat, wheatStat],
+    stubResidueFactors,
+    stubCellulose
+  );
+  // total acreage: 10000 + 5000 = 15000
+  assert.equal(result.totalCropAcreage, 15000);
+  // total production: 50000 + 20000 = 70000
+  assert.equal(result.totalCropProduction, 70000);
+  // residue tons: corn 10000*1.5=15000, wheat 5000*2.0=10000, total 25000
+  assert.equal(result.totalResidueTons, 25000);
+  // weighted avg cellulose: (15000*40 + 10000*35) / 25000 = (600000+350000)/25000 = 38
+  assert.equal(result.avgCelluloseContent, 38);
+  assert.equal(result.cropsCounted, 2);
+});
+
+test('computeCountyAggregates excludes crops missing cellulose from the average only', () => {
+  const result = computeCountyAggregates(
+    [cornStat, wheatStat],
+    stubResidueFactors,
+    { 'Corn': 40 } // Wheat has no cellulose value
+  );
+  // residue tons still counted for wheat (10000) even with no cellulose
+  assert.equal(result.totalResidueTons, 25000);
+  // avg cellulose uses only corn (only crop with cellulose data)
+  // corn residue tons = 15000, cellulose = 40 -> avg = 40
+  assert.equal(result.avgCelluloseContent, 40);
+});
+
+test('computeCountyAggregates handles crops with missing residue factors (contributes 0, not NaN)', () => {
+  const result = computeCountyAggregates(
+    [cornStat, wheatStat],
+    { 'Corn': 1.5 }, // Wheat has no residue factor
+    stubCellulose
+  );
+  // wheat residue tons = 0, not NaN
+  assert.equal(result.totalResidueTons, 15000);
+  assert.ok(!isNaN(result.avgCelluloseContent), 'avgCelluloseContent must not be NaN');
 });
