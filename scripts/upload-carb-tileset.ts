@@ -57,7 +57,7 @@ async function createOrUpdateTileset(token: string): Promise<void> {
   const createRes = await fetch(apiUrl(`/tilesets/v1/${TILESET_ID}`, token), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ recipe, name: 'CARB Food Processors (Cal BioScape 2026-06)' }),
+    body: JSON.stringify({ recipe, name: 'CARB Food Processors Cal BioScape 2026-06' }),
   });
 
   if (createRes.status === 409) {
