@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test": "node --require ./node_modules/tsx/dist/cjs/index.cjs --test 'tests/*.test.ts'",
+    "test:e2e": "playwright test",
     "fetch-data": "tsx scripts/fetch-tomato-processor-facilities.ts",
     "merge-data": "tsx scripts/data-manipulation.ts",
     "audit": "npm audit --audit-level=high"
@@ -38,11 +40,12 @@
     "tailwind-merge": "^3.2.0"
   },
   "optionalDependencies": {
-    "lightningcss-linux-x64-gnu": "1.30.2",
-    "@tailwindcss/oxide-linux-x64-gnu": "4.1.18"
+    "@tailwindcss/oxide-linux-x64-gnu": "4.1.18",
+    "lightningcss-linux-x64-gnu": "1.30.2"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@playwright/test": "^1.61.0",
     "@tailwindcss/postcss": "^4",
     "@tailwindcss/typography": "^0.5.16",
     "@types/node": "^20",

@@ -14,6 +14,8 @@ import { getAvailability, getAnalysisByResource, getCensusByCrop } from '@/lib/a
 import { getCountyGeoid } from '@/lib/county-lookup';
 import { getApiResource, getUsdaCropName } from '@/lib/resource-mapping';
 import { onResidueDataLoaded } from '@/lib/residue-data';
+import { getCountyAggregateStats } from '@/lib/county-analysis';
+import { formatNumberWithCommas } from '@/lib/utils';
 
 // --- Configuration ---
 // IMPORTANT: Replace with your actual Mapbox access token if using the placeholder.
@@ -1311,6 +1313,107 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
             ],
             'fill-opacity': 0.6
           }
+        });
+
+        // County boundary layer (mutually exclusive with feedstock layer)
+        map.current.addSource('county-source', {
+          type: 'vector',
+          url: `mapbox://${TILESET_REGISTRY.county.tilesetId}`
+        });
+        map.current.addLayer({
+          id: 'county-layer',
+          type: 'fill',
+          source: 'county-source',
+          'source-layer': TILESET_REGISTRY.county.sourceLayer,
+          layout: {
+            visibility: layerVisibility?.county ? 'visible' : 'none'
+          },
+          paint: {
+            'fill-color': '#3B82F6',
+            'fill-opacity': 0.15
+          }
+        });
+        map.current.addLayer({
+          id: 'county-outline',
+          type: 'line',
+          source: 'county-source',
+          'source-layer': TILESET_REGISTRY.county.sourceLayer,
+          layout: {
+            visibility: layerVisibility?.county ? 'visible' : 'none'
+          },
+          paint: {
+            'line-color': '#1D4ED8',
+            'line-width': 1.5
+          }
+        });
+
+        // County click -> async stats popup
+        map.current.on('click', 'county-layer', async (e) => {
+          if (sitingModeRef.current) return;
+          const feature = e.features && e.features[0];
+          if (!feature) return;
+
+          const geoid = feature.properties.GEOID;
+          const name = feature.properties.NAME;
+          if (!geoid || !name) return;
+
+          // Close any existing popup
+          if (currentPopup.current) {
+            currentPopup.current.remove();
+            currentPopup.current = null;
+          }
+
+          // Open popup with loading state immediately
+          const popup = new mapboxgl.Popup({ closeButton: true, maxWidth: '320px' })
+            .setLngLat(e.lngLat)
+            .setHTML(`<div class="county-popup-loading"><strong>${name} County</strong><br/>Loading county statistics...</div>`)
+            .addTo(map.current);
+          currentPopup.current = popup;
+
+          // Track request so a newer click supersedes a slower earlier fetch
+          const requestId = Date.now();
+          popup._countyRequestId = requestId;
+
+          try {
+            const aggregates = await getCountyAggregateStats(geoid);
+
+            // Ignore if a newer click already replaced this popup
+            if (currentPopup.current !== popup || popup._countyRequestId !== requestId) return;
+
+            if (!aggregates || aggregates.cropsCounted === 0) {
+              popup.setHTML(`<div class="county-popup"><strong>${name} County</strong><br/><em>No county data available.</em></div>`);
+              return;
+            }
+
+            const avgCelluloseStr = isNaN(aggregates.avgCelluloseContent)
+              ? 'N/A'
+              : `${aggregates.avgCelluloseContent.toFixed(1)}%`;
+
+            popup.setHTML(`
+              <div class="county-popup" style="font-size:13px;line-height:1.6">
+                <strong style="font-size:14px">${name} County</strong>
+                <table style="width:100%;margin-top:6px;border-collapse:collapse">
+                  <tr><td>Total Crop Acreage</td><td style="text-align:right;padding-left:12px">${formatNumberWithCommas(Math.round(aggregates.totalCropAcreage))} ac</td></tr>
+                  <tr><td>Total Production</td><td style="text-align:right;padding-left:12px">${formatNumberWithCommas(Math.round(aggregates.totalCropProduction))} tons</td></tr>
+                  <tr><td>Collectable Residue</td><td style="text-align:right;padding-left:12px">${formatNumberWithCommas(Math.round(aggregates.totalResidueTons))} dry tons</td></tr>
+                  <tr><td>Avg Cellulose</td><td style="text-align:right;padding-left:12px">${avgCelluloseStr}</td></tr>
+                </table>
+                <p style="margin-top:6px;font-size:11px;color:#6b7280">Source: 2022 USDA Census</p>
+              </div>
+            `);
+          } catch {
+            if (currentPopup.current === popup) {
+              popup.setHTML(`<div class="county-popup"><strong>${name} County</strong><br/><em>No county data available.</em></div>`);
+            }
+          }
+        });
+
+        // Cursor handling for county layer
+        map.current.on('mouseenter', 'county-layer', () => {
+          map.current.getCanvas().style.cursor = 'pointer';
+        });
+        map.current.on('mouseleave', 'county-layer', () => {
+          map.current.getCanvas().style.cursor = '';
         });
 
         // Persistent siting buffer source and layers
@@ -2737,6 +2840,8 @@ useEffect(() => {
   if (!mapLoaded || !map.current) return;
 
   const layerMapping = {
+    'county-layer': layerVisibility?.county,
+    'county-outline': layerVisibility?.county,
     'rail-lines-layer': layerVisibility?.railLines,
     'freight-terminals-layer': layerVisibility?.freightTerminals,
     'freight-routes-layer': layerVisibility?.freightRoutes,

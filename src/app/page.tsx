@@ -9,6 +9,7 @@ import {
   getCountyPanelSelectionForResponse,
 } from '@/lib/county-analysis';
 import type { SelectedCountyFeedstockStats } from '@/lib/county-analysis';
+import { applyLayerMutualExclusivity } from '@/lib/layer-utils';
 import CountyFeedstockPanel from '@/components/CountyFeedstockPanel';
 // Removed useSWRInfinite import
 const Map = dynamic(() => import('@/components/Map'), { ssr: false });
@@ -21,6 +22,7 @@ export default function Home() {
   // State for layer visibility
   const [layerVisibility, setLayerVisibility] = useState<{ [key: string]: boolean }>({
     feedstock: true,
+    county: false,
     transportation: false,
     railLines: false,
     anaerobicDigester: false,
@@ -172,7 +174,7 @@ export default function Home() {
 
   // Handler to toggle layer visibility
   const handleLayerToggle = (layerId: string, isVisible: boolean) => {
-    setLayerVisibility(prev => ({ ...prev, [layerId]: isVisible }));
+    setLayerVisibility(prev => applyLayerMutualExclusivity({ ...prev }, layerId, isVisible));
     
     // Update parent checkbox states based on child layer changes
     if (layerId === 'anaerobicDigester' || layerId === 'biodieselPlants') {

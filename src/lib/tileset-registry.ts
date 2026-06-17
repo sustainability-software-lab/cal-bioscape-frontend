@@ -36,6 +36,17 @@ export const DEFAULT_TILESET_REGISTRY: Record<string, TilesetConfig> = {
     accountType: 'legacy'
   },
 
+  // County boundary layer -- CA TIGER/Line polygons carrying GEOID (5-digit FIPS) and NAME.
+  // tilesetId/sourceLayer must be updated after the manual Mapbox upload (see issue #61).
+  county: {
+    tilesetId: 'tylerhuntington222.ca_county_boundaries', // PLACEHOLDER: update after Mapbox upload
+    sourceLayer: 'ca_county_boundaries',
+    displayName: 'County Level Stats',
+    category: 'feedstock',
+    version: '2022',
+    accountType: 'legacy'
+  },
+
   // INFRASTRUCTURE LAYERS - Processing Facilities
   anaerobicDigester: {
     tilesetId: 'tylerhuntington222.8lsxssgz', // TODO: Update to sustainasoft.cal-bioscape-epa-agstar-digesters-YYYY-MM
