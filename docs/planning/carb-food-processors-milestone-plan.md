@@ -304,3 +304,11 @@ verified once the tileset is published.
   are fixed in this plan so the app-wiring workstream can land and be code-reviewed before the
   upload runs, then verified end-to-end once the tileset is published.
 - `csv-parse` is added as a devDependency (build-time only; never bundled into the client).
+
+---
+
+## GitHub tracking (backfilled)
+
+- Milestone: CARB Food Processors Layer (#1)
+- Epic: #64
+- Sub-issues: Workstream 1 -> #65 (T0), Workstream 2 -> #66 (T0, depends on #65), Workstream 3 -> #67 (T1, depends on #66)
