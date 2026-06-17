@@ -58,7 +58,7 @@ export const DEFAULT_TILESET_REGISTRY: Record<string, TilesetConfig> = {
   safPlants: {
     tilesetId: 'tylerhuntington222.6x05ytem', // TODO: Update to sustainasoft.cal-bioscape-nrel-saf-plants-YYYY-MM
     sourceLayer: 'renewable_diesel_saf_plants-79er6d', // TODO: Backend should use stable name: renewable_diesel_saf_plants
-    displayName: 'SAF Plants',
+    displayName: 'Biorefineries',
     category: 'infrastructure',
     version: 'current',
     accountType: 'legacy'
@@ -155,11 +155,20 @@ export const DEFAULT_TILESET_REGISTRY: Record<string, TilesetConfig> = {
   },
 
   tomatoProcessors: {
-    tilesetId: 'sustainasoft.84ikw8pw', 
+    tilesetId: 'sustainasoft.84ikw8pw',
     sourceLayer: 'tomato-processor-facilities-3srkr8',
     displayName: 'Tomato Processing Facilities',
     category: 'infrastructure',
     version: 'current',
+    accountType: 'default'
+  },
+
+  carbFoodProcessors: {
+    tilesetId: 'sustainasoft.cal-bioscape-carb-food-processors-2026-06',
+    sourceLayer: 'carb_food_processors',
+    displayName: 'Food Processing Facilities (CARB)',
+    category: 'infrastructure',
+    version: '2026-06',
     accountType: 'default'
   },
   

@@ -41,8 +41,10 @@ yarn-error.log*
 next-env.d.ts
 
 
-# data
-src/data/
+# data (generated artifacts only - source files like CSVs are committed)
+src/data/*.json
+src/data/*.geojson
+src/data/*.geojson.ld
 
 # google cloud credentials
 google-cloud-credentials.json

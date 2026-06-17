@@ -1647,12 +1647,22 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
         // Add tomato processors infrastructure layer
         const tomatoProcessorsTilesetUrl = `mapbox://${TILESET_REGISTRY.tomatoProcessors.tilesetId}`;
         console.log("Adding tomato processors tileset with URL:", tomatoProcessorsTilesetUrl);
-        
+
         map.current.addSource('tomato-processors-source', {
           type: 'vector',
           url: tomatoProcessorsTilesetUrl
         });
         console.log("Added tomato processors vector source");
+
+        // Add CARB food processors infrastructure layer
+        const carbFoodProcessorsTilesetUrl = `mapbox://${TILESET_REGISTRY.carbFoodProcessors.tilesetId}`;
+        console.log("Adding CARB food processors tileset with URL:", carbFoodProcessorsTilesetUrl);
+
+        map.current.addSource('carb-food-processors-source', {
+          type: 'vector',
+          url: carbFoodProcessorsTilesetUrl
+        });
+        console.log("Added CARB food processors vector source");
 
         // Add food retailers infrastructure layer
         const foodRetailersTilesetUrl = `mapbox://${TILESET_REGISTRY.foodRetailers.tilesetId}`;
@@ -2154,7 +2164,32 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
         } catch (error) {
           console.error("Failed to add tomato processors layer:", error);
         }
-        
+
+        // Add CARB food processors layer
+        try {
+          map.current.addLayer({
+            id: 'carb-food-processors-layer',
+            type: 'circle',
+            source: 'carb-food-processors-source',
+            'source-layer': TILESET_REGISTRY.carbFoodProcessors.sourceLayer,
+            minzoom: 0,
+            maxzoom: 22,
+            paint: {
+              'circle-color': '#14B8A6',
+              'circle-radius': 6,
+              'circle-opacity': 0.8,
+              'circle-stroke-color': '#FFFFFF',
+              'circle-stroke-width': 1
+            },
+            layout: {
+              'visibility': layerVisibility?.carbFoodProcessors ? 'visible' : 'none'
+            }
+          });
+          console.log("Added CARB food processors layer");
+        } catch (error) {
+          console.error("Failed to add CARB food processors layer:", error);
+        }
+
         // Add food retailers layer
         try {
           map.current.addLayer({
@@ -2566,7 +2601,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
           'biorefineries-layer': 'Biorefinery Details',
           'cement-plants-layer': 'Cement Plant Details',
           'mrf-layer': 'Material Recovery Facility Details',
-          'saf-plants-layer': 'Sustainable Aviation Fuel Plant Details',
+          'saf-plants-layer': 'Biorefinery Details',
           'renewable-diesel-layer': 'Renewable Diesel Plant Details',
           'landfill-lfg-layer': 'Landfill LFG Project Details',
           'wastewater-treatment-layer': 'Wastewater Treatment Plant Details',
@@ -2575,6 +2610,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
     'district-energy-systems-layer': 'District Energy System Details',
     'food-processors-layer': 'Food Processor Details',
     'tomato-processors-layer': 'Tomato Processing Facility Details',
+    'carb-food-processors-layer': 'Food Processor (CARB) Details',
     'food-retailers-layer': 'Food Retailer Details',
     'power-plants-layer': 'Power Plant Details',
           'food-banks-layer': 'Food Bank Details',
@@ -2757,6 +2793,7 @@ useEffect(() => {
     'district-energy-systems-layer': layerVisibility?.districtEnergySystems,
     'food-processors-layer': layerVisibility?.foodProcessors,
     'tomato-processors-layer': layerVisibility?.tomatoProcessors,
+    'carb-food-processors-layer': layerVisibility?.carbFoodProcessors,
     'food-retailers-layer': layerVisibility?.foodRetailers,
     'power-plants-layer': layerVisibility?.powerPlants,
     'food-banks-layer': layerVisibility?.foodBanks,

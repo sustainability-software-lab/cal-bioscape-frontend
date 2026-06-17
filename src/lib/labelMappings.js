@@ -313,6 +313,24 @@ export const NATURAL_GAS_PIPELINES_LABELS = {
   'STATE': 'State',
 };
 
+export const CARB_FOOD_PROCESSORS_LABELS = {
+  'name': 'Name',
+  'address': 'Address',
+  'city': 'City',
+  'county': 'County',
+  'zip': 'ZIP Code',
+  'state': 'State',
+  'primary_ag_product': 'Primary Agricultural Product',
+  'process_type': 'Process Type',
+  'byproducts': 'Byproducts',
+  'quantities': 'Reported Quantities',
+  'air_district': 'Air District',
+  'general_source_info': 'Data Source',
+  'CARB_facility_id': 'CARB Facility ID',
+  'latitude': 'Latitude',
+  'longitude': 'Longitude',
+};
+
 export const layerLabelMappings = {
   'renewable-diesel': RENEWABLE_DIESEL_PLANTS_LABELS,
   'saf-plants': SUSTAINABLE_AVIATION_FUEL_PLANTS_LABELS,
@@ -325,6 +343,7 @@ export const layerLabelMappings = {
   'landfill-lfg': LANDFILLS_LABELS,
   'wastewater-treatment': WASTEWATER_TREATMENT_PLANTS_LABELS,
   'food-processors': FOOD_PROCESSORS_LABELS,
+  'carb-food-processors': CARB_FOOD_PROCESSORS_LABELS,
   'food-retailers': FOOD_RETAILERS_LABELS,
   'power-plants': POWER_PLANTS_LABELS,
   'food-banks': FOOD_BANKS_LABELS,
