@@ -507,33 +507,56 @@ const LayerControls: React.FC<LayerControlsProps> = ({
     // Apply mutual exclusivity and update local state for immediate UI feedback
     setLocalLayerVisibility(prev => applyLayerMutualExclusivity({ ...prev }, layerId, isVisible));
     
-    // Get map instance
-    const mapInstance = getMapInstance();
-    if (!mapInstance) {
-      console.error("Map instance not found");
-      return false; // Failed to toggle directly
-    }
-    
-    // Get the corresponding Mapbox layer ID
+    // Get the corresponding Mapbox layer ID (required for direct manipulation)
     const mapboxLayerId = layerIdMapping[layerId];
     if (!mapboxLayerId) {
       console.error(`No Mapbox layer ID found for ${layerId}`);
-      return false; // Failed to toggle directly
+      // Still update parent state so Map.js effect can handle it
+      if (updateParentState) {
+        if (isVisible) {
+          const partnerIds = MUTUALLY_EXCLUSIVE_PAIRS[layerId] ?? [];
+          for (const partnerId of partnerIds) {
+            onLayerToggle(partnerId, false);
+          }
+        }
+        onLayerToggle(layerId, isVisible);
+      }
+      return false;
     }
+
+    // Get map instance for direct manipulation
+    const mapInstance = getMapInstance();
     
+    // Always update parent state so the Map.js useEffect applies visibility when
+    // the layer is ready, even if the Mapbox layer hasn't been added yet (e.g.
+    // map 'load' event hasn't fired).
+    if (updateParentState) {
+      if (isVisible) {
+        const partnerIds = MUTUALLY_EXCLUSIVE_PAIRS[layerId] ?? [];
+        for (const partnerId of partnerIds) {
+          onLayerToggle(partnerId, false);
+        }
+      }
+      onLayerToggle(layerId, isVisible);
+    }
+
+    if (!mapInstance) {
+      // Map not mounted yet; parent state was already updated above.
+      console.warn('Map instance not available; visibility will apply via Map.js effect');
+      return false;
+    }
+
     try {
-      // Check if the layer exists in the map
+      // Fast path: if the Mapbox layer already exists, manipulate it directly so
+      // the visibility change is immediate (no React render cycle needed).
       if (mapInstance.getLayer(mapboxLayerId)) {
-        // Set the visibility property directly on the map layer
         mapInstance.setLayoutProperty(mapboxLayerId, 'visibility', isVisible ? 'visible' : 'none');
         console.log(`Set ${mapboxLayerId} visibility to ${isVisible ? 'visible' : 'none'} directly`);
 
-        // If the layer is being hidden, close any associated popup
         if (!isVisible) {
           onClosePopupForLayer(layerId);
         }
 
-        // Hide the mutually exclusive partner layer on the map canvas
         if (isVisible) {
           const partnerIds = MUTUALLY_EXCLUSIVE_PAIRS[layerId] ?? [];
           for (const partnerId of partnerIds) {
@@ -542,25 +565,19 @@ const LayerControls: React.FC<LayerControlsProps> = ({
               mapInstance.setLayoutProperty(partnerMapboxId, 'visibility', 'none');
             }
             onClosePopupForLayer(partnerId);
-            if (updateParentState) {
-              onLayerToggle(partnerId, false);
-            }
           }
         }
 
-        // Update parent state if requested (to keep the overall app state in sync)
-        if (updateParentState) {
-          onLayerToggle(layerId, isVisible);
-        }
-
-        return true; // Successfully toggled directly
+        return true;
       } else {
-        console.warn(`Layer ${mapboxLayerId} not found in map`);
-        return false; // Failed to toggle directly
+        // Layer not yet added (map still loading). Parent state was already
+        // updated above; Map.js effect will apply visibility once mapLoaded fires.
+        console.warn(`Layer ${mapboxLayerId} not in map yet; visibility will apply via Map.js effect`);
+        return false;
       }
     } catch (err) {
       console.error(`Error setting ${mapboxLayerId} visibility:`, err);
-      return false; // Failed to toggle directly
+      return false;
     }
   };
 
