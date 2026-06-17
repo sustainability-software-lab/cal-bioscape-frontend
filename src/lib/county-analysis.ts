@@ -168,6 +168,37 @@ export function getCountyPanelSelectionForResponse({
 }
 
 /**
+ * Concurrency-limited equivalent of Promise.allSettled.
+ *
+ * Runs up to `concurrency` tasks simultaneously. Tasks beyond the limit are
+ * deferred until a running slot frees up. Result order matches the input array.
+ */
+export async function throttledSettled<T>(
+  tasks: Array<() => Promise<T>>,
+  concurrency: number
+): Promise<PromiseSettledResult<T>[]> {
+  const results: PromiseSettledResult<T>[] = new Array(tasks.length);
+  let nextIdx = 0;
+
+  async function worker() {
+    while (nextIdx < tasks.length) {
+      const idx = nextIdx++;
+      try {
+        results[idx] = { status: 'fulfilled', value: await tasks[idx]() };
+      } catch (reason) {
+        results[idx] = { status: 'rejected', reason };
+      }
+    }
+  }
+
+  const pool = Array.from({ length: Math.min(concurrency, tasks.length) }, worker);
+  await Promise.all(pool);
+  return results;
+}
+
+const COUNTY_FETCH_CONCURRENCY = 5;
+
+/**
  * Fetch county-level USDA stats for all LandIQ-mapped resources.
  * Merges census and survey data so missing metrics can fall through per parameter.
  * Returns only crops that have at least one data point.
@@ -185,8 +216,9 @@ export async function fetchCountyFeedstockStats(
     }
   }
 
-  const results = await Promise.allSettled(
-    Array.from(resourceToName.entries()).map(async ([resource, landiqName]) => {
+  const entries = Array.from(resourceToName.entries());
+  const results = await throttledSettled(
+    entries.map(([resource, landiqName]) => async () => {
       const [censusResponse, surveyResponse] = await Promise.all([
         getCensusByResource(resource, geoid, authAwareFetch),
         getSurveyByResource(resource, geoid, authAwareFetch),
@@ -209,7 +241,8 @@ export async function fetchCountyFeedstockStats(
       return getCountyMetric(stat, 'acres') || getCountyMetric(stat, 'production')
         ? stat
         : null;
-    })
+    }),
+    COUNTY_FETCH_CONCURRENCY
   );
 
   if (results.some(r => r.status === 'rejected' && r.reason instanceof ApiAuthError)) {

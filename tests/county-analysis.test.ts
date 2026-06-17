@@ -7,7 +7,66 @@ import {
   getCountyMetric,
   getDisplaySources,
   computeCountyAggregates,
+  throttledSettled,
 } from '../src/lib/county-analysis';
+
+// ---------------------------------------------------------------------------
+// throttledSettled — concurrency-limiting Promise.allSettled wrapper
+// ---------------------------------------------------------------------------
+
+test('throttledSettled returns all settled results', async () => {
+  const tasks = [1, 2, 3, 4, 5].map(n => () => Promise.resolve(n));
+  const results = await throttledSettled(tasks, 2);
+  assert.equal(results.length, 5);
+  const values = results.map(r => (r as PromiseFulfilledResult<number>).value);
+  assert.deepEqual(values, [1, 2, 3, 4, 5]);
+});
+
+test('throttledSettled preserves result order regardless of task completion timing', async () => {
+  const order: number[] = [];
+  const tasks = [30, 10, 20].map((delay, idx) => () =>
+    new Promise<number>(resolve => setTimeout(() => {
+      order.push(idx);
+      resolve(delay);
+    }, delay))
+  );
+  const results = await throttledSettled(tasks, 3);
+  const values = results.map(r => (r as PromiseFulfilledResult<number>).value);
+  // results should be in task-submission order, not completion order
+  assert.deepEqual(values, [30, 10, 20]);
+});
+
+test('throttledSettled limits max concurrent tasks to the concurrency cap', async () => {
+  let running = 0;
+  let maxObserved = 0;
+  const tasks = Array.from({ length: 10 }, () => () =>
+    new Promise<void>(resolve => {
+      running++;
+      if (running > maxObserved) maxObserved = running;
+      setTimeout(() => { running--; resolve(); }, 10);
+    })
+  );
+  await throttledSettled(tasks, 3);
+  assert.ok(
+    maxObserved <= 3,
+    `Expected max concurrency ≤ 3, got ${maxObserved}`
+  );
+});
+
+test('throttledSettled handles rejected tasks without short-circuiting remaining tasks', async () => {
+  let ran = 0;
+  const tasks = [
+    () => Promise.reject(new Error('fail')),
+    () => { ran++; return Promise.resolve(42); },
+    () => { ran++; return Promise.resolve(99); },
+  ];
+  const results = await throttledSettled(tasks, 2);
+  assert.equal(results.length, 3);
+  assert.equal(results[0].status, 'rejected');
+  assert.equal(results[1].status, 'fulfilled');
+  assert.equal(results[2].status, 'fulfilled');
+  assert.equal(ran, 2);
+});
 
 const tomatoStat: CountyCropStat = {
   landiqName: 'Tomatoes',
