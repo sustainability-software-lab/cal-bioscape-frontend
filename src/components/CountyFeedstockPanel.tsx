@@ -5,6 +5,11 @@ import { X, Download, MapPin } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import {
   getCountyMetric,
+  getCountyMetricOperations,
+  getCountyMetricYield,
+  getCountyMetricAreaPlanted,
+  getCountyMetricSales,
+  getCountyMetricBearing,
   getDisplaySources,
 } from '@/lib/county-analysis';
 import type { CountyCropStat, CountyDataSource, CountyMetricValue } from '@/lib/county-analysis';
@@ -63,36 +68,41 @@ const CountyFeedstockPanel: React.FC<CountyFeedstockPanelProps> = ({
 }) => {
   const handleExport = () => {
     if (stats.length === 0) return;
-    const rows = stats.flatMap(stat => {
+    const rows: CountyExportRow[] = stats.map(stat => {
       const acres = getCountyMetric(stat, 'acres');
+      const areaPlanted = getCountyMetricAreaPlanted(stat);
+      const operations = getCountyMetricOperations(stat);
+      const yieldMetric = getCountyMetricYield(stat);
       const production = getCountyMetric(stat, 'production');
-      const rowsForStat: CountyExportRow[] = [];
-
-      if (acres) {
-        rowsForStat.push({
-          Crop: stat.landiqName,
-          Resource: stat.resource,
-          Metric: 'Acres Harvested',
-          Parameter: acres.parameter,
-          Value: acres.value,
-          Unit: acres.unit,
-          Source: acres.source,
-        });
-      }
-
-      if (production) {
-        rowsForStat.push({
-          Crop: stat.landiqName,
-          Resource: stat.resource,
-          Metric: 'Production',
-          Parameter: production.parameter,
-          Value: production.value,
-          Unit: production.unit,
-          Source: production.source,
-        });
-      }
-
-      return rowsForStat;
+      const sales = getCountyMetricSales(stat);
+      const bearing = getCountyMetricBearing(stat, 'bearing');
+      const nonBearing = getCountyMetricBearing(stat, 'nonBearing');
+      return {
+        Crop: stat.landiqName,
+        Resource: stat.resource,
+        'Acres Harvested': acres?.value ?? '',
+        'Acres Harvested Unit': acres?.unit ?? '',
+        'Acres Harvested Source': acres?.source ?? '',
+        'Area Planted': areaPlanted?.value ?? '',
+        'Area Planted Unit': areaPlanted?.unit ?? '',
+        'Area Planted Source': areaPlanted?.source ?? '',
+        'Operations (farms)': operations?.value ?? '',
+        'Operations Unit': operations?.unit ?? '',
+        'Operations Source': operations?.source ?? '',
+        'Yield': yieldMetric?.value ?? '',
+        'Yield Unit': yieldMetric?.unit ?? '',
+        'Yield Source': yieldMetric?.source ?? '',
+        'Production': production?.value ?? '',
+        'Production Unit': production?.unit ?? '',
+        'Production Source': production?.source ?? '',
+        'Sales': sales?.value ?? '',
+        'Sales Unit': sales?.unit ?? '',
+        'Sales Source': sales?.source ?? '',
+        'Bearing Acres': bearing?.value ?? '',
+        'Bearing Source': bearing?.source ?? '',
+        'Non-bearing Acres': nonBearing?.value ?? '',
+        'Non-bearing Source': nonBearing?.source ?? '',
+      };
     });
     downloadCSV(rows, `${countyName.replace(/\s/g, '-').toLowerCase()}-feedstock-stats.csv`, [
       `Cal BioScape — County Feedstock Profile: ${countyName} County`,
@@ -120,21 +130,30 @@ const CountyFeedstockPanel: React.FC<CountyFeedstockPanelProps> = ({
       </div>
 
       {/* Body */}
-      <div className="max-h-[320px] overflow-y-auto">
-        <table className="w-full text-xs">
+      <div className="max-h-[320px] overflow-y-auto overflow-x-auto">
+        <table className="text-xs" style={{ minWidth: '640px' }}>
           <thead className="bg-gray-50 sticky top-0">
             <tr>
               <th className="py-2 px-3 text-left font-medium text-gray-500">Crop</th>
               <th className="py-2 px-2 text-right font-medium text-gray-500">Acres Harvested</th>
+              <th className="py-2 px-2 text-right font-medium text-gray-500">Area Planted</th>
+              <th className="py-2 px-2 text-right font-medium text-gray-500">Operations</th>
+              <th className="py-2 px-2 text-right font-medium text-gray-500">Yield</th>
               <th className="py-2 px-2 text-right font-medium text-gray-500">Production</th>
+              <th className="py-2 px-2 text-right font-medium text-gray-500">Bearing / Non-bearing</th>
               <th className="py-2 px-2 text-right font-medium text-gray-500 w-14">Source</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {stats.map((stat, i) => {
               const acres = getCountyMetric(stat, 'acres');
+              const areaPlanted = getCountyMetricAreaPlanted(stat);
+              const operations = getCountyMetricOperations(stat);
+              const yieldMetric = getCountyMetricYield(stat);
               const production = getCountyMetric(stat, 'production');
-              const sources = getDisplaySources(acres, production);
+              const bearing = getCountyMetricBearing(stat, 'bearing');
+              const nonBearing = getCountyMetricBearing(stat, 'nonBearing');
+              const sources = getDisplaySources(acres, areaPlanted, operations, yieldMetric, production, bearing, nonBearing);
               return (
                 <tr key={i} className="hover:bg-gray-50">
                   <td className="py-2 px-3">
@@ -145,7 +164,26 @@ const CountyFeedstockPanel: React.FC<CountyFeedstockPanelProps> = ({
                     <MetricCell metric={acres} />
                   </td>
                   <td className="py-2 px-2 text-right text-gray-700">
+                    <MetricCell metric={areaPlanted} />
+                  </td>
+                  <td className="py-2 px-2 text-right text-gray-700">
+                    <MetricCell metric={operations} />
+                  </td>
+                  <td className="py-2 px-2 text-right text-gray-700">
+                    <MetricCell metric={yieldMetric} />
+                  </td>
+                  <td className="py-2 px-2 text-right text-gray-700">
                     <MetricCell metric={production} />
+                  </td>
+                  <td className="py-2 px-2 text-right text-gray-700">
+                    {bearing || nonBearing ? (
+                      <span className="inline-flex flex-col items-end gap-0.5">
+                        <MetricCell metric={bearing} />
+                        <MetricCell metric={nonBearing} />
+                      </span>
+                    ) : (
+                      <span className="text-gray-300">—</span>
+                    )}
                   </td>
                   <td className="py-2 px-2 text-right">
                     <span className="inline-flex flex-col items-end gap-1">

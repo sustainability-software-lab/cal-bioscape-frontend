@@ -5,6 +5,11 @@ import {
   CountyCropStat,
   getCountyPanelSelectionForResponse,
   getCountyMetric,
+  getCountyMetricOperations,
+  getCountyMetricYield,
+  getCountyMetricAreaPlanted,
+  getCountyMetricSales,
+  getCountyMetricBearing,
   getDisplaySources,
   computeCountyAggregates,
   throttledSettled,
@@ -236,4 +241,168 @@ test('computeCountyAggregates handles crops with missing residue factors (contri
   // wheat residue tons = 0, not NaN
   assert.equal(result.totalResidueTons, 15000);
   assert.ok(!isNaN(result.avgCelluloseContent), 'avgCelluloseContent must not be NaN');
+});
+
+// ---------------------------------------------------------------------------
+// New extractors: getCountyMetricOperations / Yield / AreaPlanted / Sales / Bearing
+// ---------------------------------------------------------------------------
+
+const almondStat: CountyCropStat = {
+  landiqName: 'Almonds',
+  resource: 'almond shells',
+  source: 'mixed',
+  parameters: [
+    { parameter: 'area harvested', value: 300, unit: 'operations', source: 'census' },
+    { parameter: 'area harvested', value: 1200000, unit: 'acres', source: 'census' },
+    { parameter: 'area bearing', value: 1100000, unit: 'acres', source: 'census' },
+    { parameter: 'area non-bearing', value: 100000, unit: 'acres', source: 'census' },
+    { parameter: 'area bearing & non-bearing', value: 400, unit: 'operations', source: 'census' },
+    { parameter: 'production', value: 2800000, unit: 'tons', source: 'census' },
+    { parameter: 'sales', value: 5000000, unit: '$', source: 'census' },
+    { parameter: 'sales', value: 2, unit: 'operations', source: 'census' },
+  ],
+};
+
+const cottonStat: CountyCropStat = {
+  landiqName: 'Cotton',
+  resource: 'cotton gin trash',
+  source: 'survey',
+  parameters: [
+    { parameter: 'area harvested', value: 50000, unit: 'acres', source: 'survey' },
+    { parameter: 'area planted', value: 55000, unit: 'acres', source: 'survey' },
+    { parameter: 'yield', value: 1601, unit: 'lb / acre', source: 'survey' },
+    { parameter: 'production', value: 80000, unit: '480 lb bales', source: 'survey' },
+  ],
+};
+
+const noSalesStat: CountyCropStat = {
+  landiqName: 'Barley',
+  resource: 'barley straw',
+  source: 'census',
+  parameters: [
+    { parameter: 'area harvested', value: 8000, unit: 'acres', source: 'census' },
+    { parameter: 'production', value: 12000, unit: 'tons', source: 'census' },
+    { parameter: 'sales', value: 5, unit: 'operations', source: 'census' },
+  ],
+};
+
+test('getCountyMetricOperations prefers area-harvested operations over bearing operations', () => {
+  const ops = getCountyMetricOperations(almondStat);
+  assert.ok(ops !== null);
+  assert.equal(ops!.parameter, 'area harvested');
+  assert.equal(ops!.value, 300);
+  assert.ok(ops!.unit.toLowerCase().startsWith('operation'));
+});
+
+test('getCountyMetricOperations falls back to area bearing & non-bearing when no area-harvested ops', () => {
+  const stat: CountyCropStat = {
+    ...almondStat,
+    parameters: almondStat.parameters.filter(p =>
+      !(p.parameter === 'area harvested' && p.unit === 'operations')
+    ),
+  };
+  const ops = getCountyMetricOperations(stat);
+  assert.ok(ops !== null);
+  assert.equal(ops!.parameter, 'area bearing & non-bearing');
+});
+
+test('getCountyMetricOperations returns null when no operations-unit parameters exist', () => {
+  assert.equal(getCountyMetricOperations(cottonStat), null);
+});
+
+test('getCountyMetricYield returns survey yield with correct unit', () => {
+  const yld = getCountyMetricYield(cottonStat);
+  assert.ok(yld !== null);
+  assert.equal(yld!.value, 1601);
+  assert.equal(yld!.unit, 'lb / acre');
+});
+
+test('getCountyMetricYield returns null when no yield parameter exists', () => {
+  assert.equal(getCountyMetricYield(almondStat), null);
+});
+
+test('getCountyMetricAreaPlanted returns acres-unit area planted', () => {
+  const ap = getCountyMetricAreaPlanted(cottonStat);
+  assert.ok(ap !== null);
+  assert.equal(ap!.value, 55000);
+  assert.equal(ap!.unit, 'acres');
+});
+
+test('getCountyMetricAreaPlanted returns null when only area harvested exists', () => {
+  assert.equal(getCountyMetricAreaPlanted(almondStat), null);
+});
+
+test('getCountyMetricSales ignores operations-unit sales and returns dollar-unit sales', () => {
+  const sales = getCountyMetricSales(almondStat);
+  assert.ok(sales !== null);
+  assert.equal(sales!.value, 5000000);
+  assert.equal(sales!.unit, '$');
+});
+
+test('getCountyMetricSales returns null when only operations-unit sales exist', () => {
+  assert.equal(getCountyMetricSales(noSalesStat), null);
+});
+
+test('getCountyMetricBearing returns bearing acres', () => {
+  const b = getCountyMetricBearing(almondStat, 'bearing');
+  assert.ok(b !== null);
+  assert.equal(b!.value, 1100000);
+  assert.equal(b!.unit, 'acres');
+});
+
+test('getCountyMetricBearing returns non-bearing acres', () => {
+  const nb = getCountyMetricBearing(almondStat, 'nonBearing');
+  assert.ok(nb !== null);
+  assert.equal(nb!.value, 100000);
+});
+
+test('getCountyMetricBearing returns null when crop has no orchard data', () => {
+  assert.equal(getCountyMetricBearing(cottonStat, 'bearing'), null);
+  assert.equal(getCountyMetricBearing(cottonStat, 'nonBearing'), null);
+});
+
+// ---------------------------------------------------------------------------
+// computeCountyAggregates — topCropsByAcreage and totalCropSales
+// ---------------------------------------------------------------------------
+
+test('computeCountyAggregates computes topCropsByAcreage sorted desc and capped at 3', () => {
+  const stats: CountyCropStat[] = [
+    { ...cornStat, landiqName: 'Corn' },   // 10000 ac
+    { ...wheatStat, landiqName: 'Wheat' }, // 5000 ac
+    {
+      landiqName: 'Rice',
+      resource: 'rice straw',
+      source: 'census',
+      parameters: [{ parameter: 'area harvested', value: 20000, unit: 'acres', source: 'census' }],
+    },
+    {
+      landiqName: 'Barley',
+      resource: 'barley straw',
+      source: 'census',
+      parameters: [{ parameter: 'area harvested', value: 3000, unit: 'acres', source: 'census' }],
+    },
+  ];
+  const result = computeCountyAggregates(stats, {}, {});
+  assert.equal(result.topCropsByAcreage.length, 3);
+  assert.equal(result.topCropsByAcreage[0].landiqName, 'Rice');
+  assert.equal(result.topCropsByAcreage[0].acres, 20000);
+  assert.equal(result.topCropsByAcreage[1].landiqName, 'Corn');
+  assert.equal(result.topCropsByAcreage[2].landiqName, 'Wheat');
+});
+
+test('computeCountyAggregates sums sales when present and returns null when none', () => {
+  const withSales: CountyCropStat = {
+    landiqName: 'Almonds',
+    resource: 'almond shells',
+    source: 'census',
+    parameters: [
+      { parameter: 'area harvested', value: 5000, unit: 'acres', source: 'census' },
+      { parameter: 'sales', value: 1000000, unit: '$', source: 'census' },
+    ],
+  };
+  const resultWithSales = computeCountyAggregates([withSales, cornStat], {}, {});
+  assert.equal(resultWithSales.totalCropSales, 1000000);
+
+  const resultNoSales = computeCountyAggregates([cornStat, wheatStat], {}, {});
+  assert.equal(resultNoSales.totalCropSales, null);
 });

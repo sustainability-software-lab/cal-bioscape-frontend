@@ -151,6 +151,25 @@
   /* border-radius: 50%; */
 }
 
+/* County-name hover tooltip */
+.county-hover-popup {
+  pointer-events: none;
+}
+.county-hover-popup .mapboxgl-popup-content {
+  background: rgba(0, 0, 0, 0.85);
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  border: none;
+}
+.county-hover-popup .mapboxgl-popup-tip {
+  border-top-color: rgba(0, 0, 0, 0.85);
+  border-bottom-color: rgba(0, 0, 0, 0.85);
+}
+
 /* --- Map Layout Styles --- */
 .map-container {
   width: 100% !important;
