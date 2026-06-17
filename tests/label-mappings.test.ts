@@ -41,3 +41,36 @@ for (const layerKey of EXPECTED_LAYER_KEYS) {
     );
   });
 }
+
+const LAT_LON_KEYS = new Set([
+  'lat', 'lon', 'latitude', 'longitude',
+  'LATITUDE', 'LONGITUDE', 'Latitude', 'Longitude',
+]);
+
+for (const [layerKey, mapping] of Object.entries(layerLabelMappings)) {
+  const keys = Object.keys(mapping as Record<string, string>);
+  const latLonIndices = keys.map((k, i) => LAT_LON_KEYS.has(k) ? i : -1).filter(i => i >= 0);
+
+  if (latLonIndices.length === 0) continue;
+
+  test(`'${layerKey}': lat/lon keys appear after all other fields`, () => {
+    const nonLatLonIndices = keys.map((k, i) => LAT_LON_KEYS.has(k) ? -1 : i).filter(i => i >= 0);
+    const firstLatLon = Math.min(...latLonIndices);
+    const lastNonLatLon = nonLatLonIndices.length > 0 ? Math.max(...nonLatLonIndices) : -1;
+    assert.ok(
+      firstLatLon > lastNonLatLon,
+      `Layer '${layerKey}': lat/lon key(s) at index ${firstLatLon} but non-lat/lon key at index ${lastNonLatLon} — lat/lon must be last`
+    );
+  });
+
+  if (latLonIndices.length === 2) {
+    test(`'${layerKey}': lat and lon keys are adjacent`, () => {
+      const [a, b] = latLonIndices;
+      assert.equal(
+        Math.abs(a - b),
+        1,
+        `Layer '${layerKey}': lat/lon keys at indices ${a} and ${b} are not adjacent`
+      );
+    });
+  }
+}

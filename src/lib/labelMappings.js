@@ -7,12 +7,12 @@ export const RENEWABLE_DIESEL_PLANTS_LABELS = {
   'county': 'County',
   'developer': 'Developer',
   'feedstocks': 'Feedstocks',
-  'lat': 'Latitude',
-  'lon': 'Longitude',
   'products': 'Products',
   'state': 'State',
   'status': 'Status',
   'zip': 'ZIP Code',
+  'lat': 'Latitude',
+  'lon': 'Longitude',
 };
 
 export const SUSTAINABLE_AVIATION_FUEL_PLANTS_LABELS = {
@@ -23,12 +23,12 @@ export const SUSTAINABLE_AVIATION_FUEL_PLANTS_LABELS = {
   'country': 'Country',
   'feedstock': 'Feedstock',
   'ibcc_index': 'IBCC Index',
-  'latitude': 'Latitude',
-  'longitude': 'Longitude',
   'products': 'Products',
   'source': 'Source',
   'state': 'State',
   'status': 'Status',
+  'latitude': 'Latitude',
+  'longitude': 'Longitude',
 };
 
 export const CEMENT_PLANTS_LABELS = {
@@ -37,10 +37,10 @@ export const CEMENT_PLANTS_LABELS = {
   'city': 'City',
   'facility_id_epa': 'EPA Facility ID',
   'facility_name': 'Facility Name',
-  'lat': 'Latitude',
-  'lon': 'Longitude',
   'state': 'State',
   'zip': 'ZIP Code',
+  'lat': 'Latitude',
+  'lon': 'Longitude',
 };
 
 export const MATERIAL_RECOVERY_FACILITIES_LABELS = {
@@ -102,8 +102,6 @@ export const ANAEROBIC_DIGESTERS_LABELS = {
   'Dairy': 'Dairy',
   'DigesterType': 'Digester Type',
   'ElectricityGenerated_kWh_yr': 'Electricity Generated (kWh/yr)',
-  'LATITUDE': 'Latitude',
-  'LONGITUDE': 'Longitude',
   'MethaneEmissionReductions_metrictonsCO2E_yr': 'Methane Emission Reductions (metric tons CO2E/yr)',
   'PopFeedingDigester': 'Population Feeding Digester',
   'Poultry': 'Poultry',
@@ -114,6 +112,8 @@ export const ANAEROBIC_DIGESTERS_LABELS = {
   'Swine': 'Swine',
   'TotalPopFeedingDigester': 'Total Population Feeding Digester',
   'YearOperational': 'Year Operational',
+  'LATITUDE': 'Latitude',
+  'LONGITUDE': 'Longitude',
 };
 
 export const BIOREFINERIES_LABELS = {
@@ -145,23 +145,23 @@ export const LANDFILLS_LABELS = {
   'Gas_Collected': 'Gas Collected',
   'Landfill_Gas_Energy_Project_Status': 'Energy Project Status',
   'Landfill_Name': 'Landfill Name',
-  'Latitude': 'Latitude',
-  'Longitude': 'Longitude',
   'Owner_Name': 'Owner',
   'State': 'State',
   'Waste_in_Place_tons': 'Waste in Place (tons)',
   'Year_Opened': 'Year Opened',
+  'Latitude': 'Latitude',
+  'Longitude': 'Longitude',
 };
 
 export const WASTEWATER_TREATMENT_PLANTS_LABELS = {
   'CITY': 'City',
   'COUNTY': 'County',
   'FACILITY_NAME': 'Facility Name',
-  'LATITUDE': 'Latitude',
-  'LONGITUDE': 'Longitude',
   'STATE': 'State',
   'ZIP': 'ZIP Code',
   'flow_mgd': 'Flow (MGD)',
+  'LATITUDE': 'Latitude',
+  'LONGITUDE': 'Longitude',
 };
 
 export const FOOD_PROCESSORS_LABELS = {
