@@ -2,6 +2,24 @@
  * County-level feedstock statistics fetched from the USDA census/survey API.
  */
 
+/**
+ * Creates a keyed promise cache. Concurrent calls with the same key share one promise.
+ * Rejected promises are evicted so the next call can retry.
+ */
+export function makePromiseCache<T>(
+  factory: (key: string) => Promise<T>
+): (key: string) => Promise<T> {
+  const cache = new Map<string, Promise<T>>();
+  return (key: string) => {
+    const cached = cache.get(key);
+    if (cached) return cached;
+    const p = factory(key);
+    cache.set(key, p);
+    p.catch(() => cache.delete(key));
+    return p;
+  };
+}
+
 import { ApiAuthError, getCensusByResource, getSurveyByResource } from './api';
 import { DataItemResponse } from './api-types';
 import { LANDIQ_TO_API_RESOURCE } from './resource-mapping';
@@ -143,6 +161,57 @@ export function getCountyMetric(
     : null;
 }
 
+export function getCountyMetricOperations(stat: CountyCropStat): CountyMetricValue | null {
+  const candidates = stat.parameters
+    .map(p => {
+      if (!isOperationsUnit(p.unit)) return null;
+      const label = normalizeLabel(p.parameter);
+      if (label === 'area harvested' || label === 'acres harvested') return { p, rank: 0 };
+      if (label === 'area bearing & non-bearing' || label === 'area in production') return { p, rank: 1 };
+      return { p, rank: 2 };
+    })
+    .filter((c): c is { p: CountyParameterStat; rank: number } => c !== null)
+    .sort((a, b) => a.rank - b.rank || sourceRank(a.p.source) - sourceRank(b.p.source));
+  const sel = candidates[0]?.p;
+  return sel ? { parameter: sel.parameter, value: sel.value, unit: sel.unit, source: sel.source } : null;
+}
+
+export function getCountyMetricYield(stat: CountyCropStat): CountyMetricValue | null {
+  const candidates = stat.parameters
+    .filter(p => normalizeLabel(p.parameter) === 'yield' && !isOperationsUnit(p.unit))
+    .sort((a, b) => sourceRank(a.source) - sourceRank(b.source));
+  const sel = candidates[0];
+  return sel ? { parameter: sel.parameter, value: sel.value, unit: sel.unit, source: sel.source } : null;
+}
+
+export function getCountyMetricAreaPlanted(stat: CountyCropStat): CountyMetricValue | null {
+  const candidates = stat.parameters
+    .filter(p => {
+      const label = normalizeLabel(p.parameter);
+      return (label === 'area planted' || label === 'acres planted') && normalizeLabel(p.unit) === 'acres';
+    })
+    .sort((a, b) => sourceRank(a.source) - sourceRank(b.source));
+  const sel = candidates[0];
+  return sel ? { parameter: sel.parameter, value: sel.value, unit: sel.unit, source: sel.source } : null;
+}
+
+export function getCountyMetricSales(stat: CountyCropStat): CountyMetricValue | null {
+  const candidates = stat.parameters
+    .filter(p => normalizeLabel(p.parameter) === 'sales' && !isOperationsUnit(p.unit))
+    .sort((a, b) => sourceRank(a.source) - sourceRank(b.source));
+  const sel = candidates[0];
+  return sel ? { parameter: sel.parameter, value: sel.value, unit: sel.unit, source: sel.source } : null;
+}
+
+export function getCountyMetricBearing(stat: CountyCropStat, kind: 'bearing' | 'nonBearing'): CountyMetricValue | null {
+  const targetLabel = kind === 'bearing' ? 'area bearing' : 'area non-bearing';
+  const candidates = stat.parameters
+    .filter(p => normalizeLabel(p.parameter) === targetLabel && normalizeLabel(p.unit) === 'acres')
+    .sort((a, b) => sourceRank(a.source) - sourceRank(b.source));
+  const sel = candidates[0];
+  return sel ? { parameter: sel.parameter, value: sel.value, unit: sel.unit, source: sel.source } : null;
+}
+
 export function getDisplaySources(...metrics: Array<CountyMetricValue | null>): CountyDataSource[] {
   return Array.from(
     new Set(metrics.filter((metric): metric is CountyMetricValue => metric !== null).map(metric => metric.source))
@@ -168,6 +237,37 @@ export function getCountyPanelSelectionForResponse({
 }
 
 /**
+ * Concurrency-limited equivalent of Promise.allSettled.
+ *
+ * Runs up to `concurrency` tasks simultaneously. Tasks beyond the limit are
+ * deferred until a running slot frees up. Result order matches the input array.
+ */
+export async function throttledSettled<T>(
+  tasks: Array<() => Promise<T>>,
+  concurrency: number
+): Promise<PromiseSettledResult<T>[]> {
+  const results: PromiseSettledResult<T>[] = new Array(tasks.length);
+  let nextIdx = 0;
+
+  async function worker() {
+    while (nextIdx < tasks.length) {
+      const idx = nextIdx++;
+      try {
+        results[idx] = { status: 'fulfilled', value: await tasks[idx]() };
+      } catch (reason) {
+        results[idx] = { status: 'rejected', reason };
+      }
+    }
+  }
+
+  const pool = Array.from({ length: Math.min(concurrency, tasks.length) }, worker);
+  await Promise.all(pool);
+  return results;
+}
+
+const COUNTY_FETCH_CONCURRENCY = 5;
+
+/**
  * Fetch county-level USDA stats for all LandIQ-mapped resources.
  * Merges census and survey data so missing metrics can fall through per parameter.
  * Returns only crops that have at least one data point.
@@ -185,8 +285,9 @@ export async function fetchCountyFeedstockStats(
     }
   }
 
-  const results = await Promise.allSettled(
-    Array.from(resourceToName.entries()).map(async ([resource, landiqName]) => {
+  const entries = Array.from(resourceToName.entries());
+  const results = await throttledSettled(
+    entries.map(([resource, landiqName]) => async () => {
       const [censusResponse, surveyResponse] = await Promise.all([
         getCensusByResource(resource, geoid, authAwareFetch),
         getSurveyByResource(resource, geoid, authAwareFetch),
@@ -209,7 +310,8 @@ export async function fetchCountyFeedstockStats(
       return getCountyMetric(stat, 'acres') || getCountyMetric(stat, 'production')
         ? stat
         : null;
-    })
+    }),
+    COUNTY_FETCH_CONCURRENCY
   );
 
   if (results.some(r => r.status === 'rejected' && r.reason instanceof ApiAuthError)) {
@@ -234,6 +336,10 @@ export interface CountyAggregates {
   /** Residue-tonnage-weighted average cellulose (%). NaN if no cellulose data available. */
   avgCelluloseContent: number;
   cropsCounted: number;
+  /** Top crops sorted by acreage descending (up to 3). */
+  topCropsByAcreage: Array<{ landiqName: string; acres: number }>;
+  /** Sum of per-crop sales values where reported. null if no crop reported sales. */
+  totalCropSales: number | null;
 }
 
 /**
@@ -253,6 +359,9 @@ export function computeCountyAggregates(
   let totalResidueTons = 0;
   let weightedCelluloseSum = 0;
   let celluloseWeightTotal = 0;
+  const topCropsArr: Array<{ landiqName: string; acres: number }> = [];
+  let salesSum = 0;
+  let hasSalesData = false;
 
   for (const stat of stats) {
     const acresMetric = getCountyMetric(stat, 'acres');
@@ -262,6 +371,16 @@ export function computeCountyAggregates(
 
     totalCropAcreage += acres;
     totalCropProduction += production;
+
+    if (acres > 0) {
+      topCropsArr.push({ landiqName: stat.landiqName, acres });
+    }
+
+    const salesMetric = getCountyMetricSales(stat);
+    if (salesMetric != null) {
+      salesSum += salesMetric.value;
+      hasSalesData = true;
+    }
 
     const dryTonsPerAcre = residueLookup[stat.landiqName] ?? 0;
     const residueTons = acres * dryTonsPerAcre;
@@ -278,20 +397,20 @@ export function computeCountyAggregates(
     ? weightedCelluloseSum / celluloseWeightTotal
     : NaN;
 
+  topCropsArr.sort((a, b) => b.acres - a.acres);
+
   return {
     totalCropAcreage,
     totalCropProduction,
     totalResidueTons,
     avgCelluloseContent,
     cropsCounted: stats.length,
+    topCropsByAcreage: topCropsArr.slice(0, 3),
+    totalCropSales: hasSalesData ? salesSum : null,
   };
 }
 
-/**
- * Async orchestrator: fetches county feedstock stats then computes aggregates
- * using live residue factors and composition fallbacks.
- */
-export async function getCountyAggregateStats(geoid: string): Promise<CountyAggregates | null> {
+async function computeCountyAggregateStats(geoid: string): Promise<CountyAggregates | null> {
   const stats = await fetchCountyFeedstockStats(geoid);
   if (stats.length === 0) return null;
 
@@ -316,3 +435,7 @@ export async function getCountyAggregateStats(geoid: string): Promise<CountyAggr
 
   return computeCountyAggregates(stats, residueLookup, compositionLookup);
 }
+
+// Session-scoped in-memory cache: USDA data is static, so a second click on any
+// county is instant. Rejected entries are evicted so retries are possible.
+export const getCountyAggregateStats = makePromiseCache(computeCountyAggregateStats);

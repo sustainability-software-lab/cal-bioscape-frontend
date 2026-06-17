@@ -12,7 +12,8 @@ import { TILESET_REGISTRY } from '@/lib/tileset-registry'; // Import centralized
 import { layerLabelMappings } from '@/lib/labelMappings';
 import { getAvailability, getAnalysisByResource, getCensusByCrop } from '@/lib/api';
 import { getCountyGeoid } from '@/lib/county-lookup';
-import { getApiResource, getUsdaCropName } from '@/lib/resource-mapping';
+import { getApiResource, getUsdaCropName, STATE_GEOID } from '@/lib/resource-mapping';
+import { parseFeatureResources, getResidueFactorsByResourceNames } from '@/lib/resource-residues';
 import { onResidueDataLoaded } from '@/lib/residue-data';
 import { getCountyAggregateStats } from '@/lib/county-analysis';
 import { formatNumberWithCommas } from '@/lib/utils';
@@ -183,6 +184,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
   useEffect(() => onResidueDataLoaded(() => setResidueReady(v => v + 1)), []);
 
   const currentPopup = useRef(null); // Reference to track the current popup
+  const hoverPopupRef = useRef(null); // Dedicated ref for county-name hover tooltip
   const [currentPopupLayer, setCurrentPopupLayer] = useState(null); // State to track the layer of the current popup
   
   // Siting analysis state
@@ -338,13 +340,24 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
       content = nameContent + latLongContent + otherContent;
 
     } else {
-      // Fallback for other layers, preserving original behavior
-      for (const key in properties) {
-        const excludedKeys = ['id', 'layer', 'source', 'source-layer', 'tile-id', 'Lat/Long Info'];
-        const nullValues = ['NA', 'N/A', 'null', '', ' '];
+      const excludedKeys = ['id', 'layer', 'source', 'source-layer', 'tile-id', 'Lat/Long Info'];
+      const nullValues = ['NA', 'N/A', 'null', '', ' '];
+      const labelKeys = Object.keys(labels);
 
-        if (Object.prototype.hasOwnProperty.call(properties, key) && !excludedKeys.includes(key) && !nullValues.includes(String(properties[key]).trim())) {
-          content += formatAndBuildLine(key, properties[key]);
+      if (labelKeys.length > 0) {
+        labelKeys.forEach(key => {
+          if (Object.prototype.hasOwnProperty.call(properties, key) &&
+              !nullValues.includes(String(properties[key]).trim())) {
+            content += formatAndBuildLine(key, properties[key]);
+          }
+        });
+      } else {
+        for (const key in properties) {
+          if (Object.prototype.hasOwnProperty.call(properties, key) &&
+              !excludedKeys.includes(key) &&
+              !nullValues.includes(String(properties[key]).trim())) {
+            content += formatAndBuildLine(key, properties[key]);
+          }
         }
       }
     }
@@ -459,6 +472,8 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
       
       // Process features to find those within the buffer
       const cropInventory = {};
+      // Union of per-polygon `resources` names seen per crop, for the residue tier.
+      const cropResources = {};
       let bufferTotalAcres = 0;
       let featuresAnalyzed = 0;
       let featuresWithErrors = 0;
@@ -596,7 +611,15 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
               }
               cropInventory[cropName] += intersectionArea;
               bufferTotalAcres += intersectionArea;
-              
+
+              const featureResources = parseFeatureResources(props);
+              if (featureResources.length > 0) {
+                if (!cropResources[cropName]) {
+                  cropResources[cropName] = new Set();
+                }
+                featureResources.forEach(r => cropResources[cropName].add(r));
+              }
+
               console.log(`Added ${intersectionArea.toFixed(2)} acres of ${cropName}`);
             }
           } catch (error) {
@@ -615,7 +638,8 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
       const inventoryArray = Object.keys(cropInventory).map(cropName => ({
         name: cropName,
         acres: cropInventory[cropName],
-        color: cropColorMapping[cropName] || '#808080' // Use default gray if no color found
+        color: cropColorMapping[cropName] || '#808080', // Use default gray if no color found
+        resources: cropResources[cropName] ? Array.from(cropResources[cropName]) : undefined
       }));
       
       console.log("Resource inventory:", inventoryArray);
@@ -1311,7 +1335,99 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
                 // --- Default ---
                 "#808080" // Default Gray for unmatched crops (including None)
             ],
-            'fill-opacity': 0.6
+            'fill-opacity': [
+              'interpolate', ['linear'], ['zoom'],
+              5, 0.9,
+              10, 0.75,
+              14, 0.6
+            ]
+          }
+        });
+
+        // Soft-outline companion layer: thin blurred strokes expand each parcel's apparent
+        // size at low zoom without the hard color-clash overlap of thick lines.
+        map.current.addLayer({
+          id: 'feedstock-line-layer',
+          type: 'line',
+          source: 'feedstock-vector-source',
+          'source-layer': TILESET_REGISTRY.feedstock.sourceLayer,
+          maxzoom: 13,
+          filter: ['!=', ['get', 'main_crop_code'], 'U'],
+          paint: {
+            'line-width': [
+              'interpolate', ['linear'], ['zoom'],
+              5, 2.5,
+              9, 1.5,
+              11, 0.5,
+              13, 0
+            ],
+            'line-blur': [
+              'interpolate', ['linear'], ['zoom'],
+              5, 1,
+              9, 0.5,
+              11, 0
+            ],
+            'line-color': [
+              'match', ['get', 'main_crop_name'],
+              "Alfalfa & Alfalfa Mixtures", "#90EE90",
+              "Almonds", "#8B4513",
+              "Apples", "#FF0000",
+              "Apricots", "#FFA500",
+              "Avocados", "#556B2F",
+              "Beans (Dry)", "#F5DEB3",
+              "Bush Berries", "#BA55D3",
+              "Carrots", "#FF8C00",
+              "Cherries", "#DC143C",
+              "Citrus and Subtropical", "#FFD700",
+              "Cole Crops", "#2E8B57",
+              "Corn, Sorghum and Sudan", "#DAA520",
+              "Cotton", "#FFFAF0",
+              "Dates", "#A0522D",
+              "Eucalyptus", "#778899",
+              "Flowers, Nursery and Christmas Tree Farms", "#FF69B4",
+              "Grapes", "#800080",
+              "Greenhouse", "#AFEEEE",
+              "Idle – Long Term", "#D3D3D3",
+              "Idle – Short Term", "#A9A9A9",
+              "Induced high water table native pasture", "#ADD8E6",
+              "Kiwis", "#9ACD32",
+              "Lettuce/Leafy Greens", "#32CD32",
+              "Melons, Squash and Cucumbers", "#FFDAB9",
+              "Miscellaneous Deciduous", "#BDB76B",
+              "Miscellaneous Field Crops", "#DEB887",
+              "Miscellaneous Grain and Hay", "#F5F5DC",
+              "Miscellaneous Grasses", "#98FB98",
+              "Miscellaneous Subtropical Fruits", "#FF7F50",
+              "Miscellaneous Truck Crops", "#66CDAA",
+              "Mixed Pasture", "#006400",
+              "Native Pasture", "#228B22",
+              "Olives", "#808000",
+              "Onions and Garlic", "#FFF8DC",
+              "Peaches/Nectarines", "#FFC0CB",
+              "Pears", "#ADFF2F",
+              "Pecans", "#D2691E",
+              "Peppers", "#B22222",
+              "Pistachios", "#93C572",
+              "Plums", "#DDA0DD",
+              "Pomegranates", "#E34234",
+              "Potatoes", "#CD853F",
+              "Prunes", "#702963",
+              "Rice", "#FFFFE0",
+              "Safflower", "#FFEC8B",
+              "Strawberries", "#FF1493",
+              "Sugar beets", "#D8BFD8",
+              "Sunflowers", "#FFDB58",
+              "Sweet Potatoes", "#D2B48C",
+              "Tomatoes", "#FF6347",
+              "Turf Farms", "#00FF7F",
+              "Unclassified Fallow", "#696969",
+              "Walnuts", "#A52A2A",
+              "Wheat", "#F4A460",
+              "Wild Rice", "#EEE8AA",
+              "Young Perennials", "#C19A6B",
+              "#808080"
+            ],
+            'line-opacity': 0.35
           }
         });
 
@@ -1322,7 +1438,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
         try {
           if (isCountyGeoJson) {
             const geojsonPath = countyTilesetId.slice('geojson://'.length); // e.g. '/ca-counties.geojson'
-            map.current.addSource('county-source', { type: 'geojson', data: geojsonPath });
+            map.current.addSource('county-source', { type: 'geojson', data: geojsonPath, promoteId: 'GEOID' });
           } else {
             map.current.addSource('county-source', {
               type: 'vector',
@@ -1342,7 +1458,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
             },
             paint: {
               'fill-color': '#3B82F6',
-              'fill-opacity': 0.15
+              'fill-opacity': ['case', ['boolean', ['feature-state', 'hover'], false], 0.35, 0.15]
             }
           });
           map.current.addLayer({
@@ -1354,7 +1470,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
             },
             paint: {
               'line-color': '#1D4ED8',
-              'line-width': 1.5
+              'line-width': ['case', ['boolean', ['feature-state', 'hover'], false], 1.5, 0.5]
             }
           });
         } catch(countyErr) { console.error('[county] init failed:', countyErr.message); }
@@ -1393,7 +1509,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
             if (currentPopup.current !== popup || popup._countyRequestId !== requestId) return;
 
             if (!aggregates || aggregates.cropsCounted === 0) {
-              popup.setHTML(`<div class="county-popup"><strong>${name} County</strong><br/><em>No county data available.</em></div>`);
+              popup.setHTML(`<div class="county-popup"><strong>${name} County</strong><br/><em>No USDA cropland reported for this county.</em></div>`);
               return;
             }
 
@@ -1401,31 +1517,77 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
               ? 'N/A'
               : `${aggregates.avgCelluloseContent.toFixed(1)}%`;
 
+            const escapedName = name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            const topCrop = aggregates.topCropsByAcreage[0];
+            const topCropStr = topCrop
+              ? `${topCrop.landiqName} (${formatNumberWithCommas(Math.round(topCrop.acres))} ac)`
+              : 'N/A';
+            const salesRow = aggregates.totalCropSales != null
+              ? `<tr style="border-top:1px solid #e5e7eb"><td>Reported crop sales</td><td style="text-align:right;padding-left:12px">$${formatNumberWithCommas(Math.round(aggregates.totalCropSales))}</td></tr>`
+              : '';
             popup.setHTML(`
               <div class="county-popup" style="font-size:13px;line-height:1.6">
-                <strong style="font-size:14px">${name} County</strong>
+                <strong style="font-size:14px">${escapedName} County</strong>
                 <table style="width:100%;margin-top:6px;border-collapse:collapse">
                   <tr><td>Total Crop Acreage</td><td style="text-align:right;padding-left:12px">${formatNumberWithCommas(Math.round(aggregates.totalCropAcreage))} ac</td></tr>
                   <tr><td>Total Production</td><td style="text-align:right;padding-left:12px">${formatNumberWithCommas(Math.round(aggregates.totalCropProduction))} tons</td></tr>
                   <tr><td>Collectable Residue</td><td style="text-align:right;padding-left:12px">${formatNumberWithCommas(Math.round(aggregates.totalResidueTons))} dry tons</td></tr>
                   <tr><td>Avg Cellulose</td><td style="text-align:right;padding-left:12px">${avgCelluloseStr}</td></tr>
+                  <tr style="border-top:1px solid #e5e7eb"><td>Feedstock types</td><td style="text-align:right;padding-left:12px">${aggregates.cropsCounted} crops</td></tr>
+                  <tr><td>Top crop</td><td style="text-align:right;padding-left:12px">${topCropStr}</td></tr>
+                  ${salesRow}
                 </table>
                 <p style="margin-top:6px;font-size:11px;color:#6b7280">Source: 2022 USDA Census</p>
               </div>
             `);
           } catch {
             if (currentPopup.current === popup) {
-              popup.setHTML(`<div class="county-popup"><strong>${name} County</strong><br/><em>No county data available.</em></div>`);
+              popup.setHTML(`<div class="county-popup"><strong>${name} County</strong><br/><em>Couldn't load county data -- please try again.</em></div>`);
             }
           }
         });
 
-        // Cursor handling for county layer
-        map.current.on('mouseenter', 'county-layer', () => {
+        // Hover shading + pointer cursor + county-name tooltip for county layer
+        let hoveredCountyId = null;
+        map.current.on('mousemove', 'county-layer', (e) => {
           map.current.getCanvas().style.cursor = 'pointer';
+          const feature = e.features && e.features[0];
+          if (!feature) return;
+          const id = feature.id ?? feature.properties.GEOID;
+          if (hoveredCountyId !== null && hoveredCountyId !== id) {
+            map.current.setFeatureState({ source: 'county-source', id: hoveredCountyId }, { hover: false });
+          }
+          hoveredCountyId = id;
+          map.current.setFeatureState({ source: 'county-source', id }, { hover: true });
+
+          // County-name hover tooltip — suppressed in siting mode
+          if (sitingModeRef.current) {
+            if (hoverPopupRef.current) {
+              hoverPopupRef.current.remove();
+              hoverPopupRef.current = null;
+            }
+            return;
+          }
+          const countyName = feature.properties.NAME || 'Unknown County';
+          if (!hoverPopupRef.current) {
+            hoverPopupRef.current = new mapboxgl.Popup({
+              closeButton: false,
+              closeOnClick: false,
+              className: 'county-hover-popup',
+            });
+          }
+          hoverPopupRef.current.setLngLat(e.lngLat).setHTML(countyName).addTo(map.current);
         });
         map.current.on('mouseleave', 'county-layer', () => {
           map.current.getCanvas().style.cursor = '';
+          if (hoveredCountyId !== null) {
+            map.current.setFeatureState({ source: 'county-source', id: hoveredCountyId }, { hover: false });
+            hoveredCountyId = null;
+          }
+          if (hoverPopupRef.current) {
+            hoverPopupRef.current.remove();
+            hoverPopupRef.current = null;
+          }
         });
 
         // Persistent siting buffer source and layers
@@ -2526,9 +2688,14 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
             
             // Use imported getCropResidueFactors instead of local definition
 
-            // Calculate residue yields
+            // Calculate residue yields. Resources-first: use the polygon's own
+            // residue names when present, else fall back to the crop-name chain.
             let residueSection = '';
-            const residueResult = getCropResidueFactors(cropName);
+            const featureResources = parseFeatureResources(properties);
+            const residueResult =
+              (featureResources.length > 0
+                ? getResidueFactorsByResourceNames(featureResources)
+                : null) ?? getCropResidueFactors(cropName);
             const residueFactorsArray = residueResult?.factors;
 
             if (residueFactorsArray && residueFactorsArray.length > 0) {
@@ -2586,11 +2753,15 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
               onCountySelect(properties.county, countyGeoid);
             }
             const apiResource = getApiResource(cropName);
+            // Resources-first: enrich from this polygon's own residue when present.
+            const popupResource = featureResources.length > 0
+              ? featureResources[0].trim().toLowerCase()
+              : apiResource;
             const usdaCrop = getUsdaCropName(cropName);
             const apiSectionId = `api-data-${Date.now()}`;
 
             // Empty hook for optional async API enrichment; render no placeholder.
-            const apiLoadingHTML = countyGeoid && (apiResource || usdaCrop)
+            const apiLoadingHTML = popupResource || (countyGeoid && usdaCrop)
               ? `<div id="${apiSectionId}"></div>`
               : '';
 
@@ -2628,13 +2799,14 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
             });
 
             // --- Async API enrichment ---
-            if (countyGeoid && (apiResource || usdaCrop)) {
+            // Composition + availability are state-level (STATE_GEOID); census is county-level.
+            if (popupResource || (countyGeoid && usdaCrop)) {
               (async () => {
                 try {
                   const [availResult, analysisResult, censusResult] = await Promise.allSettled([
-                    apiResource ? getAvailability(apiResource, countyGeoid) : Promise.resolve(null),
-                    apiResource ? getAnalysisByResource(apiResource, countyGeoid) : Promise.resolve(null),
-                    usdaCrop   ? getCensusByCrop(usdaCrop, countyGeoid) : Promise.resolve(null),
+                    popupResource ? getAvailability(popupResource, STATE_GEOID) : Promise.resolve(null),
+                    popupResource ? getAnalysisByResource(popupResource, STATE_GEOID) : Promise.resolve(null),
+                    (usdaCrop && countyGeoid) ? getCensusByCrop(usdaCrop, countyGeoid) : Promise.resolve(null),
                   ]);
 
                   const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -2798,6 +2970,9 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
     const visibility = isFeedstockVisible ? 'visible' : 'none';
     console.log(`Setting feedstock layer visibility to: ${visibility}`);
     map.current.setLayoutProperty('feedstock-vector-layer', 'visibility', visibility); // Use new layer ID
+    if (map.current.getLayer('feedstock-line-layer')) {
+      map.current.setLayoutProperty('feedstock-line-layer', 'visibility', visibility);
+    }
 
     // Close popup when feedstock layer is hidden
     if (!isFeedstockVisible && currentPopup.current) {
@@ -2842,6 +3017,9 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
 
     console.log("Setting crop filter:", JSON.stringify(combinedFilter));
     map.current.setFilter('feedstock-vector-layer', combinedFilter);
+    if (map.current.getLayer('feedstock-line-layer')) {
+      map.current.setFilter('feedstock-line-layer', combinedFilter);
+    }
 
     // Close popup when no crops are visible (all crops filtered out)
     if (!visibleCrops || visibleCrops.length === 0) {
@@ -2874,7 +3052,15 @@ useEffect(() => {
   // Check if croplandOpacity is a valid number before setting
   if (typeof croplandOpacity === 'number' && croplandOpacity >= 0 && croplandOpacity <= 1) {
     console.log(`Setting feedstock layer opacity to: ${croplandOpacity}`);
-    map.current.setPaintProperty('feedstock-vector-layer', 'fill-opacity', croplandOpacity);
+    map.current.setPaintProperty('feedstock-vector-layer', 'fill-opacity', [
+      'interpolate', ['linear'], ['zoom'],
+      5, Math.min(croplandOpacity * 1.5, 1.0),
+      10, Math.min(croplandOpacity * 1.25, 1.0),
+      14, croplandOpacity
+    ]);
+    if (map.current.getLayer('feedstock-line-layer')) {
+      map.current.setPaintProperty('feedstock-line-layer', 'line-opacity', Math.min(croplandOpacity * 0.6, 0.5));
+    }
   } else {
     console.warn(`Invalid croplandOpacity value received: ${croplandOpacity}. Opacity not set.`);
     // Optionally set a default opacity here if the value is invalid

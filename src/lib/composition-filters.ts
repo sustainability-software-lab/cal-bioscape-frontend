@@ -8,7 +8,7 @@
 
 import { getAnalysisByResource } from './api';
 import { AnalysisListResponse, DataItemResponse } from './api-types';
-import { LANDIQ_TO_API_RESOURCE } from './resource-mapping';
+import { LANDIQ_TO_API_RESOURCE, STATE_GEOID } from './resource-mapping';
 import { COMPOSITION_FALLBACKS } from './composition-fallbacks';
 
 // ---------------------------------------------------------------------------
@@ -120,7 +120,7 @@ export function parseCompositionData(response: AnalysisListResponse | null): Com
  * same composition data. Crops with no API data silently get `hasData: false`.
  */
 export async function batchFetchCompositionData(
-  geoid: string = '06'
+  geoid: string = STATE_GEOID
 ): Promise<CompositionLookup> {
   const lookup: CompositionLookup = {};
 
