@@ -13,6 +13,7 @@ import { layerLabelMappings } from '@/lib/labelMappings';
 import { getAvailability, getAnalysisByResource, getCensusByCrop } from '@/lib/api';
 import { getCountyGeoid } from '@/lib/county-lookup';
 import { getApiResource, getUsdaCropName } from '@/lib/resource-mapping';
+import { parseFeatureResources, getResidueFactorsByResourceNames } from '@/lib/resource-residues';
 import { onResidueDataLoaded } from '@/lib/residue-data';
 import { getCountyAggregateStats } from '@/lib/county-analysis';
 import { formatNumberWithCommas } from '@/lib/utils';
@@ -470,6 +471,8 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
       
       // Process features to find those within the buffer
       const cropInventory = {};
+      // Union of per-polygon `resources` names seen per crop, for the residue tier.
+      const cropResources = {};
       let bufferTotalAcres = 0;
       let featuresAnalyzed = 0;
       let featuresWithErrors = 0;
@@ -607,7 +610,15 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
               }
               cropInventory[cropName] += intersectionArea;
               bufferTotalAcres += intersectionArea;
-              
+
+              const featureResources = parseFeatureResources(props);
+              if (featureResources.length > 0) {
+                if (!cropResources[cropName]) {
+                  cropResources[cropName] = new Set();
+                }
+                featureResources.forEach(r => cropResources[cropName].add(r));
+              }
+
               console.log(`Added ${intersectionArea.toFixed(2)} acres of ${cropName}`);
             }
           } catch (error) {
@@ -626,7 +637,8 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
       const inventoryArray = Object.keys(cropInventory).map(cropName => ({
         name: cropName,
         acres: cropInventory[cropName],
-        color: cropColorMapping[cropName] || '#808080' // Use default gray if no color found
+        color: cropColorMapping[cropName] || '#808080', // Use default gray if no color found
+        resources: cropResources[cropName] ? Array.from(cropResources[cropName]) : undefined
       }));
       
       console.log("Resource inventory:", inventoryArray);
@@ -2642,9 +2654,14 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
             
             // Use imported getCropResidueFactors instead of local definition
 
-            // Calculate residue yields
+            // Calculate residue yields. Resources-first: use the polygon's own
+            // residue names when present, else fall back to the crop-name chain.
             let residueSection = '';
-            const residueResult = getCropResidueFactors(cropName);
+            const featureResources = parseFeatureResources(properties);
+            const residueResult =
+              (featureResources.length > 0
+                ? getResidueFactorsByResourceNames(featureResources)
+                : null) ?? getCropResidueFactors(cropName);
             const residueFactorsArray = residueResult?.factors;
 
             if (residueFactorsArray && residueFactorsArray.length > 0) {

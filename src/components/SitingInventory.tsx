@@ -7,6 +7,7 @@ import { getCropResidueFactors } from '@/lib/constants';
 import { formatNumberWithCommas, downloadCSV } from '@/lib/utils';
 import { getAvailability, getAnalysisByResource } from '@/lib/api';
 import { getApiResource } from '@/lib/resource-mapping';
+import { getResidueFactorsByResourceNames } from '@/lib/resource-residues';
 import { onResidueDataLoaded } from '@/lib/residue-data';
 import { computeEnergyTotals, EnergyTotals } from '@/lib/energy-calculations';
 import { CompositionData, parseCompositionData, CompositionFilters, CompositionLookup, cropPassesCompositionFilters } from '@/lib/composition-filters';
@@ -20,6 +21,8 @@ interface CropInventory {
   name: string;
   acres: number;
   color: string;
+  /** Per-polygon API resource names from the tileset `resources` field, if present. */
+  resources?: string[];
 }
 
 /** One row per individual residue type (e.g. "Almond Hulls", "Almond Shells"). */
@@ -162,7 +165,12 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
   const baseResidueRows: Omit<ResidueInventoryRow, 'availability' | 'availabilityLoading'>[] = React.useMemo(() => {
     const rows: Omit<ResidueInventoryRow, 'availability' | 'availabilityLoading'>[] = [];
     for (const crop of inventory) {
-      const residueResult = getCropResidueFactors(crop.name);
+      // Resources-first: when the polygon carries explicit residue names, resolve
+      // them directly; otherwise fall back to the crop-name-based chain.
+      const residueResult =
+        (crop.resources && crop.resources.length > 0
+          ? getResidueFactorsByResourceNames(crop.resources)
+          : null) ?? getCropResidueFactors(crop.name);
       if (!residueResult) continue;
       const apiResource = getApiResource(crop.name);
       for (const factor of residueResult.factors) {

@@ -45,6 +45,10 @@ const RESOURCE_INFO_URL = 'https://sustainability-software-lab.github.io/ca-bios
 
 // Storage for the processed data - now storing arrays of factors per crop
 let processedResidueData: Record<string, ResidueFactors[]> = {};
+// Parallel index keyed by API resource name (lowercased) -> single factor.
+// Lets callers look residues up directly by the per-polygon `resources` names
+// (e.g. "almond hulls") instead of guessing from the crop name.
+let processedResidueByResource: Record<string, ResidueFactors> = {};
 let processedFeedstockCharacteristics: Record<string, FeedstockCharacteristics> = {};
 let isDataLoaded = false;
 let loadPromise: Promise<void> | null = null;
@@ -140,7 +144,8 @@ export const fetchResidueData = async (): Promise<void> => {
       
       // Process the data
       const newProcessedData: Record<string, ResidueFactors[]> = {};
-      
+      const newByResource: Record<string, ResidueFactors> = {};
+
       data.forEach(item => {
         let cropName = item.landiq_crop_name; // This seems to be the key we want to match
         if (!cropName) return;
@@ -183,9 +188,15 @@ export const fetchResidueData = async (): Promise<void> => {
           newProcessedData[cropName] = [];
         }
         newProcessedData[cropName].push(factor);
+
+        const resourceKey = item.resource?.trim().toLowerCase();
+        if (resourceKey) {
+          newByResource[resourceKey] = factor;
+        }
       });
 
       processedResidueData = newProcessedData;
+      processedResidueByResource = newByResource;
       isDataLoaded = true;
       onLoadedCallbacks.forEach(cb => cb());
       onLoadedCallbacks = [];
@@ -221,6 +232,16 @@ export const getResidueData = (cropName: string): ResidueFactors[] | null => {
   // But since we trimmed keys, ensure consumer trims too if they pass untrimmed strings
   
   return null;
+};
+
+// Accessor keyed by API resource name (case-insensitive), e.g. "almond hulls".
+// Returns the single residue factor for that resource, or null if not loaded/found.
+export const getResidueDataByResourceName = (resourceName: string): ResidueFactors | null => {
+  if (!isDataLoaded) {
+    console.warn('Residue data accessed before loading completed. Call fetchResidueData() first.');
+    return null;
+  }
+  return processedResidueByResource[resourceName.trim().toLowerCase()] ?? null;
 };
 
 export const getAllResidueData = () => processedResidueData;
