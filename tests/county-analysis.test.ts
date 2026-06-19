@@ -390,6 +390,59 @@ test('computeCountyAggregates computes topCropsByAcreage sorted desc and capped 
   assert.equal(result.topCropsByAcreage[2].landiqName, 'Wheat');
 });
 
+// ---------------------------------------------------------------------------
+// computeCountyAggregates — cropProductionBreakdown (issue #97)
+// ---------------------------------------------------------------------------
+
+test('computeCountyAggregates returns full per-crop production breakdown sorted by production desc (not capped)', () => {
+  const stats: CountyCropStat[] = [
+    { ...cornStat, landiqName: 'Corn' },   // production 50000
+    { ...wheatStat, landiqName: 'Wheat' }, // production 20000
+    {
+      landiqName: 'Rice',
+      resource: 'rice straw',
+      source: 'census',
+      parameters: [
+        { parameter: 'area harvested', value: 9000, unit: 'acres', source: 'census' },
+        { parameter: 'production', value: 90000, unit: 'tons', source: 'census' },
+      ],
+    },
+    {
+      landiqName: 'Barley',
+      resource: 'barley straw',
+      source: 'census',
+      parameters: [
+        { parameter: 'area harvested', value: 3000, unit: 'acres', source: 'census' },
+        { parameter: 'production', value: 5000, unit: 'tons', source: 'census' },
+      ],
+    },
+  ];
+  const result = computeCountyAggregates(stats, {}, {});
+  // Full list of all 4 production-bearing crops (not sliced to 3)
+  assert.equal(result.cropProductionBreakdown.length, 4);
+  assert.deepEqual(
+    result.cropProductionBreakdown.map(c => c.landiqName),
+    ['Rice', 'Corn', 'Wheat', 'Barley']
+  );
+  assert.equal(result.cropProductionBreakdown[0].production, 90000);
+  assert.equal(result.cropProductionBreakdown[0].acres, 9000);
+  // breakdown productions sum to totalCropProduction
+  const sum = result.cropProductionBreakdown.reduce((acc, c) => acc + c.production, 0);
+  assert.equal(sum, result.totalCropProduction);
+});
+
+test('computeCountyAggregates cropProductionBreakdown excludes crops with zero production', () => {
+  const acresOnly: CountyCropStat = {
+    landiqName: 'Pasture',
+    resource: 'pasture',
+    source: 'census',
+    parameters: [{ parameter: 'area harvested', value: 4000, unit: 'acres', source: 'census' }],
+  };
+  const result = computeCountyAggregates([cornStat, acresOnly], {}, {});
+  assert.equal(result.cropProductionBreakdown.length, 1);
+  assert.equal(result.cropProductionBreakdown[0].landiqName, 'Corn');
+});
+
 test('computeCountyAggregates sums sales when present and returns null when none', () => {
   const withSales: CountyCropStat = {
     landiqName: 'Almonds',
