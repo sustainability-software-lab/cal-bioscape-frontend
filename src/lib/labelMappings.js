@@ -168,14 +168,19 @@ export const FOOD_PROCESSORS_LABELS = {
   'Address': 'Address',
   'City': 'City',
   'County': 'County',
+  'Zip_Code': 'ZIP Code',
+  'State': 'State',
   'ExcessFo_1': 'Excess Food - High Estimate (Tons/Year)',
   'ExcessFood': 'Excess Food - Low Estimate (Tons/Year)',
-  'NAICS_Co_1': 'NAICS Description',
-  'NAICS_Code': 'NAICS Code',
+  // NOTE: in the EPA tileset the column contents are swapped relative to their
+  // names - `NAICS_Code` holds the human-readable industry description (e.g.
+  // "Distilleries") and `NAICS_Co_1` holds the numeric NAICS code (e.g. "312140").
+  // Labels are intentionally matched to the actual VALUES so popups read correctly.
+  'NAICS_Code': 'NAICS Description',
+  'NAICS_Co_1': 'NAICS Code',
   'Name': 'Name',
   'OBJECTID': 'Object ID',
   'Phone1': 'Phone',
-  'State': 'State',
   'UniqueID': 'Unique ID',
   'Website': 'Website',
   'lat': 'Latitude',
@@ -331,6 +336,25 @@ export const CARB_FOOD_PROCESSORS_LABELS = {
   'longitude': 'Longitude',
 };
 
+export const TOMATO_PROCESSORS_LABELS = {
+  'Name': 'Name',
+  'Address': 'Address',
+  'City': 'City',
+  'County': 'County',
+  'Green': 'Green',
+  'Mold': 'Mold',
+  'Peels only': 'Peels Only',
+  'Pomace': 'Pomace',
+  'Pomace (peels)': 'Pomace (peels)',
+  'Pomace (seeds)': 'Pomace (seeds)',
+  'Seeds': 'Seeds',
+  'Vines': 'Vines',
+  'Processing capacity for tomato paste (tons/hr)': 'Processing Capacity for Tomato Paste (tons/hr)',
+  'Processing capacity of peeled/chopped (tons/hr)': 'Processing Capacity of Peeled/Chopped (tons/hr)',
+  'latitude': 'Latitude',
+  'longitude': 'Longitude',
+};
+
 export const layerLabelMappings = {
   'renewable-diesel': RENEWABLE_DIESEL_PLANTS_LABELS,
   'saf-plants': SUSTAINABLE_AVIATION_FUEL_PLANTS_LABELS,
@@ -343,6 +367,7 @@ export const layerLabelMappings = {
   'landfill-lfg': LANDFILLS_LABELS,
   'wastewater-treatment': WASTEWATER_TREATMENT_PLANTS_LABELS,
   'food-processors': FOOD_PROCESSORS_LABELS,
+  'tomato-processors': TOMATO_PROCESSORS_LABELS,
   'carb-food-processors': CARB_FOOD_PROCESSORS_LABELS,
   'food-retailers': FOOD_RETAILERS_LABELS,
   'power-plants': POWER_PLANTS_LABELS,
