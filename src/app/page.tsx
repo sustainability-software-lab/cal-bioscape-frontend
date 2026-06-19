@@ -10,6 +10,7 @@ import {
 } from '@/lib/county-analysis';
 import type { SelectedCountyFeedstockStats } from '@/lib/county-analysis';
 import { applyLayerMutualExclusivity } from '@/lib/layer-utils';
+import { CARB_PRODUCT_KEYS } from '@/lib/carb-product-categories';
 import CountyFeedstockPanel from '@/components/CountyFeedstockPanel';
 // Removed useSWRInfinite import
 const Map = dynamic(() => import('@/components/Map'), { ssr: false });
@@ -44,7 +45,9 @@ export default function Home() {
     districtEnergySystems: false,
     foodProcessors: false,
     tomatoProcessors: false,
-    carbFoodProcessors: false,
+    // CARB food processors are disaggregated by primary_ag_product (issue #98):
+    // one visibility key per product category, all off by default.
+    ...Object.fromEntries(CARB_PRODUCT_KEYS.map((k) => [k, false])),
     foodRetailers: false,
     powerPlants: false,
     foodBanks: false,
@@ -100,7 +103,7 @@ export default function Home() {
            layerVisibility.districtEnergySystems ||
            layerVisibility.foodProcessors ||
            layerVisibility.tomatoProcessors ||
-           layerVisibility.carbFoodProcessors ||
+           CARB_PRODUCT_KEYS.some((k) => layerVisibility[k]) ||
            layerVisibility.foodRetailers ||
            layerVisibility.powerPlants ||
            layerVisibility.foodBanks ||
@@ -121,7 +124,7 @@ export default function Home() {
     layerVisibility.districtEnergySystems,
     layerVisibility.foodProcessors,
     layerVisibility.tomatoProcessors,
-    layerVisibility.carbFoodProcessors,
+    ...CARB_PRODUCT_KEYS.map((k) => layerVisibility[k]),
     layerVisibility.foodRetailers,
     layerVisibility.powerPlants,
     layerVisibility.foodBanks,
@@ -207,7 +210,7 @@ export default function Home() {
       districtEnergySystems: isVisible,
       foodProcessors: isVisible,
       tomatoProcessors: isVisible,
-      carbFoodProcessors: isVisible,
+      ...Object.fromEntries(CARB_PRODUCT_KEYS.map((k) => [k, isVisible])),
       foodRetailers: isVisible,
       powerPlants: isVisible,
       foodBanks: isVisible,

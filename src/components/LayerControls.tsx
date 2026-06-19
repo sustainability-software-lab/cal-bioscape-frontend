@@ -35,6 +35,7 @@ import {
   isCompositionFiltersActive,
 } from '@/lib/composition-filters';
 import { applyLayerMutualExclusivity, MUTUALLY_EXCLUSIVE_LAYERS } from '@/lib/layer-utils';
+import { CARB_PRODUCT_CATEGORIES, CARB_PRODUCT_KEYS } from '@/lib/carb-product-categories';
 
 // Pre-built lookup: layerId -> [partnerId, ...] for O(1) partner resolution in directLayerToggle
 const MUTUALLY_EXCLUSIVE_PAIRS: Record<string, string[]> = {};
@@ -605,7 +606,8 @@ const LayerControls: React.FC<LayerControlsProps> = ({
     districtEnergySystems: 'district-energy-systems-layer',
     foodProcessors: 'food-processors-layer',
     tomatoProcessors: 'tomato-processors-layer',
-    carbFoodProcessors: 'carb-food-processors-layer',
+    // CARB food processors disaggregated by primary_ag_product (issue #98)
+    ...Object.fromEntries(CARB_PRODUCT_CATEGORIES.map((c) => [c.key, c.mapboxLayerId])),
     foodRetailers: 'food-retailers-layer',
     powerPlants: 'power-plants-layer',
     foodBanks: 'food-banks-layer',
@@ -810,7 +812,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                         const infrastructureLayers = [
                           'anaerobicDigester', 'biodieselPlants', 'biorefineries', 'safPlants',
                           'renewableDiesel', 'mrf', 'cementPlants', 'landfillLfg',
-                          'wastewaterTreatment', 'wasteToEnergy', 'combustionPlants', 'districtEnergySystems', 'foodProcessors', 'tomatoProcessors', 'carbFoodProcessors', 'foodRetailers',
+                          'wastewaterTreatment', 'wasteToEnergy', 'combustionPlants', 'districtEnergySystems', 'foodProcessors', 'tomatoProcessors', ...CARB_PRODUCT_KEYS, 'foodRetailers',
                           'powerPlants', 'foodBanks', 'farmersMarkets'
                         ];
 
@@ -1213,9 +1215,9 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                           <Checkbox
                             id="foodProcessorsMaster"
                             checked={
-                              (localLayerVisibility?.foodProcessors && localLayerVisibility?.tomatoProcessors && localLayerVisibility?.carbFoodProcessors)
+                              (localLayerVisibility?.foodProcessors && localLayerVisibility?.tomatoProcessors && CARB_PRODUCT_KEYS.every((k) => localLayerVisibility?.[k]))
                                 ? true
-                                : (localLayerVisibility?.foodProcessors || localLayerVisibility?.tomatoProcessors || localLayerVisibility?.carbFoodProcessors)
+                                : (localLayerVisibility?.foodProcessors || localLayerVisibility?.tomatoProcessors || CARB_PRODUCT_KEYS.some((k) => localLayerVisibility?.[k]))
                                   ? 'indeterminate'
                                   : false
                             }
@@ -1223,7 +1225,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                               const isChecked = checked === true;
                               directLayerToggle('foodProcessors', isChecked, true);
                               directLayerToggle('tomatoProcessors', isChecked, true);
-                              directLayerToggle('carbFoodProcessors', isChecked, true);
+                              CARB_PRODUCT_KEYS.forEach((k) => directLayerToggle(k, isChecked, true));
                             }}
                           />
                           <Label htmlFor="foodProcessorsMaster" className="flex items-center text-xs font-medium">
@@ -1287,28 +1289,31 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                             </Label>
                           </div>
 
-                          {/* CARB Food Processors Layer Toggle - Subtype */}
-                          <div className="flex items-center space-x-2 pl-12">
-                            <Checkbox
-                              id="carbFoodProcessorsLayer"
-                              checked={localLayerVisibility?.carbFoodProcessors ?? false}
-                              onCheckedChange={(checked: boolean | 'indeterminate') => directLayerToggle('carbFoodProcessors', !!checked)}
-                            />
-                            <Label htmlFor="carbFoodProcessorsLayer" className="flex items-center text-xs">
-                              <span
-                                style={{
-                                  display: 'inline-block',
-                                  width: '10px',
-                                  height: '10px',
-                                  backgroundColor: '#14B8A6',
-                                  borderRadius: '50%',
-                                  marginRight: '2px',
-                                  flexShrink: 0,
-                                }}
-                              ></span>
-                              Other Processors (CARB)
-                            </Label>
-                          </div>
+                          {/* CARB Food Processors - disaggregated by primary_ag_product (issue #98).
+                              One independently-toggleable, color-coded legend entry per product. */}
+                          {CARB_PRODUCT_CATEGORIES.map((category) => (
+                            <div key={category.key} className="flex items-center space-x-2 pl-12">
+                              <Checkbox
+                                id={`${category.key}Layer`}
+                                checked={localLayerVisibility?.[category.key] ?? false}
+                                onCheckedChange={(checked: boolean | 'indeterminate') => directLayerToggle(category.key, !!checked)}
+                              />
+                              <Label htmlFor={`${category.key}Layer`} className="flex items-center text-xs">
+                                <span
+                                  style={{
+                                    display: 'inline-block',
+                                    width: '10px',
+                                    height: '10px',
+                                    backgroundColor: category.color,
+                                    borderRadius: '50%',
+                                    marginRight: '2px',
+                                    flexShrink: 0,
+                                  }}
+                                ></span>
+                                {category.label} (CARB)
+                              </Label>
+                            </div>
+                          ))}
                         </div>
                       )}
                     </div>
