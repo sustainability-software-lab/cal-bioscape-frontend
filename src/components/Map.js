@@ -1513,30 +1513,45 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
               return;
             }
 
-            const avgCelluloseStr = isNaN(aggregates.avgCelluloseContent)
-              ? 'N/A'
-              : `${aggregates.avgCelluloseContent.toFixed(1)}%`;
-
-            const escapedName = name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            const topCrop = aggregates.topCropsByAcreage[0];
-            const topCropStr = topCrop
-              ? `${topCrop.landiqName} (${formatNumberWithCommas(Math.round(topCrop.acres))} ac)`
-              : 'N/A';
+            const escapeHtml = (value) =>
+              String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            const escapedName = escapeHtml(name);
             const salesRow = aggregates.totalCropSales != null
               ? `<tr style="border-top:1px solid #e5e7eb"><td>Reported crop sales</td><td style="text-align:right;padding-left:12px">$${formatNumberWithCommas(Math.round(aggregates.totalCropSales))}</td></tr>`
               : '';
+
+            // Per-crop breakdown of the constituents contributing to Total Crop
+            // Production. Top 3 stay visible to keep the popup compact; the full
+            // list lives behind a collapsible <details> so many-crop counties do
+            // not render a very tall popup.
+            const breakdown = aggregates.cropProductionBreakdown || [];
+            const breakdownRow = (crop) =>
+              `<tr><td style="padding-right:8px">${escapeHtml(crop.landiqName)}</td><td style="text-align:right">${formatNumberWithCommas(Math.round(crop.production))} tons</td></tr>`;
+            const topBreakdownRows = breakdown.slice(0, 3).map(breakdownRow).join('');
+            const restBreakdownRows = breakdown.slice(3).map(breakdownRow).join('');
+            const breakdownSection = breakdown.length === 0
+              ? ''
+              : `
+                <div style="margin-top:8px;border-top:1px solid #e5e7eb;padding-top:6px">
+                  <div style="font-weight:600;font-size:12px;margin-bottom:2px">Top crops by production</div>
+                  <table style="width:100%;border-collapse:collapse">${topBreakdownRows}</table>
+                  ${breakdown.length > 3 ? `
+                  <details style="margin-top:4px">
+                    <summary style="cursor:pointer;color:#2563eb;font-size:12px;user-select:none">Show all ${breakdown.length} crops</summary>
+                    <table style="width:100%;border-collapse:collapse;margin-top:4px">${restBreakdownRows}</table>
+                  </details>` : ''}
+                </div>`;
+
             popup.setHTML(`
-              <div class="county-popup" style="font-size:13px;line-height:1.6">
+              <div class="county-popup" style="font-size:13px;line-height:1.6;max-height:60vh;overflow-y:auto">
                 <strong style="font-size:14px">${escapedName} County</strong>
                 <table style="width:100%;margin-top:6px;border-collapse:collapse">
                   <tr><td>Total Crop Acreage</td><td style="text-align:right;padding-left:12px">${formatNumberWithCommas(Math.round(aggregates.totalCropAcreage))} ac</td></tr>
-                  <tr><td>Total Production</td><td style="text-align:right;padding-left:12px">${formatNumberWithCommas(Math.round(aggregates.totalCropProduction))} tons</td></tr>
-                  <tr><td>Collectable Residue</td><td style="text-align:right;padding-left:12px">${formatNumberWithCommas(Math.round(aggregates.totalResidueTons))} dry tons</td></tr>
-                  <tr><td>Avg Cellulose</td><td style="text-align:right;padding-left:12px">${avgCelluloseStr}</td></tr>
+                  <tr><td>Total Crop Production</td><td style="text-align:right;padding-left:12px">${formatNumberWithCommas(Math.round(aggregates.totalCropProduction))} tons</td></tr>
                   <tr style="border-top:1px solid #e5e7eb"><td>Feedstock types</td><td style="text-align:right;padding-left:12px">${aggregates.cropsCounted} crops</td></tr>
-                  <tr><td>Top crop</td><td style="text-align:right;padding-left:12px">${topCropStr}</td></tr>
                   ${salesRow}
                 </table>
+                ${breakdownSection}
                 <p style="margin-top:6px;font-size:11px;color:#6b7280">Source: 2022 USDA Census</p>
               </div>
             `);
