@@ -654,7 +654,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
           <AccordionContent>
             <div className="space-y-2 pl-4">
               
-              {/* County Level Stats Toggle */}
+              {/* USDA County Crop Totals Toggle */}
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="countyLayer"
@@ -664,7 +664,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                   onCheckedChange={(checked: boolean | 'indeterminate') => directLayerToggle('county', !!checked)}
                 />
                 <Label htmlFor="countyLayer" className="flex items-center font-medium">
-                  County Level Stats
+                  USDA County Crop Totals
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -674,6 +674,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                       </TooltipTrigger>
                       <TooltipContent side="right">
                         <p>Source: 2022 USDA Census of Agriculture</p>
+                        <p className="text-xs text-gray-400 mt-1">Primary crop production totals only. Derived residues are on the Crop Residues (LandIQ) layer.</p>
                         <p className="text-xs text-gray-400 mt-1">Mutually exclusive with Crop Residues layer</p>
                       </TooltipContent>
                     </Tooltip>

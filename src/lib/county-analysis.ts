@@ -338,6 +338,12 @@ export interface CountyAggregates {
   cropsCounted: number;
   /** Top crops sorted by acreage descending (up to 3). */
   topCropsByAcreage: Array<{ landiqName: string; acres: number }>;
+  /**
+   * Full per-crop breakdown of the constituents contributing to Total Crop
+   * Production, sorted by production descending. Only crops with production > 0
+   * are included. Not capped, so the popup can render the complete list.
+   */
+  cropProductionBreakdown: Array<{ landiqName: string; production: number; acres: number }>;
   /** Sum of per-crop sales values where reported. null if no crop reported sales. */
   totalCropSales: number | null;
 }
@@ -360,6 +366,7 @@ export function computeCountyAggregates(
   let weightedCelluloseSum = 0;
   let celluloseWeightTotal = 0;
   const topCropsArr: Array<{ landiqName: string; acres: number }> = [];
+  const productionBreakdown: Array<{ landiqName: string; production: number; acres: number }> = [];
   let salesSum = 0;
   let hasSalesData = false;
 
@@ -374,6 +381,10 @@ export function computeCountyAggregates(
 
     if (acres > 0) {
       topCropsArr.push({ landiqName: stat.landiqName, acres });
+    }
+
+    if (production > 0) {
+      productionBreakdown.push({ landiqName: stat.landiqName, production, acres });
     }
 
     const salesMetric = getCountyMetricSales(stat);
@@ -398,6 +409,7 @@ export function computeCountyAggregates(
     : NaN;
 
   topCropsArr.sort((a, b) => b.acres - a.acres);
+  productionBreakdown.sort((a, b) => b.production - a.production);
 
   return {
     totalCropAcreage,
@@ -406,6 +418,7 @@ export function computeCountyAggregates(
     avgCelluloseContent,
     cropsCounted: stats.length,
     topCropsByAcreage: topCropsArr.slice(0, 3),
+    cropProductionBreakdown: productionBreakdown,
     totalCropSales: hasSalesData ? salesSum : null,
   };
 }
