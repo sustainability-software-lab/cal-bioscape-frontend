@@ -10,6 +10,7 @@ import SitingInventory from './SitingInventory'; // Import the new component
 import { INFRASTRUCTURE_LAYERS, getCropResidueFactors } from '@/lib/constants';
 import { TILESET_REGISTRY } from '@/lib/tileset-registry'; // Import centralized tileset registry
 import { layerLabelMappings } from '@/lib/labelMappings';
+import { CARB_PRODUCT_CATEGORIES, CARB_POPUP_LABEL_KEY, isCarbProductLayerId } from '@/lib/carb-product-categories';
 import { getAvailability, getAnalysisByResource, getCensusByCrop } from '@/lib/api';
 import { getCountyGeoid } from '@/lib/county-lookup';
 import { getApiResource, getUsdaCropName, STATE_GEOID } from '@/lib/resource-mapping';
@@ -397,7 +398,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
 
 
   // Add interactivity (click and hover) to a layer
-  const addLayerInteractivity = useCallback((layerId, popupTitle) => {
+  const addLayerInteractivity = useCallback((layerId, popupTitle, labelKey) => {
     if (!map.current) return;
 
     map.current.on('click', layerId, (e) => {
@@ -407,8 +408,10 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
       }
 
       if (e.features && e.features.length > 0) {
-        const layerIdWithoutSuffix = layerId.replace(/-layer$/, '');
-        createPopupForFeature(e.features[0], e.lngLat, popupTitle, layerIdWithoutSuffix);
+        // labelKey lets disaggregated layers (e.g. CARB product sub-layers) share
+        // one canonical label-mapping/popup key; defaults to the bare layer id.
+        const popupKey = labelKey || layerId.replace(/-layer$/, '');
+        createPopupForFeature(e.features[0], e.lngLat, popupTitle, popupKey);
       }
     });
 
@@ -2457,30 +2460,35 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
           console.error("Failed to add tomato processors layer:", error);
         }
 
-        // Add CARB food processors layer
-        try {
-          map.current.addLayer({
-            id: 'carb-food-processors-layer',
-            type: 'circle',
-            source: 'carb-food-processors-source',
-            'source-layer': TILESET_REGISTRY.carbFoodProcessors.sourceLayer,
-            minzoom: 0,
-            maxzoom: 22,
-            paint: {
-              'circle-color': '#14B8A6',
-              'circle-radius': 6,
-              'circle-opacity': 0.8,
-              'circle-stroke-color': '#FFFFFF',
-              'circle-stroke-width': 1
-            },
-            layout: {
-              'visibility': layerVisibility?.carbFoodProcessors ? 'visible' : 'none'
-            }
-          });
-          console.log("Added CARB food processors layer");
-        } catch (error) {
-          console.error("Failed to add CARB food processors layer:", error);
-        }
+        // Add CARB food processors layers, disaggregated by primary_ag_product
+        // (issue #98). One filtered circle layer per product so each legend entry
+        // toggles independently and carries a distinct color.
+        CARB_PRODUCT_CATEGORIES.forEach((category) => {
+          try {
+            map.current.addLayer({
+              id: category.mapboxLayerId,
+              type: 'circle',
+              source: 'carb-food-processors-source',
+              'source-layer': TILESET_REGISTRY.carbFoodProcessors.sourceLayer,
+              minzoom: 0,
+              maxzoom: 22,
+              filter: ['==', ['get', 'primary_ag_product'], category.product],
+              paint: {
+                'circle-color': category.color,
+                'circle-radius': 6,
+                'circle-opacity': 0.8,
+                'circle-stroke-color': '#FFFFFF',
+                'circle-stroke-width': 1
+              },
+              layout: {
+                'visibility': layerVisibility?.[category.key] ? 'visible' : 'none'
+              }
+            });
+            console.log(`Added CARB food processors layer for ${category.product}`);
+          } catch (error) {
+            console.error(`Failed to add CARB food processors layer for ${category.product}:`, error);
+          }
+        });
 
         // Add food retailers layer
         try {
@@ -2912,7 +2920,6 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
     'district-energy-systems-layer': 'District Energy System Details',
     'food-processors-layer': 'Food Processor Details',
     'tomato-processors-layer': 'Tomato Processing Facility Details',
-    'carb-food-processors-layer': 'Food Processor (CARB) Details',
     'food-retailers-layer': 'Food Retailer Details',
     'power-plants-layer': 'Power Plant Details',
           'food-banks-layer': 'Food Bank Details',
@@ -2924,6 +2931,14 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
             addLayerInteractivity(layerId, popupTitle);
           }
         }
+
+        // CARB product sub-layers (issue #98): each filtered layer is interactive
+        // and shares the canonical CARB label mapping + popup title.
+        CARB_PRODUCT_CATEGORIES.forEach((category) => {
+          if (map.current.getLayer(category.mapboxLayerId)) {
+            addLayerInteractivity(category.mapboxLayerId, 'Food Processor (CARB) Details', CARB_POPUP_LABEL_KEY);
+          }
+        });
 
       }); // Closing bracket for map.current.on('load', ...)
 
@@ -3111,12 +3126,16 @@ useEffect(() => {
     'district-energy-systems-layer': layerVisibility?.districtEnergySystems,
     'food-processors-layer': layerVisibility?.foodProcessors,
     'tomato-processors-layer': layerVisibility?.tomatoProcessors,
-    'carb-food-processors-layer': layerVisibility?.carbFoodProcessors,
     'food-retailers-layer': layerVisibility?.foodRetailers,
     'power-plants-layer': layerVisibility?.powerPlants,
     'food-banks-layer': layerVisibility?.foodBanks,
     'farmers-markets-layer': layerVisibility?.farmersMarkets,
   };
+
+  // CARB product sub-layers (issue #98): one visibility key per primary_ag_product.
+  CARB_PRODUCT_CATEGORIES.forEach((category) => {
+    layerMapping[category.mapboxLayerId] = layerVisibility?.[category.key];
+  });
 
   Object.entries(layerMapping).forEach(([layerId, isVisible]) => {
     if (map.current.getLayer(layerId)) {
@@ -3125,8 +3144,10 @@ useEffect(() => {
         map.current.setLayoutProperty(layerId, 'visibility', visibility);
       }
 
-      // If the layer is being hidden and a popup for it is open, close the popup
-      if (!isVisible && currentPopup.current && currentPopupLayer === layerId.replace(/-layer$/, '')) {
+      // If the layer is being hidden and a popup for it is open, close the popup.
+      // CARB sub-layers share one canonical popup key, so normalize before comparing.
+      const popupKey = isCarbProductLayerId(layerId) ? CARB_POPUP_LABEL_KEY : layerId.replace(/-layer$/, '');
+      if (!isVisible && currentPopup.current && currentPopupLayer === popupKey) {
         currentPopup.current.remove();
         currentPopup.current = null;
         setCurrentPopupLayer(null);
