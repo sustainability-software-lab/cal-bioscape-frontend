@@ -3144,16 +3144,33 @@ useEffect(() => {
         map.current.setLayoutProperty(layerId, 'visibility', visibility);
       }
 
-      // If the layer is being hidden and a popup for it is open, close the popup.
-      // CARB sub-layers share one canonical popup key, so normalize before comparing.
-      const popupKey = isCarbProductLayerId(layerId) ? CARB_POPUP_LABEL_KEY : layerId.replace(/-layer$/, '');
-      if (!isVisible && currentPopup.current && currentPopupLayer === popupKey) {
-        currentPopup.current.remove();
-        currentPopup.current = null;
-        setCurrentPopupLayer(null);
+      // If a non-CARB layer is being hidden and its popup is open, close it.
+      // CARB sub-layers all share ONE canonical popup key, so a single hidden
+      // sibling must not close a popup that belongs to a still-visible CARB
+      // layer - their closure is handled collectively below.
+      if (!isCarbProductLayerId(layerId)) {
+        const popupKey = layerId.replace(/-layer$/, '');
+        if (!isVisible && currentPopup.current && currentPopupLayer === popupKey) {
+          currentPopup.current.remove();
+          currentPopup.current = null;
+          setCurrentPopupLayer(null);
+        }
       }
     }
   });
+
+  // Close an open CARB popup only when EVERY CARB sub-layer is hidden. Because all
+  // CARB product sub-layers share the canonical popup key, per-layer comparison in
+  // the loop above would let a hidden sibling close a popup that still belongs to a
+  // visible CARB layer (issue #98 regression: CARB popups opened then vanished).
+  if (currentPopup.current && currentPopupLayer === CARB_POPUP_LABEL_KEY) {
+    const anyCarbVisible = CARB_PRODUCT_CATEGORIES.some((category) => layerVisibility?.[category.key]);
+    if (!anyCarbVisible) {
+      currentPopup.current.remove();
+      currentPopup.current = null;
+      setCurrentPopupLayer(null);
+    }
+  }
 }, [mapLoaded, layerVisibility, currentPopupLayer]);
 
   // Define validateBufferState function before it's used in dependency arrays

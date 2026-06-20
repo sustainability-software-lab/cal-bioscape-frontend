@@ -1244,7 +1244,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                       {!isFoodProcessorsCollapsed && (
                         <div className="space-y-1">
                           {/* Tomato Processors Layer Toggle - Subtype */}
-                          <div className="flex items-center space-x-2 pl-12">
+                          <div className="flex items-center space-x-2 pl-6">
                              <Checkbox
                               id="tomatoProcessorsLayer"
                               checked={localLayerVisibility?.tomatoProcessors ?? false}
@@ -1266,33 +1266,10 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                             </Label>
                           </div>
 
-                          {/* Other Food Processors Layer Toggle - Subtype */}
-                          <div className="flex items-center space-x-2 pl-12">
-                             <Checkbox
-                              id="foodProcessorsLayer"
-                              checked={localLayerVisibility?.foodProcessors ?? false}
-                              onCheckedChange={(checked: boolean | 'indeterminate') => directLayerToggle('foodProcessors', !!checked)}
-                            />
-                            <Label htmlFor="foodProcessorsLayer" className="flex items-center text-xs">
-                              <span
-                                style={{
-                                  display: 'inline-block',
-                                  width: '10px',
-                                  height: '10px',
-                                  backgroundColor: '#FFD700', /* Gold color for Food Processors */
-                                  borderRadius: '50%',
-                                  marginRight: '2px',
-                                  flexShrink: 0,
-                                }}
-                              ></span>
-                              Other Processors (EPA)
-                            </Label>
-                          </div>
-
                           {/* CARB Food Processors - disaggregated by primary_ag_product (issue #98).
                               One independently-toggleable, color-coded legend entry per product. */}
                           {CARB_PRODUCT_CATEGORIES.map((category) => (
-                            <div key={category.key} className="flex items-center space-x-2 pl-12">
+                            <div key={category.key} className="flex items-center space-x-2 pl-6">
                               <Checkbox
                                 id={`${category.key}Layer`}
                                 checked={localLayerVisibility?.[category.key] ?? false}
@@ -1310,10 +1287,34 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                                     flexShrink: 0,
                                   }}
                                 ></span>
-                                {category.label} (CARB)
+                                {category.label}
                               </Label>
                             </div>
                           ))}
+
+                          {/* Other Food Processors (EPA) Layer Toggle - listed last as the
+                              catch-all after the specific tomato + CARB product subtypes. */}
+                          <div className="flex items-center space-x-2 pl-6">
+                             <Checkbox
+                              id="foodProcessorsLayer"
+                              checked={localLayerVisibility?.foodProcessors ?? false}
+                              onCheckedChange={(checked: boolean | 'indeterminate') => directLayerToggle('foodProcessors', !!checked)}
+                            />
+                            <Label htmlFor="foodProcessorsLayer" className="flex items-center text-xs">
+                              <span
+                                style={{
+                                  display: 'inline-block',
+                                  width: '10px',
+                                  height: '10px',
+                                  backgroundColor: '#FFD700', /* Gold color for Food Processors */
+                                  borderRadius: '50%',
+                                  marginRight: '2px',
+                                  flexShrink: 0,
+                                }}
+                              ></span>
+                              Other Processors
+                            </Label>
+                          </div>
                         </div>
                       )}
                     </div>
