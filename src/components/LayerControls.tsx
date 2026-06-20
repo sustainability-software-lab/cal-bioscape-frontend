@@ -1244,7 +1244,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                       {!isFoodProcessorsCollapsed && (
                         <div className="space-y-1">
                           {/* Tomato Processors Layer Toggle - Subtype */}
-                          <div className="flex items-center space-x-2 pl-12">
+                          <div className="flex items-center space-x-2 pl-6">
                              <Checkbox
                               id="tomatoProcessorsLayer"
                               checked={localLayerVisibility?.tomatoProcessors ?? false}
@@ -1269,7 +1269,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                           {/* CARB Food Processors - disaggregated by primary_ag_product (issue #98).
                               One independently-toggleable, color-coded legend entry per product. */}
                           {CARB_PRODUCT_CATEGORIES.map((category) => (
-                            <div key={category.key} className="flex items-center space-x-2 pl-12">
+                            <div key={category.key} className="flex items-center space-x-2 pl-6">
                               <Checkbox
                                 id={`${category.key}Layer`}
                                 checked={localLayerVisibility?.[category.key] ?? false}
@@ -1294,7 +1294,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
 
                           {/* Other Food Processors (EPA) Layer Toggle - listed last as the
                               catch-all after the specific tomato + CARB product subtypes. */}
-                          <div className="flex items-center space-x-2 pl-12">
+                          <div className="flex items-center space-x-2 pl-6">
                              <Checkbox
                               id="foodProcessorsLayer"
                               checked={localLayerVisibility?.foodProcessors ?? false}
