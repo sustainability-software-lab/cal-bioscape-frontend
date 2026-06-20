@@ -1262,7 +1262,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                                   flexShrink: 0,
                                 }}
                               ></span>
-                              Tomato Processors
+                              Tomato
                             </Label>
                           </div>
 
@@ -1312,7 +1312,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                                   flexShrink: 0,
                                 }}
                               ></span>
-                              Other Processors
+                              Other
                             </Label>
                           </div>
                         </div>
