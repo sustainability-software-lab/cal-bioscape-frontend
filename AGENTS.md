@@ -39,7 +39,7 @@ Authoritative reference for AI agents working in this repository. Read this file
 - Report bugs directly to the GitHub repository
 
 **Organization:** Sustainability Software Lab, Lawrence Berkeley National Laboratory  
-**GitHub (Enterprise):** `lbl.github.com/sustainability-software-lab/cal-bioscape-frontend`  
+**GitHub:** `github.com/sustainability-software-lab/cal-bioscape-frontend` — the code repo **and GitHub Actions CI run on github.com** (not the LBL Enterprise instance). `lbl.github.com` is a *separate* GitHub Enterprise instance that only the in-app bug-reporter files issues to (via `GITHUB_BASE_URL`, see §4). Local shells often default `GH_HOST=lbl.github.com`, so `gh` commands here need `unset GH_HOST` first. GitHub Actions secrets/variables are managed on github.com (`gh secret set ... --repo sustainability-software-lab/cal-bioscape-frontend`).  
 **Production backend:** `api.calbioscape.org` (USDA data, biomass composition, seasonal availability)
 **Staging backend:** `api-staging.calbioscape.org`
 
@@ -1396,7 +1396,8 @@ The Cloud Run service runs under a **dedicated service account** (not the Comput
 - **Auth (repo/org secrets):** `CA_BIOSITE_API_KEY` (preferred) **or** `CA_BIOSITE_API_USER` + `CA_BIOSITE_API_PASSWORD`. Optional repo **variable** `CA_BIOSITE_API_BASE_URL` overrides the API base (defaults to prod `https://api.calbioscape.org`).
 - **Degradation guard:** `scripts/build-county-stats-snapshot.ts` calls `validateCountySnapshot` (`src/lib/county-snapshot-guard.ts`) before writing and **refuses to overwrite** (exits non-zero, failing the job loudly) when the new snapshot covers `< EXPECTED_COUNTY_COUNT` (58) counties or is all-empty while the previous one had data — so a partial/failed backend sweep never clobbers a good snapshot.
 - **Prod freshness:** the job publishes to `staging` only; prod picks up the refreshed snapshot on the next normal `staging → main` promotion (the review gate is intentionally not bypassed).
-- **Setup note:** the `github-actions[bot]` (or a configured PAT) must be permitted to push to `staging` for the commit step to succeed; otherwise the job fails visibly. This repo runs on GitHub Enterprise (`lbl.github.com`); scheduled Actions are available there (cf. `security.yml`), with `workflow_dispatch` as the manual fallback.
+- **Runs on github.com** (not the LBL Enterprise instance — see §1). Secrets/vars are set via `gh secret set --repo sustainability-software-lab/cal-bioscape-frontend`. `CA_BIOSITE_API_KEY` is already configured, sourced from GCP Secret Manager `biocirv-production-frontend-api-key`.
+- **Activation requirement:** GitHub only runs `schedule:` cron — and exposes `workflow_dispatch` — from the **default branch (`main`)**. The workflow must be promoted to `main` (via the normal `staging → main` flow) before the daily refresh fires; on `staging` alone it is dormant. `staging` is unprotected, so the commit step's `GITHUB_TOKEN` can push to it without extra setup.
 
 ### npm scripts
 
