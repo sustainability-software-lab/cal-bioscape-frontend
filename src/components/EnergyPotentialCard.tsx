@@ -71,30 +71,37 @@ const EnergyPotentialCard: React.FC<EnergyPotentialCardProps> = ({ totals, isLoa
 
           {/* Bar chart — top 5 crops by energy share */}
           {totals.cropBreakdown.length > 1 && (
-            <div className="mt-2 space-y-1">
-              {totals.cropBreakdown
-                .sort((a, b) => b.energyGj - a.energyGj)
-                .slice(0, 5)
-                .map((crop) => {
-                  const pct = totals.totalGj > 0
-                    ? Math.round((crop.energyGj / totals.totalGj) * 100)
-                    : 0;
-                  return (
-                    <div key={crop.cropName} className="flex items-center gap-1.5 text-[10px]">
-                      <span className="w-28 truncate text-gray-600 flex-shrink-0" title={crop.cropName}>
-                        {crop.cropName}
-                      </span>
-                      <div className="flex-1 bg-emerald-100 rounded-full h-1.5">
-                        <div
-                          className="bg-emerald-500 h-1.5 rounded-full"
-                          style={{ width: `${pct}%` }}
-                        />
+            <TooltipProvider delayDuration={150}>
+              <div className="mt-2 space-y-1">
+                {totals.cropBreakdown
+                  .sort((a, b) => b.energyGj - a.energyGj)
+                  .slice(0, 5)
+                  .map((crop) => {
+                    const pct = totals.totalGj > 0
+                      ? Math.round((crop.energyGj / totals.totalGj) * 100)
+                      : 0;
+                    return (
+                      <div key={crop.cropName} className="flex items-center gap-1.5 text-[10px]">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="w-28 truncate text-gray-600 flex-shrink-0 cursor-default">
+                              {crop.cropName}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-xs">{crop.cropName}</TooltipContent>
+                        </Tooltip>
+                        <div className="flex-1 bg-emerald-100 rounded-full h-1.5">
+                          <div
+                            className="bg-emerald-500 h-1.5 rounded-full"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <span className="text-gray-500 w-7 text-right flex-shrink-0">{pct}%</span>
                       </div>
-                      <span className="text-gray-500 w-7 text-right flex-shrink-0">{pct}%</span>
-                    </div>
-                  );
-                })}
-            </div>
+                    );
+                  })}
+              </div>
+            </TooltipProvider>
           )}
 
           {/* Data source footnote */}
