@@ -39,7 +39,7 @@ Authoritative reference for AI agents working in this repository. Read this file
 - Report bugs directly to the GitHub repository
 
 **Organization:** Sustainability Software Lab, Lawrence Berkeley National Laboratory  
-**GitHub (Enterprise):** `lbl.github.com/sustainability-software-lab/cal-bioscape-frontend`  
+**GitHub:** `github.com/sustainability-software-lab/cal-bioscape-frontend` — the code repo **and GitHub Actions CI run on github.com** (not the LBL Enterprise instance). `lbl.github.com` is a *separate* GitHub Enterprise instance that only the in-app bug-reporter files issues to (via `GITHUB_BASE_URL`, see §4). Local shells often default `GH_HOST=lbl.github.com`, so `gh` commands here need `unset GH_HOST` first. GitHub Actions secrets/variables are managed on github.com (`gh secret set ... --repo sustainability-software-lab/cal-bioscape-frontend`).  
 **Production backend:** `api.calbioscape.org` (USDA data, biomass composition, seasonal availability)
 **Staging backend:** `api-staging.calbioscape.org`
 
@@ -162,6 +162,8 @@ cal-bioscape-frontend/
 ├── .github/
 │   └── workflows/
 │       ├── google-cloudrun-source.yml  # Unconfigured stub (not used)
+│       ├── enforce-staging-gate.yml    # PRs to main must come from staging
+│       ├── refresh-county-snapshot.yml # Daily cron: regenerate county-stats snapshot → staging
 │       └── security.yml               # Runs npm audit
 ├── next.config.*
 ├── tailwind.config.*
@@ -859,7 +861,7 @@ All values on dry basis (moisture as-received). Grouped by crop category.
 | Export | Description |
 |---|---|
 | `fetchCountyFeedstockStats(geoid)` | Fetches both census and survey stats for each mapped resource at a county, merges parameter-level facts, and returns rows with displayable acres or production metrics. **Session-cached** (wraps `makePromiseCache`): a county is fetched once per session, so the map popup (via `getCountyAggregateStats`) and the county panel (via `page.tsx handleCountySelect`) share one fetch and repeat clicks hit memory with no refetch. **Normally never hits the network at all** — the cache is seeded on load from the static snapshot (see `seedCountyStats`); live fetch is only a fallback for geoids missing from the snapshot. |
-| `seedCountyStats(snapshot)` | **Primary perf path.** Seeds the `fetchCountyFeedstockStats` cache from the precomputed `public/data/county-stats-snapshot.json` (fetched once on load in `page.tsx`). Makes every county popup/panel click instant by taking the unindexed, ~16s-p90 backend entirely off the click path. Returns the count of counties seeded. The snapshot is regenerated via `npm run build-county-snapshot` (at most annual — it's the static USDA 2022 Census). |
+| `seedCountyStats(snapshot)` | **Primary perf path.** Seeds the `fetchCountyFeedstockStats` cache from the precomputed `public/data/county-stats-snapshot.json` (fetched once on load in `page.tsx`). Makes every county popup/panel click instant by taking the unindexed, ~16s-p90 backend entirely off the click path. Returns the count of counties seeded. The snapshot is regenerated via `npm run build-county-snapshot` — automatically on a daily cron by the `refresh-county-snapshot` GitHub Action (see §16), or manually. A degradation guard (`src/lib/county-snapshot-guard.ts`) refuses to publish a truncated or all-empty-vs-previous sweep. |
 | `assembleCountyFeedstockStats(geoid, fetchResource, concurrency?)` | Core per-county merge/filter logic with an injectable `CountyResourceFetcher`. Shared by the browser path (`fetchCountyFeedstockStats`, proxy fetch) and the offline snapshot generator (direct backend fetch) so both stay in lockstep. |
 | `prefetchAllCountyStats(geoids)` / `warmPromiseCache(keys, fetch, concurrency)` | **Fallback only** (used when the snapshot fetch fails): idempotent, throttled, idle-scheduled live warm sweep. Each county is ~2×N_resources requests against the slow backend, so this is the slow path the snapshot exists to avoid. |
 | `getCountyMetric(stat, metric)` | Selects the exact displayed acres or production metric. Production ignores `operations` unit rows such as `area in production`. |
@@ -1383,7 +1385,19 @@ Staging and production use API key auth (`CA_BIOSITE_API_KEY`). Production expec
 
 The Cloud Run service runs under a **dedicated service account** (not the Compute Engine default SA).
 
-`.github/workflows/google-cloudrun-source.yml` is an unconfigured stub — CI uses Cloud Build directly. `.github/workflows/security.yml` runs npm audit.
+`.github/workflows/google-cloudrun-source.yml` is an unconfigured stub — CI uses Cloud Build directly. `.github/workflows/security.yml` runs npm audit. `.github/workflows/enforce-staging-gate.yml` rejects PRs to `main` not sourced from `staging`. `.github/workflows/refresh-county-snapshot.yml` is the scheduled county-stats snapshot refresh (see below).
+
+### Automated county-stats snapshot refresh
+
+`.github/workflows/refresh-county-snapshot.yml` keeps `public/data/county-stats-snapshot.json` fresh with the backend USDA data without any manual step, and without ever putting the slow (~16s-p90) backend on a user request path.
+
+- **When:** daily cron `0 9 * * *` (09:00 UTC, ~01:00–02:00 PT) → bounds staleness to ≤ 24 h. Also `workflow_dispatch` for a manual run from the Actions tab.
+- **What it does:** checks out `staging` → `npm ci` → `npm run build-county-snapshot` (the offline sweep) → if the snapshot file changed, commits + pushes to `staging`; if unchanged, it is a no-op (no empty commits). The staging Cloud Build then deploys it.
+- **Auth (repo/org secrets):** `CA_BIOSITE_API_KEY` (preferred) **or** `CA_BIOSITE_API_USER` + `CA_BIOSITE_API_PASSWORD`. Optional repo **variable** `CA_BIOSITE_API_BASE_URL` overrides the API base (defaults to prod `https://api.calbioscape.org`).
+- **Degradation guard:** `scripts/build-county-stats-snapshot.ts` calls `validateCountySnapshot` (`src/lib/county-snapshot-guard.ts`) before writing and **refuses to overwrite** (exits non-zero, failing the job loudly) when the new snapshot covers `< EXPECTED_COUNTY_COUNT` (58) counties or is all-empty while the previous one had data — so a partial/failed backend sweep never clobbers a good snapshot.
+- **Prod freshness:** the job publishes to `staging` only; prod picks up the refreshed snapshot on the next normal `staging → main` promotion (the review gate is intentionally not bypassed).
+- **Runs on github.com** (not the LBL Enterprise instance — see §1). Secrets/vars are set via `gh secret set --repo sustainability-software-lab/cal-bioscape-frontend`. `CA_BIOSITE_API_KEY` is already configured, sourced from GCP Secret Manager `biocirv-production-frontend-api-key`.
+- **Activation requirement:** GitHub only runs `schedule:` cron — and exposes `workflow_dispatch` — from the **default branch (`main`)**. The workflow must be promoted to `main` (via the normal `staging → main` flow) before the daily refresh fires; on `staging` alone it is dormant. `staging` is unprotected, so the commit step's `GITHUB_TOKEN` can push to it without extra setup.
 
 ### npm scripts
 

@@ -15,7 +15,7 @@
  * Re-run whenever the underlying USDA data changes (at most annual).
  */
 import * as dotenv from 'dotenv';
-import { writeFileSync, mkdirSync } from 'fs';
+import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'fs';
 import { dirname, resolve } from 'path';
 
 dotenv.config({ path: '.env.local' });
@@ -29,6 +29,11 @@ import {
   type CountyCropStat,
   type CountyResourceFetcher,
 } from '../src/lib/county-analysis';
+import {
+  validateCountySnapshot,
+  serializeCountySnapshot,
+  type CountySnapshot,
+} from '../src/lib/county-snapshot-guard';
 import type { DataItemResponse, CensusListResponse } from '../src/lib/api-types';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'https://api.calbioscape.org';
@@ -97,8 +102,23 @@ async function main() {
     process.exit(1);
   }
 
+  // Refuse to overwrite a good snapshot with a degraded one. A backend that
+  // returns empty/404 for every county does not throw above, so guard on the
+  // shape: full county coverage, and not all-empty when the prior snapshot had
+  // data (see county-snapshot-guard).
+  const prev: CountySnapshot | null = existsSync(OUT)
+    ? (JSON.parse(readFileSync(OUT, 'utf8')) as CountySnapshot)
+    : null;
+  const validation = validateCountySnapshot(snapshot, prev);
+  if (!validation.ok) {
+    console.error(`\nRefusing to write ${OUT}: ${validation.reason}`);
+    process.exit(1);
+  }
+
   mkdirSync(dirname(OUT), { recursive: true });
-  writeFileSync(OUT, JSON.stringify(snapshot));
+  // Sorted-key serialization so identical data always produces a byte-identical
+  // file — the scheduled refresh job commits only on a real data change.
+  writeFileSync(OUT, serializeCountySnapshot(snapshot));
   const withData = Object.values(snapshot).filter(s => s.length > 0).length;
   const kb = (JSON.stringify(snapshot).length / 1024).toFixed(1);
   const secs = ((Date.now() - start) / 1000).toFixed(0);
