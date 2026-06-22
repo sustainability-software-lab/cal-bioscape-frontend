@@ -443,10 +443,12 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
                           >
                             <td className="py-2 px-2 whitespace-normal">
                               <div className="flex items-center gap-1.5">
-                                {hasComposition && (
+                                {hasComposition ? (
                                   <ChevronDown
                                     className={`h-3 w-3 text-gray-400 flex-shrink-0 transition-transform ${isExpanded ? 'rotate-0' : '-rotate-90'}`}
                                   />
+                                ) : (
+                                  <span className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
                                 )}
                                 <span
                                   className="inline-block h-3 w-3 rounded-sm flex-shrink-0"
