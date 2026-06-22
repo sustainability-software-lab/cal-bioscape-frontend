@@ -7,8 +7,10 @@ import { batchFetchCompositionData, CompositionLookup, CompositionFilters, DEFAU
 import {
   fetchCountyFeedstockStats,
   getCountyPanelSelectionForResponse,
+  prefetchAllCountyStats,
 } from '@/lib/county-analysis';
 import type { SelectedCountyFeedstockStats } from '@/lib/county-analysis';
+import { getAllCountyGeoids } from '@/lib/county-lookup';
 import { applyLayerMutualExclusivity } from '@/lib/layer-utils';
 import { CARB_PRODUCT_KEYS } from '@/lib/carb-product-categories';
 import CountyFeedstockPanel from '@/components/CountyFeedstockPanel';
@@ -68,6 +70,25 @@ export default function Home() {
     batchFetchCompositionData()
       .then(setCompositionLookup)
       .catch(err => console.warn('[composition] Failed to fetch composition data:', err));
+  }, []);
+
+  // Warm the county stats cache for every clickable county so the first county
+  // click is served from memory. Scheduled on idle (after first paint) so it
+  // never competes with the initial render or the data loads above. The sweep
+  // is throttled and idempotent, and shares one cache with on-demand clicks.
+  useEffect(() => {
+    const geoids = Object.values(getAllCountyGeoids());
+    const kickoff = () => prefetchAllCountyStats(geoids);
+    type IdleWindow = Window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+    };
+    const idleWindow = window as IdleWindow;
+    if (typeof idleWindow.requestIdleCallback === 'function') {
+      idleWindow.requestIdleCallback(kickoff, { timeout: 3000 });
+      return;
+    }
+    const timeoutId = setTimeout(kickoff, 2000);
+    return () => clearTimeout(timeoutId);
   }, []);
 
   // Effect to dispatch resize event when panel collapses/expands
