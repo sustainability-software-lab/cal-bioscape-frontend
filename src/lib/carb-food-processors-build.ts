@@ -41,6 +41,12 @@ export function buildCarbFeatures(csvText: string): CarbFeature[] {
       continue;
     }
 
+    // Skip facilities where geocoding failed or was not constrained to CA
+    const geocodeStatus = row['geocode_status']?.trim() ?? '';
+    if (geocodeStatus && geocodeStatus !== 'success') {
+      continue;
+    }
+
     const properties: Record<string, string | number> = {};
     for (const col of CURATED_COLUMNS) {
       const val = row[col as string];
