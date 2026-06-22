@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Card } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ChevronDown, Leaf } from 'lucide-react';
 import { getCropResidueFactors } from '@/lib/constants';
 import { formatNumberWithCommas, downloadCSV } from '@/lib/utils';
@@ -356,7 +357,7 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
   if (!isVisible) return null;
 
   return (
-    <Card className={`absolute top-4 right-4 z-10 ${isCollapsed ? 'py-2 px-4' : 'p-4'} w-[620px] max-w-[65%] shadow-lg bg-white max-h-[calc(100%-24px)] flex flex-col`}>
+    <Card className={`absolute top-4 right-4 z-10 ${isCollapsed ? 'py-2 px-4' : 'p-4'} w-[720px] max-w-[78%] shadow-lg bg-white max-h-[calc(100%-24px)] flex flex-col`}>
       <div className={`flex justify-between items-center ${isCollapsed ? 'mb-0' : 'mb-0'}`}>
         <h3 className="font-medium text-sm flex items-center">
           <Leaf className="h-4 w-4 mr-2" />
@@ -407,15 +408,16 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
 
           {filteredInventory.length > 0 ? (
             <div className="max-h-[350px] overflow-y-auto">
-              <table className="w-full text-xs">
+             <TooltipProvider delayDuration={150}>
+              <table className="w-full text-[11px]">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="py-2 px-3 text-left font-medium text-gray-500 w-[28%]">Resource Type</th>
-                    <th className="py-2 px-2 text-right font-medium text-gray-500 w-[12%]">Acres</th>
-                    <th className="py-2 px-2 text-right font-medium text-gray-500 w-[11%]">% of Area</th>
-                    <th className="py-2 px-2 text-right font-medium text-gray-500 w-[18%]">Dry Residue (tons/year)</th>
-                    <th className="py-2 px-2 text-right font-medium text-gray-500 w-[18%]">Wet Residue (tons/year)</th>
-                    <th className="py-2 px-2 text-right font-medium text-gray-500 w-[13%]">Availability</th>
+                    <th className="py-2 px-2 text-left font-medium text-gray-500 w-[42%]">Resource Type</th>
+                    <th className="py-2 px-1.5 text-right font-medium text-gray-500 w-[10%]">Acres</th>
+                    <th className="py-2 px-1.5 text-right font-medium text-gray-500 w-[9%]">% of Area</th>
+                    <th className="py-2 px-1.5 text-right font-medium text-gray-500 w-[14%]">Dry Residue (tons/year)</th>
+                    <th className="py-2 px-1.5 text-right font-medium text-gray-500 w-[14%]">Wet Residue (tons/year)</th>
+                    <th className="py-2 px-1.5 text-right font-medium text-gray-500 w-[11%]">Availability</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -439,7 +441,7 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
                               });
                             }}
                           >
-                            <td className="py-2 px-3 whitespace-normal">
+                            <td className="py-2 px-2 whitespace-normal">
                               <div className="flex items-center gap-1.5">
                                 {hasComposition && (
                                   <ChevronDown
@@ -450,7 +452,12 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
                                   className="inline-block h-3 w-3 rounded-sm flex-shrink-0"
                                   style={{ backgroundColor: row.color }}
                                 />
-                                <span className="line-clamp-1 min-w-0" title={row.resourceName}>{row.resourceName}</span>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="line-clamp-1 min-w-0 cursor-default">{row.resourceName}</span>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="max-w-xs">{row.resourceName}</TooltipContent>
+                                </Tooltip>
                                 {row.residueSource === 'api' && (
                                   <span
                                     className="flex-shrink-0 rounded px-1 py-px text-[9px] font-medium leading-tight bg-green-50 text-green-700 border border-green-200"
@@ -465,17 +472,17 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
                                 )}
                               </div>
                             </td>
-                            <td className="py-2 px-2 text-right">{formatNumberWithCommas(Math.round(row.acres))}</td>
-                            <td className="py-2 px-2 text-right">
+                            <td className="py-2 px-1.5 text-right">{formatNumberWithCommas(Math.round(row.acres))}</td>
+                            <td className="py-2 px-1.5 text-right">
                               {Math.round((row.acres / totalAcres) * 100)}%
                             </td>
-                            <td className="py-2 px-2 text-right">
+                            <td className="py-2 px-1.5 text-right">
                               {formatNumberWithCommas(row.dryResidueYield)}
                             </td>
-                            <td className="py-2 px-2 text-right">
+                            <td className="py-2 px-1.5 text-right">
                               {formatNumberWithCommas(row.wetResidueYield)}
                             </td>
-                            <td className="py-2 px-2 text-right text-gray-600">
+                            <td className="py-2 px-1.5 text-right text-gray-600">
                               {row.availabilityLoading
                                 ? <span className="text-gray-400 italic">…</span>
                                 : row.availability ?? <span className="text-gray-400">—</span>}
@@ -497,15 +504,16 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
                 </tbody>
                 <tfoot className="bg-gray-50 font-medium">
                   <tr>
-                    <td className="py-2 px-3 text-left">Total</td>
-                    <td className="py-2 px-2 text-right">{formatNumberWithCommas(Math.round(totalAcres))}</td>
-                    <td className="py-2 px-2 text-right">100%</td>
-                    <td className="py-2 px-2 text-right">{formatNumberWithCommas(Math.round(totalDryResidue))}</td>
-                    <td className="py-2 px-2 text-right">{formatNumberWithCommas(Math.round(totalWetResidue))}</td>
-                    <td className="py-2 px-2 text-right"></td>
+                    <td className="py-2 px-2 text-left">Total</td>
+                    <td className="py-2 px-1.5 text-right">{formatNumberWithCommas(Math.round(totalAcres))}</td>
+                    <td className="py-2 px-1.5 text-right">100%</td>
+                    <td className="py-2 px-1.5 text-right">{formatNumberWithCommas(Math.round(totalDryResidue))}</td>
+                    <td className="py-2 px-1.5 text-right">{formatNumberWithCommas(Math.round(totalWetResidue))}</td>
+                    <td className="py-2 px-1.5 text-right"></td>
                   </tr>
                 </tfoot>
               </table>
+             </TooltipProvider>
             </div>
           ) : (
             <div className="text-center text-sm text-gray-500 py-4">
