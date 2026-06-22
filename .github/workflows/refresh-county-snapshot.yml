@@ -1,0 +1,74 @@
+name: Refresh county-stats snapshot
+
+# Keeps the client-side county-stats lookup table
+# (public/data/county-stats-snapshot.json) fresh with the backend USDA data
+# without anyone running `npm run build-county-snapshot` by hand and without
+# ever putting the slow (~16s-p90) backend on a user's request path. The sweep
+# runs here, offline; users keep reading one small static asset.
+#
+# Required repo/org secrets (one auth path):
+#   CA_BIOSITE_API_KEY                       (preferred), or
+#   CA_BIOSITE_API_USER + CA_BIOSITE_API_PASSWORD
+# Optional repo variable:
+#   CA_BIOSITE_API_BASE_URL  (defaults to the prod base below)
+#
+# Publishes to `staging`; prod picks it up on the next staging -> main promotion.
+
+on:
+  schedule:
+    # Daily at 09:00 UTC (~01:00-02:00 PT). Bounds snapshot staleness to <= 24h.
+    - cron: '0 9 * * *'
+  workflow_dispatch: {}
+
+# Serialize refreshes; never run two snapshot pushes against staging at once.
+concurrency:
+  group: refresh-county-snapshot
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    name: Regenerate and publish snapshot
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout staging
+        uses: actions/checkout@v4
+        with:
+          ref: staging
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Regenerate county-stats snapshot
+        env:
+          # `|| 'prod'` so an unset repo variable falls back to prod rather than
+          # passing an empty string (the script uses `?? prod`, which an empty
+          # string would not trigger).
+          NEXT_PUBLIC_API_BASE_URL: ${{ vars.CA_BIOSITE_API_BASE_URL || 'https://api.calbioscape.org' }}
+          CA_BIOSITE_API_KEY: ${{ secrets.CA_BIOSITE_API_KEY }}
+          CA_BIOSITE_API_USER: ${{ secrets.CA_BIOSITE_API_USER }}
+          CA_BIOSITE_API_PASSWORD: ${{ secrets.CA_BIOSITE_API_PASSWORD }}
+        # The script's guard exits non-zero (failing this job loudly) on a
+        # truncated or all-empty-vs-previous sweep, so a degraded snapshot is
+        # never committed.
+        run: npm run build-county-snapshot
+
+      - name: Commit and push if the snapshot changed
+        run: |
+          if git diff --quiet -- public/data/county-stats-snapshot.json; then
+            echo "Snapshot unchanged — nothing to publish."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/data/county-stats-snapshot.json
+          git commit -m "chore(county): refresh county-stats snapshot [automated]"
+          git push origin HEAD:staging
