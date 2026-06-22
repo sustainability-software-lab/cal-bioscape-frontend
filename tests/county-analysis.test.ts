@@ -13,6 +13,9 @@ import {
   getDisplaySources,
   computeCountyAggregates,
   throttledSettled,
+  warmPromiseCache,
+  fetchCountyFeedstockStats,
+  makePromiseCache,
 } from '../src/lib/county-analysis';
 
 // ---------------------------------------------------------------------------
@@ -441,6 +444,66 @@ test('computeCountyAggregates cropProductionBreakdown excludes crops with zero p
   const result = computeCountyAggregates([cornStat, acresOnly], {}, {});
   assert.equal(result.cropProductionBreakdown.length, 1);
   assert.equal(result.cropProductionBreakdown[0].landiqName, 'Corn');
+});
+
+// ---------------------------------------------------------------------------
+// Issue #100: county popup latency — shared cache + page-load prefetch warming
+// ---------------------------------------------------------------------------
+
+test('fetchCountyFeedstockStats deduplicates concurrent calls for the same geoid (cached)', () => {
+  // Two synchronous calls for the same geoid must return the identical promise,
+  // proving the raw stats fetch is cache-wrapped and a re-click hits the cache
+  // rather than firing a second network request.
+  const first = fetchCountyFeedstockStats('06099');
+  const second = fetchCountyFeedstockStats('06099');
+  assert.equal(first, second, 'same geoid should share one cached promise');
+  // Swallow the network rejection in the test env (no proxy server running).
+  first.catch(() => {});
+  second.catch(() => {});
+});
+
+test('warmPromiseCache fetches every key exactly once', async () => {
+  const fetched: string[] = [];
+  await warmPromiseCache(
+    ['06001', '06003', '06005'],
+    async (key: string) => { fetched.push(key); return key; },
+    2
+  );
+  assert.deepEqual(fetched.sort(), ['06001', '06003', '06005']);
+});
+
+test('warmPromiseCache shares a cache with on-demand clicks (no duplicate fetches)', async () => {
+  // Models the real wiring: prefetch and clicks both go through one promise cache.
+  let factoryCalls = 0;
+  const cache = makePromiseCache(async (geoid: string) => {
+    factoryCalls++;
+    return geoid;
+  });
+  const geoids = ['06001', '06003', '06005'];
+
+  // Page-load prefetch warms every county.
+  await warmPromiseCache(geoids, cache, 2);
+  // Subsequent "clicks" on already-warmed counties must not refetch.
+  await Promise.all(geoids.map(g => cache(g)));
+
+  assert.equal(factoryCalls, geoids.length, 'each county fetched once across prefetch + clicks');
+});
+
+test('warmPromiseCache swallows per-key failures without aborting the sweep', async () => {
+  const succeeded: string[] = [];
+  await assert.doesNotReject(() =>
+    warmPromiseCache(
+      ['bad', '06001', '06003'],
+      async (key: string) => {
+        if (key === 'bad') throw new Error('boom');
+        succeeded.push(key);
+        return key;
+      },
+      2
+    )
+  );
+  // The failing key did not prevent the others from completing.
+  assert.deepEqual(succeeded.sort(), ['06001', '06003']);
 });
 
 test('computeCountyAggregates sums sales when present and returns null when none', () => {

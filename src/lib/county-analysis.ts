@@ -272,7 +272,7 @@ const COUNTY_FETCH_CONCURRENCY = 5;
  * Merges census and survey data so missing metrics can fall through per parameter.
  * Returns only crops that have at least one data point.
  */
-export async function fetchCountyFeedstockStats(
+async function fetchCountyFeedstockStatsUncached(
   geoid: string
 ): Promise<CountyCropStat[]> {
   const authAwareFetch = { throwOnAuthError: true };
@@ -323,6 +323,69 @@ export async function fetchCountyFeedstockStats(
       r.status === 'fulfilled' && r.value !== null
     )
     .map(r => r.value);
+}
+
+/**
+ * Fetch county-level USDA stats, cached for the session.
+ *
+ * Both consumers route through this single cache:
+ *   - the map popup, via getCountyAggregateStats -> computeCountyAggregateStats
+ *   - the county feedstock panel (page.tsx handleCountySelect)
+ * so a county is fetched at most once per session and the two paths never
+ * duplicate the request on a single click. Re-clicking a county is served from
+ * memory with no network refetch. Rejected entries are evicted so a failed
+ * county retries on the next click.
+ *
+ * Acceptable-staleness model: the first fetch captures the backend DB state at
+ * that moment. The backend is not updated within a user session, so serving the
+ * session-cached snapshot for repeat clicks is intentional, not stale data.
+ */
+export const fetchCountyFeedstockStats = makePromiseCache(fetchCountyFeedstockStatsUncached);
+
+/**
+ * Idempotent, throttled, error-swallowing cache warmer. Pure with respect to its
+ * `fetch` argument so it can be unit-tested without the network. Each key is
+ * fetched at most once (the caller passes a cached fetcher); a key whose fetch
+ * rejects is swallowed here so one failure never aborts the sweep, and the
+ * underlying promise cache evicts it for a later retry.
+ */
+export async function warmPromiseCache<T>(
+  keys: string[],
+  fetch: (key: string) => Promise<T>,
+  concurrency: number
+): Promise<void> {
+  const tasks = keys.map(key => () => fetch(key).catch(() => undefined));
+  await throttledSettled(tasks, concurrency);
+}
+
+// Outer concurrency for the page-load county sweep. Kept below
+// COUNTY_FETCH_CONCURRENCY's effective fan-out because each county already
+// throttles its own per-resource fetches internally.
+const COUNTY_PREFETCH_CONCURRENCY = 3;
+let countyPrefetchStarted = false;
+
+/**
+ * Warm the session cache for every clickable county so the first popup/panel
+ * click is served from memory with no per-click round-trip.
+ *
+ * - Idempotent: only the first call does work (guarded by countyPrefetchStarted).
+ * - Non-blocking: fire-and-forget; callers kick this off on idle after first paint.
+ * - Deduped: routes through the same fetchCountyFeedstockStats cache as on-demand
+ *   clicks, so an in-flight prefetch and a user click never double-fetch a county.
+ * - Throttled: COUNTY_PREFETCH_CONCURRENCY caps the sweep; each county's own
+ *   fetch is itself throttled at COUNTY_FETCH_CONCURRENCY.
+ *
+ * Cost ceiling: each county issues ~2 requests per mapped resource (census +
+ * survey). Today only a few counties return data (backend ETL limit), so the
+ * sweep is cheap. When all 58 counties have data this is ~2 x N_resources x 58
+ * requests; the throttle keeps that from flooding the proxy. The durable fix is
+ * a backend batch / all-counties endpoint plus DB indexing on the bio-siting
+ * tables (tracked in the ca-biositing backend repo, out of scope here).
+ */
+export function prefetchAllCountyStats(geoids: string[]): void {
+  if (countyPrefetchStarted) return;
+  countyPrefetchStarted = true;
+  void warmPromiseCache(geoids, fetchCountyFeedstockStats, COUNTY_PREFETCH_CONCURRENCY);
 }
 
 // ---------------------------------------------------------------------------
