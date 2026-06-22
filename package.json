@@ -13,6 +13,7 @@
     "audit": "npm audit --audit-level=high",
     "test": "tsx --test tests/*.test.ts",
     "build-carb-data": "tsx scripts/build-carb-food-processors.ts",
+    "build-county-snapshot": "tsx scripts/build-county-stats-snapshot.ts",
     "upload-carb-tileset": "tsx scripts/upload-carb-tileset.ts",
     "upload-landiq-tileset": "tsx scripts/upload-landiq-tileset.ts"
   },

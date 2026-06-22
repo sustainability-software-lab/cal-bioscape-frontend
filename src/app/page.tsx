@@ -8,8 +8,9 @@ import {
   fetchCountyFeedstockStats,
   getCountyPanelSelectionForResponse,
   prefetchAllCountyStats,
+  seedCountyStats,
 } from '@/lib/county-analysis';
-import type { SelectedCountyFeedstockStats } from '@/lib/county-analysis';
+import type { SelectedCountyFeedstockStats, CountyCropStat } from '@/lib/county-analysis';
 import { getAllCountyGeoids } from '@/lib/county-lookup';
 import { applyLayerMutualExclusivity } from '@/lib/layer-utils';
 import { CARB_PRODUCT_KEYS } from '@/lib/carb-product-categories';
@@ -72,23 +73,41 @@ export default function Home() {
       .catch(err => console.warn('[composition] Failed to fetch composition data:', err));
   }, []);
 
-  // Warm the county stats cache for every clickable county so the first county
-  // click is served from memory. Scheduled on idle (after first paint) so it
-  // never competes with the initial render or the data loads above. The sweep
-  // is throttled and idempotent, and shares one cache with on-demand clicks.
+  // Warm the county stats cache so every county popup/panel click is instant.
+  // Primary path: seed from the precomputed static snapshot (one small fetch) —
+  // this takes the slow, unindexed backend (p90 ~16s) entirely off the click
+  // path. Fallback (snapshot missing/failed): the idle live-prefetch sweep.
   useEffect(() => {
-    const geoids = Object.values(getAllCountyGeoids());
-    const kickoff = () => prefetchAllCountyStats(geoids);
-    type IdleWindow = Window & {
-      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+    let cancelled = false;
+
+    const liveFallback = () => {
+      if (cancelled) return;
+      const geoids = Object.values(getAllCountyGeoids());
+      const kickoff = () => prefetchAllCountyStats(geoids);
+      type IdleWindow = Window & {
+        requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+      };
+      const idleWindow = window as IdleWindow;
+      if (typeof idleWindow.requestIdleCallback === 'function') {
+        idleWindow.requestIdleCallback(kickoff, { timeout: 3000 });
+      } else {
+        setTimeout(kickoff, 2000);
+      }
     };
-    const idleWindow = window as IdleWindow;
-    if (typeof idleWindow.requestIdleCallback === 'function') {
-      idleWindow.requestIdleCallback(kickoff, { timeout: 3000 });
-      return;
-    }
-    const timeoutId = setTimeout(kickoff, 2000);
-    return () => clearTimeout(timeoutId);
+
+    fetch('/data/county-stats-snapshot.json', { cache: 'force-cache' })
+      .then(res => (res.ok ? res.json() : Promise.reject(new Error(`snapshot ${res.status}`))))
+      .then((snapshot: Record<string, CountyCropStat[]>) => {
+        if (cancelled) return;
+        const seeded = seedCountyStats(snapshot);
+        console.log(`[county] seeded ${seeded} counties from snapshot (instant popups)`);
+      })
+      .catch(err => {
+        console.warn('[county] snapshot seed failed, falling back to live prefetch:', err);
+        liveFallback();
+      });
+
+    return () => { cancelled = true; };
   }, []);
 
   // Effect to dispatch resize event when panel collapses/expands
