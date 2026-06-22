@@ -4,7 +4,7 @@ import * as dotenv from 'dotenv';
 
 dotenv.config();
 
-const TILESET_ID = 'sustainasoft.carb-food-processors-2026-06';
+const TILESET_ID = 'sustainasoft.carb-food-processors-2026-06c';
 const SOURCE_ID = 'carb_food_processors';
 const SOURCE_NAME = `mapbox://tileset-source/sustainasoft/${SOURCE_ID}`;
 const BASE_URL = 'https://api.mapbox.com';
@@ -28,25 +28,25 @@ export function buildRecipe(): object {
 }
 
 async function uploadTilesetSource(token: string): Promise<void> {
-  console.log('Step 1: Uploading tileset source...');
+  console.log('Step 1: Replacing tileset source...');
   const fileData = fs.readFileSync(GEOJSON_LD_PATH);
   const formData = new FormData();
   formData.append('file', new Blob([fileData], { type: 'application/x-ndjson' }), 'carb-food-processors.geojson.ld');
 
+  // CRITICAL: use PUT, not POST. Mapbox's POST /sources APPENDS the file to any
+  // existing source, so repeated runs accumulate stale features (an earlier
+  // append left old, pre-CA-constrained coordinates in the source, which then
+  // rendered as out-of-state ghost points). PUT replaces the source outright.
   const res = await fetch(apiUrl(`/tilesets/v1/sources/sustainasoft/${SOURCE_ID}`, token), {
-    method: 'POST',
+    method: 'PUT',
     body: formData,
   });
 
-  if (!res.ok && res.status !== 409) {
+  if (!res.ok) {
     const body = await res.text();
-    throw new Error(`Source upload failed (${res.status}): ${body}`);
+    throw new Error(`Source replace failed (${res.status}): ${body}`);
   }
-  if (res.status === 409) {
-    console.log('  Source already exists, continuing...');
-  } else {
-    console.log('  Source uploaded successfully.');
-  }
+  console.log('  Source replaced successfully.');
 }
 
 async function createOrUpdateTileset(token: string): Promise<void> {
@@ -58,7 +58,7 @@ async function createOrUpdateTileset(token: string): Promise<void> {
   const createRes = await fetch(apiUrl(`/tilesets/v1/${TILESET_ID}`, token), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ recipe, name: 'CARB Food Processors Cal BioScape 2026-06' }),
+    body: JSON.stringify({ recipe, name: 'CARB Food Processors Cal BioScape 2026-06c' }),
   });
 
   const createBody = createRes.ok ? '' : await createRes.text();
