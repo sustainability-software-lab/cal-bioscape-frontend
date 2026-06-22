@@ -140,9 +140,11 @@ cal-bioscape-frontend/
 │   └── data/
 │       └── tomato-processor-facilities.json  # Static GeoJSON (tomato processors)
 ├── scripts/
-│   └── fetch-tomato-processor-facilities.ts  # npm run fetch-data (compiled .js also present)
+│   ├── fetch-tomato-processor-facilities.ts  # npm run fetch-data (compiled .js also present)
+│   └── build-county-stats-snapshot.ts        # npm run build-county-snapshot → public/data/county-stats-snapshot.json
 │   # Note: scripts/data-manipulation.ts does NOT exist — npm run merge-data will fail
 ├── public/
+│   └── data/county-stats-snapshot.json  # Precomputed per-county USDA stats (client-side lookup table; seeds the county cache)
 ├── docs/                         # Architecture and implementation docs (19 markdown files)
 │   ├── API_INTEGRATION_PLAN.md
 │   ├── CLOUDBUILD.md
@@ -856,9 +858,10 @@ All values on dry basis (moisture as-received). Grouped by crop category.
 
 | Export | Description |
 |---|---|
-| `fetchCountyFeedstockStats(geoid)` | Fetches both census and survey stats for each mapped resource at a county, merges parameter-level facts, and returns rows with displayable acres or production metrics. **Session-cached** (wraps `makePromiseCache`): a county is fetched once per session, so the map popup (via `getCountyAggregateStats`) and the county panel (via `page.tsx handleCountySelect`) share one fetch and repeat clicks hit memory with no refetch. Stale-within-session is intentional (DB is static during a session). |
-| `prefetchAllCountyStats(geoids)` | Idempotent, fire-and-forget page-load cache warmer: throttled sweep that pre-fills the `fetchCountyFeedstockStats` cache for every clickable county so the first click is instant. Kicked off on idle from `page.tsx` (`requestIdleCallback`/`setTimeout`) so it never blocks first paint. Cost ceiling scales ~2×N_resources×N_counties — the durable fix is a backend batch/all-counties endpoint + DB indexing (ca-biositing repo, out of scope here). |
-| `warmPromiseCache(keys, fetch, concurrency)` | Generic, testable warming primitive: throttled, swallows per-key failures. Used by `prefetchAllCountyStats`. |
+| `fetchCountyFeedstockStats(geoid)` | Fetches both census and survey stats for each mapped resource at a county, merges parameter-level facts, and returns rows with displayable acres or production metrics. **Session-cached** (wraps `makePromiseCache`): a county is fetched once per session, so the map popup (via `getCountyAggregateStats`) and the county panel (via `page.tsx handleCountySelect`) share one fetch and repeat clicks hit memory with no refetch. **Normally never hits the network at all** — the cache is seeded on load from the static snapshot (see `seedCountyStats`); live fetch is only a fallback for geoids missing from the snapshot. |
+| `seedCountyStats(snapshot)` | **Primary perf path.** Seeds the `fetchCountyFeedstockStats` cache from the precomputed `public/data/county-stats-snapshot.json` (fetched once on load in `page.tsx`). Makes every county popup/panel click instant by taking the unindexed, ~16s-p90 backend entirely off the click path. Returns the count of counties seeded. The snapshot is regenerated via `npm run build-county-snapshot` (at most annual — it's the static USDA 2022 Census). |
+| `assembleCountyFeedstockStats(geoid, fetchResource, concurrency?)` | Core per-county merge/filter logic with an injectable `CountyResourceFetcher`. Shared by the browser path (`fetchCountyFeedstockStats`, proxy fetch) and the offline snapshot generator (direct backend fetch) so both stay in lockstep. |
+| `prefetchAllCountyStats(geoids)` / `warmPromiseCache(keys, fetch, concurrency)` | **Fallback only** (used when the snapshot fetch fails): idempotent, throttled, idle-scheduled live warm sweep. Each county is ~2×N_resources requests against the slow backend, so this is the slow path the snapshot exists to avoid. |
 | `getCountyMetric(stat, metric)` | Selects the exact displayed acres or production metric. Production ignores `operations` unit rows such as `area in production`. |
 | `getDisplaySources(...metrics)` | Returns the unique census/survey sources used by the selected visible metrics. |
 | `CountyCropStat` | `{ landiqName, resource, parameters: CountyParameterStat[], source: 'census' \| 'survey' \| 'mixed' }` |

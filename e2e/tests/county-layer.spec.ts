@@ -69,22 +69,25 @@ test('county Mapbox layers become visible when the checkbox is enabled', async (
   expect(countyLayerHidden).toBe('none');
 });
 
-// Regression test for issue #100: the page warms the county-stats cache on load
-// so the first county click is served from memory. We assert the browser fires
-// county USDA proxy requests for multiple counties WITHOUT any county click —
-// proving the idle prefetch sweep runs (and is not a single on-demand fetch).
-// Backend availability is irrelevant: we only assert the browser->proxy request
-// is issued, not its response.
-test('warms the county stats cache on page load without a click (issue #100)', async ({ page }) => {
-  const countyGeoids = new Set<string>();
+// Regression test for issue #100: the page seeds the county-stats cache from the
+// precomputed static snapshot on load, so popups never hit the slow backend per
+// session. We assert (a) the snapshot asset is fetched on load, and (b) no live
+// county USDA proxy requests fire on load (the warm comes from the static file).
+test('seeds the county stats cache from the static snapshot on load (issue #100)', async ({ page }) => {
+  let snapshotFetched = false;
+  const liveCountyGeoids = new Set<string>();
   page.on('request', req => {
-    const match = req.url().match(/\/api\/proxy\/.*\/usda\/.*\/geoid\/(\d{5})\//);
-    if (match) countyGeoids.add(match[1]);
+    const url = req.url();
+    if (url.includes('/data/county-stats-snapshot.json')) snapshotFetched = true;
+    const match = url.match(/\/api\/proxy\/.*\/usda\/.*\/geoid\/(\d{5})\//);
+    if (match) liveCountyGeoids.add(match[1]);
   });
 
   await page.goto('/');
 
-  // Prefetch is idle-scheduled (requestIdleCallback / setTimeout fallback), so
-  // give it time to issue requests for more than one county.
-  await expect.poll(() => countyGeoids.size, { timeout: 25000 }).toBeGreaterThan(1);
+  // The static snapshot is fetched on mount...
+  await expect.poll(() => snapshotFetched, { timeout: 25000 }).toBe(true);
+  // ...and no live per-county USDA queries fire on load (popups read the snapshot).
+  await page.waitForTimeout(3000);
+  expect(liveCountyGeoids.size).toBe(0);
 });

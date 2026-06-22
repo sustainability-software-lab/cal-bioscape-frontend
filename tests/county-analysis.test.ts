@@ -16,6 +16,8 @@ import {
   warmPromiseCache,
   fetchCountyFeedstockStats,
   makePromiseCache,
+  assembleCountyFeedstockStats,
+  seedCountyStats,
 } from '../src/lib/county-analysis';
 
 // ---------------------------------------------------------------------------
@@ -487,6 +489,61 @@ test('warmPromiseCache shares a cache with on-demand clicks (no duplicate fetche
   await Promise.all(geoids.map(g => cache(g)));
 
   assert.equal(factoryCalls, geoids.length, 'each county fetched once across prefetch + clicks');
+});
+
+test('makePromiseCache.seed serves a value with no factory call; has() reflects it', async () => {
+  let factoryCalls = 0;
+  const cache = makePromiseCache(async (key: string) => { factoryCalls++; return key + '-live'; });
+
+  assert.equal(cache.has('06099'), false);
+  cache.seed('06099', 'seeded-value' as string);
+  assert.equal(cache.has('06099'), true);
+
+  const v = await cache('06099');
+  assert.equal(v, 'seeded-value', 'seeded value is returned');
+  assert.equal(factoryCalls, 0, 'factory must not run for a seeded key');
+});
+
+test('makePromiseCache.seed never overwrites an existing entry', async () => {
+  let factoryCalls = 0;
+  const cache = makePromiseCache(async (key: string) => { factoryCalls++; return key + '-live'; });
+  await cache('x');                 // populates via factory
+  cache.seed('x', 'override' as string);
+  assert.equal(await cache('x'), 'x-live', 'existing entry is preserved');
+  assert.equal(factoryCalls, 1);
+});
+
+test('assembleCountyFeedstockStats merges census+survey via injected fetcher and filters non-priority', async () => {
+  const fetcher = async (resource: string) => {
+    if (resource === 'rice straw') {
+      return {
+        census: [{ parameter: 'area harvested', value: 1700, unit: 'acres' }] as never,
+        survey: [{ parameter: 'production', value: 152000, unit: 'cwt' }] as never,
+      };
+    }
+    // A non-priority-only resource must be dropped.
+    if (resource === 'olive pomace') {
+      return { census: [{ parameter: 'operations', value: 3, unit: 'operations' }] as never };
+    }
+    return {};
+  };
+  const stats = await assembleCountyFeedstockStats('06099', fetcher, 4);
+  const rice = stats.find(s => s.resource === 'rice straw');
+  assert.ok(rice, 'rice straw row is present (has priority params + a displayable metric)');
+  assert.equal(rice!.parameters.length, 2);
+  assert.equal(stats.find(s => s.resource === 'olive pomace'), undefined, 'non-priority-only resource dropped');
+});
+
+test('seedCountyStats seeds the shared cache so fetchCountyFeedstockStats serves it without network', async () => {
+  const fakeGeoid = '06999';
+  const seededStats: CountyCropStat[] = [{
+    landiqName: 'Rice', resource: 'rice straw', source: 'census',
+    parameters: [{ parameter: 'area harvested', value: 1700, unit: 'acres', source: 'census' }],
+  }];
+  const n = seedCountyStats({ [fakeGeoid]: seededStats });
+  assert.equal(n, 1, 'one county seeded');
+  const result = await fetchCountyFeedstockStats(fakeGeoid);
+  assert.deepEqual(result, seededStats, 'cache returns the seeded snapshot value (no live fetch)');
 });
 
 test('warmPromiseCache swallows per-key failures without aborting the sweep', async () => {

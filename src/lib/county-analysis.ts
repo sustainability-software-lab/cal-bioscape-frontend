@@ -2,22 +2,40 @@
  * County-level feedstock statistics fetched from the USDA census/survey API.
  */
 
+export interface PromiseCache<T> {
+  (key: string): Promise<T>;
+  /** True if a value (or in-flight promise) is already cached for this key. */
+  has(key: string): boolean;
+  /**
+   * Pre-populate the cache with an already-resolved value (e.g. from a static
+   * snapshot) so the next call returns it with no factory invocation / network.
+   * Never overwrites an existing entry.
+   */
+  seed(key: string, value: T): void;
+}
+
 /**
  * Creates a keyed promise cache. Concurrent calls with the same key share one promise.
- * Rejected promises are evicted so the next call can retry.
+ * Rejected promises are evicted so the next call can retry. Exposes `has`/`seed` so a
+ * precomputed snapshot can warm it without any network round-trip.
  */
 export function makePromiseCache<T>(
   factory: (key: string) => Promise<T>
-): (key: string) => Promise<T> {
+): PromiseCache<T> {
   const cache = new Map<string, Promise<T>>();
-  return (key: string) => {
+  const get = ((key: string) => {
     const cached = cache.get(key);
     if (cached) return cached;
     const p = factory(key);
     cache.set(key, p);
     p.catch(() => cache.delete(key));
     return p;
+  }) as PromiseCache<T>;
+  get.has = (key: string) => cache.has(key);
+  get.seed = (key: string, value: T) => {
+    if (!cache.has(key)) cache.set(key, Promise.resolve(value));
   };
+  return get;
 }
 
 import { ApiAuthError, getCensusByResource, getSurveyByResource } from './api';
@@ -268,15 +286,38 @@ export async function throttledSettled<T>(
 const COUNTY_FETCH_CONCURRENCY = 5;
 
 /**
- * Fetch county-level USDA stats for all LandIQ-mapped resources.
- * Merges census and survey data so missing metrics can fall through per parameter.
- * Returns only crops that have at least one data point.
+ * Fetches the raw census + survey parameter rows for one (resource, geoid).
+ * Injected into `assembleCountyFeedstockStats` so the same assembly logic serves
+ * both the browser (proxy fetch) and the offline snapshot generator (direct
+ * backend fetch). `undefined` means "no data" (e.g. 404); it is treated as empty.
  */
-async function fetchCountyFeedstockStatsUncached(
+export type CountyResourceFetcher = (
+  resource: string,
   geoid: string
-): Promise<CountyCropStat[]> {
-  const authAwareFetch = { throwOnAuthError: true };
+) => Promise<{ census?: DataItemResponse[]; survey?: DataItemResponse[] }>;
 
+/** Browser fetcher: routes through /api/proxy via the typed api client. */
+const browserResourceFetcher: CountyResourceFetcher = async (resource, geoid) => {
+  const authAwareFetch = { throwOnAuthError: true };
+  const [censusResponse, surveyResponse] = await Promise.all([
+    getCensusByResource(resource, geoid, authAwareFetch),
+    getSurveyByResource(resource, geoid, authAwareFetch),
+  ]);
+  return { census: censusResponse?.data, survey: surveyResponse?.data };
+};
+
+/**
+ * Assemble county-level USDA stats for all LandIQ-mapped resources using the
+ * injected fetcher. Merges census and survey data so missing metrics can fall
+ * through per parameter. Returns only crops that have at least one data point.
+ * Exported so the snapshot generator (scripts/build-county-stats-snapshot.ts)
+ * reuses the exact same merge/filter logic the UI relies on.
+ */
+export async function assembleCountyFeedstockStats(
+  geoid: string,
+  fetchResource: CountyResourceFetcher,
+  concurrency: number = COUNTY_FETCH_CONCURRENCY
+): Promise<CountyCropStat[]> {
   // Deduplicate: same resource can map to multiple LandIQ names
   const resourceToName = new Map<string, string>();
   for (const [landiqName, resource] of Object.entries(LANDIQ_TO_API_RESOURCE)) {
@@ -288,14 +329,11 @@ async function fetchCountyFeedstockStatsUncached(
   const entries = Array.from(resourceToName.entries());
   const results = await throttledSettled(
     entries.map(([resource, landiqName]) => async () => {
-      const [censusResponse, surveyResponse] = await Promise.all([
-        getCensusByResource(resource, geoid, authAwareFetch),
-        getSurveyByResource(resource, geoid, authAwareFetch),
-      ]);
+      const { census, survey } = await fetchResource(resource, geoid);
 
       const parameters = [
-        ...toParameters(censusResponse?.data, 'census'),
-        ...toParameters(surveyResponse?.data, 'survey'),
+        ...toParameters(census, 'census'),
+        ...toParameters(survey, 'survey'),
       ];
 
       if (!parameters.some(parameter => isPriorityParameter(parameter.parameter))) return null;
@@ -311,7 +349,7 @@ async function fetchCountyFeedstockStatsUncached(
         ? stat
         : null;
     }),
-    COUNTY_FETCH_CONCURRENCY
+    concurrency
   );
 
   if (results.some(r => r.status === 'rejected' && r.reason instanceof ApiAuthError)) {
@@ -323,6 +361,12 @@ async function fetchCountyFeedstockStatsUncached(
       r.status === 'fulfilled' && r.value !== null
     )
     .map(r => r.value);
+}
+
+async function fetchCountyFeedstockStatsUncached(
+  geoid: string
+): Promise<CountyCropStat[]> {
+  return assembleCountyFeedstockStats(geoid, browserResourceFetcher);
 }
 
 /**
@@ -341,6 +385,30 @@ async function fetchCountyFeedstockStatsUncached(
  * session-cached snapshot for repeat clicks is intentional, not stale data.
  */
 export const fetchCountyFeedstockStats = makePromiseCache(fetchCountyFeedstockStatsUncached);
+
+/**
+ * Seed the county stats cache from a precomputed snapshot (a static asset
+ * generated by scripts/build-county-stats-snapshot.ts). After seeding, every
+ * popup/panel click is served from memory with zero backend round-trips — the
+ * backend per-query latency (p90 ~16s, no DB indexes) is taken fully off the
+ * user's interaction path.
+ *
+ * Staleness: the snapshot captures the static USDA 2022 Census data at build
+ * time; it is regenerated on demand (`npm run build-county-snapshot`) when the
+ * underlying data changes, which is at most annual. Returns the number of
+ * counties seeded. Geoids absent from the snapshot still fall back to a live
+ * fetch via fetchCountyFeedstockStats.
+ */
+export function seedCountyStats(snapshot: Record<string, CountyCropStat[]>): number {
+  let seeded = 0;
+  for (const [geoid, stats] of Object.entries(snapshot)) {
+    if (!fetchCountyFeedstockStats.has(geoid)) {
+      fetchCountyFeedstockStats.seed(geoid, stats);
+      seeded++;
+    }
+  }
+  return seeded;
+}
 
 /**
  * Idempotent, throttled, error-swallowing cache warmer. Pure with respect to its
