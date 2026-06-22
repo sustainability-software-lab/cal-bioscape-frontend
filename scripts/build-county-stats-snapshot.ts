@@ -31,6 +31,7 @@ import {
 } from '../src/lib/county-analysis';
 import {
   validateCountySnapshot,
+  serializeCountySnapshot,
   type CountySnapshot,
 } from '../src/lib/county-snapshot-guard';
 import type { DataItemResponse, CensusListResponse } from '../src/lib/api-types';
@@ -115,7 +116,9 @@ async function main() {
   }
 
   mkdirSync(dirname(OUT), { recursive: true });
-  writeFileSync(OUT, JSON.stringify(snapshot));
+  // Sorted-key serialization so identical data always produces a byte-identical
+  // file — the scheduled refresh job commits only on a real data change.
+  writeFileSync(OUT, serializeCountySnapshot(snapshot));
   const withData = Object.values(snapshot).filter(s => s.length > 0).length;
   const kb = (JSON.stringify(snapshot).length / 1024).toFixed(1);
   const secs = ((Date.now() - start) / 1000).toFixed(0);

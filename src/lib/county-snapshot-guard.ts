@@ -29,6 +29,21 @@ export function countCountiesWithData(snapshot: CountySnapshot): number {
 }
 
 /**
+ * Serialize a snapshot to its canonical on-disk form: keys sorted by geoid so
+ * the output is byte-stable across runs. The generator fills the snapshot from
+ * concurrent fetches, so key insertion order is otherwise non-deterministic —
+ * without sorting, every scheduled regeneration would reorder keys and produce
+ * a spurious diff, defeating the "commit only when the data changed" no-op.
+ */
+export function serializeCountySnapshot(snapshot: CountySnapshot): string {
+  const ordered: CountySnapshot = {};
+  for (const geoid of Object.keys(snapshot).sort()) {
+    ordered[geoid] = snapshot[geoid];
+  }
+  return JSON.stringify(ordered);
+}
+
+/**
  * Decide whether a freshly built snapshot is safe to publish.
  *
  * Rejects when:

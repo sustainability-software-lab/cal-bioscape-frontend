@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   validateCountySnapshot,
   countCountiesWithData,
+  serializeCountySnapshot,
   EXPECTED_COUNTY_COUNT,
   type CountySnapshot,
 } from '../src/lib/county-snapshot-guard';
@@ -60,4 +61,18 @@ test('countCountiesWithData counts only counties with at least one crop row', ()
 
 test('EXPECTED_COUNTY_COUNT matches the number of California counties', () => {
   assert.equal(EXPECTED_COUNTY_COUNT, 58);
+});
+
+test('serializeCountySnapshot emits keys sorted by geoid', () => {
+  const snap: CountySnapshot = { '06099': [], '06001': [], '06047': [] };
+  const keys = Object.keys(JSON.parse(serializeCountySnapshot(snap)));
+  assert.deepEqual(keys, ['06001', '06047', '06099']);
+});
+
+test('serializeCountySnapshot is byte-stable regardless of input insertion order', () => {
+  // Same data, different key insertion order (mimics concurrent fetch completion)
+  // must serialize identically — otherwise scheduled runs commit spurious diffs.
+  const a: CountySnapshot = { '06001': [crop('almonds')], '06099': [], '06047': [crop('tomatoes')] };
+  const b: CountySnapshot = { '06047': [crop('tomatoes')], '06001': [crop('almonds')], '06099': [] };
+  assert.equal(serializeCountySnapshot(a), serializeCountySnapshot(b));
 });
