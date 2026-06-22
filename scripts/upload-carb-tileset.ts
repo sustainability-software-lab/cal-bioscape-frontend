@@ -53,14 +53,20 @@ async function createOrUpdateTileset(token: string): Promise<void> {
   console.log(`Step 2: Creating/updating tileset ${TILESET_ID}...`);
   const recipe = buildRecipe();
 
-  // Try to create (POST); if it already exists (409) patch the recipe instead
+  // Try to create (POST); if it already exists patch the recipe instead.
+  // Mapbox signals "already exists" via 409 OR a 400 whose body says so.
   const createRes = await fetch(apiUrl(`/tilesets/v1/${TILESET_ID}`, token), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ recipe, name: 'CARB Food Processors Cal BioScape 2026-06' }),
   });
 
-  if (createRes.status === 409) {
+  const createBody = createRes.ok ? '' : await createRes.text();
+  const alreadyExists =
+    createRes.status === 409 ||
+    (createRes.status === 400 && /already exists/i.test(createBody));
+
+  if (alreadyExists) {
     console.log('  Tileset already exists, patching recipe...');
     const patchRes = await fetch(apiUrl(`/tilesets/v1/${TILESET_ID}/recipe`, token), {
       method: 'PATCH',
@@ -73,8 +79,7 @@ async function createOrUpdateTileset(token: string): Promise<void> {
     }
     console.log('  Recipe patched successfully.');
   } else if (!createRes.ok) {
-    const text = await createRes.text();
-    throw new Error(`Tileset create failed (${createRes.status}): ${text}`);
+    throw new Error(`Tileset create failed (${createRes.status}): ${createBody}`);
   } else {
     console.log('  Tileset created successfully.');
   }
@@ -101,6 +106,15 @@ async function pollUntilComplete(token: string, jobId: string): Promise<void> {
   for (let i = 0; i < maxAttempts; i++) {
     await new Promise(resolve => setTimeout(resolve, 10000));
     const res = await fetch(apiUrl(`/tilesets/v1/${TILESET_ID}/status`, token));
+    if (res.status === 403) {
+      // Publish was already submitted successfully (Step 3). Some tokens carry
+      // tilesets:write but not tilesets:read, so the status endpoint 403s. Don't
+      // fail the run on that -- the publish is in flight on Mapbox's side.
+      console.warn('  Status endpoint returned 403 (token lacks tilesets:read scope).');
+      console.warn('  Publish was submitted; cannot poll completion with this token. Exiting OK.');
+      console.warn('  Verify in Mapbox Studio, or use a token with tilesets:read to poll.');
+      return;
+    }
     if (!res.ok) {
       console.warn(`  Status check failed (${res.status}), retrying...`);
       continue;
