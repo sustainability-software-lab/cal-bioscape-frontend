@@ -4,7 +4,7 @@ import * as dotenv from 'dotenv';
 
 dotenv.config();
 
-const TILESET_ID = 'sustainasoft.carb-food-processors-2026-06';
+const TILESET_ID = 'sustainasoft.carb-food-processors-2026-06b';
 const SOURCE_ID = 'carb_food_processors';
 const SOURCE_NAME = `mapbox://tileset-source/sustainasoft/${SOURCE_ID}`;
 const BASE_URL = 'https://api.mapbox.com';
@@ -58,7 +58,7 @@ async function createOrUpdateTileset(token: string): Promise<void> {
   const createRes = await fetch(apiUrl(`/tilesets/v1/${TILESET_ID}`, token), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ recipe, name: 'CARB Food Processors Cal BioScape 2026-06' }),
+    body: JSON.stringify({ recipe, name: 'CARB Food Processors Cal BioScape 2026-06b' }),
   });
 
   const createBody = createRes.ok ? '' : await createRes.text();

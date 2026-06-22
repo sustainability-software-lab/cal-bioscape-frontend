@@ -176,11 +176,14 @@ export const DEFAULT_TILESET_REGISTRY: Record<string, TilesetConfig> = {
   },
 
   carbFoodProcessors: {
-    tilesetId: 'sustainasoft.carb-food-processors-2026-06',
+    // 2026-06b is a cache-bust re-version: same CA-constrained data, new tileset id so
+    // Mapbox's CDN serves fresh tiles instead of stale pre-fix edge cache. Source layer
+    // name is intentionally unchanged (stable across versions).
+    tilesetId: 'sustainasoft.carb-food-processors-2026-06b',
     sourceLayer: 'carb_food_processors',
     displayName: 'Food Processing Facilities (CARB)',
     category: 'infrastructure',
-    version: '2026-06',
+    version: '2026-06b',
     accountType: 'default'
   },
   
