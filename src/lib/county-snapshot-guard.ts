@@ -15,6 +15,18 @@ import type { CountyCropStat } from './county-analysis';
 /** California has 58 counties; the snapshot must cover every one. */
 export const EXPECTED_COUNTY_COUNT = 58;
 
+/**
+ * Minimum fraction of the previous snapshot's data-bearing counties a new
+ * snapshot must retain. A degraded sweep (transient backend errors that the
+ * per-resource fetch swallows rather than throws) can record a county that
+ * truly has data as an empty `[]` without failing the build. Because the client
+ * now seeds empty entries as authoritative "no data" (instant popups), such a
+ * collapse must be caught here, at build time, before it ships. A drop below
+ * this fraction signals a partial/degraded sweep and refuses the overwrite;
+ * normal day-to-day fluctuation stays well above it.
+ */
+export const MIN_DATA_COVERAGE_RATIO = 0.5;
+
 export type CountySnapshot = Record<string, CountyCropStat[]>;
 
 export interface SnapshotValidation {
@@ -49,10 +61,14 @@ export function serializeCountySnapshot(snapshot: CountySnapshot): string {
  * Rejects when:
  *  - it covers fewer than {@link EXPECTED_COUNTY_COUNT} counties (truncated sweep), or
  *  - it has zero counties with data while the previous snapshot had some
- *    (a degraded sweep that would wipe real data).
+ *    (a degraded sweep that would wipe real data), or
+ *  - its data coverage collapses below {@link MIN_DATA_COVERAGE_RATIO} of the
+ *    previous snapshot's (a partial sweep that silently dropped real counties
+ *    to empty — which the client would otherwise ship as authoritative "no
+ *    data").
  *
  * `prev` is `null` on the first ever build — there is nothing to degrade from,
- * so the all-empty check is skipped.
+ * so the regression checks are skipped.
  */
 export function validateCountySnapshot(
   next: CountySnapshot,
@@ -72,6 +88,13 @@ export function validateCountySnapshot(
     return {
       ok: false,
       reason: `snapshot has 0 counties with data but the previous snapshot had ${prevWithData} — refusing to overwrite (likely a partial or failed backend sweep)`,
+    };
+  }
+
+  if (prevWithData > 0 && nextWithData < prevWithData * MIN_DATA_COVERAGE_RATIO) {
+    return {
+      ok: false,
+      reason: `snapshot data coverage collapsed from ${prevWithData} to ${nextWithData} counties (below ${Math.round(MIN_DATA_COVERAGE_RATIO * 100)}% retention) — refusing to overwrite (likely a partial or degraded backend sweep)`,
     };
   }
 
