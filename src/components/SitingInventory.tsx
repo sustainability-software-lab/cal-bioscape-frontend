@@ -9,7 +9,7 @@ import { formatNumberWithCommas, downloadCSV } from '@/lib/utils';
 import { getAvailability, getAnalysisByResource } from '@/lib/api';
 import { getApiResource, STATE_GEOID } from '@/lib/resource-mapping';
 import { getResidueFactorsByResourceNames } from '@/lib/resource-residues';
-import { onResidueDataLoaded } from '@/lib/residue-data';
+import { onResidueDataLoaded, shouldIncludeResidueInTotals } from '@/lib/residue-data';
 import { computeEnergyTotals, EnergyTotals } from '@/lib/energy-calculations';
 import { CompositionData, parseCompositionData, CompositionFilters, CompositionLookup, cropPassesCompositionFilters } from '@/lib/composition-filters';
 import { computeMixSummary, rankTechnologies, TechScore } from '@/lib/technology-matcher';
@@ -188,9 +188,10 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
       for (const factor of residueResult.factors) {
         // Skip entries with no yield data (e.g. "Missing" values that parsed to 0)
         if (!factor.dryTonsPerAcre && !factor.wetTonsPerAcre) continue;
-        // Exclude processor waste (collected===true means hulls, shells, etc. removed
-        // at a processing facility -- not attributable to field acreage).
-        if (factor.collected) continue;
+        // Shared dedup filter: keep only residues flagged Include In Totals and
+        // left in the field (Collected? = false). Excludes overlapping
+        // sub-categories and processor waste so totals are not double-counted.
+        if (!shouldIncludeResidueInTotals(factor)) continue;
         // Resources-tier rows key composition off the residue's own name;
         // crop-tier rows fall back to the crop's primary resource.
         const apiResource = perResidue

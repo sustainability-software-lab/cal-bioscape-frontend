@@ -30,6 +30,12 @@ export interface ResidueFactors {
   toMonth?: number;
   residueType: string; // e.g. "Ag Residue"
   collected: boolean; // e.g. TRUE/FALSE
+  /**
+   * Data-team dedup flag ("Include In Totals"): false marks an overlapping
+   * sub-category (e.g. "Almond Shells and Hulls mix") that must not be summed
+   * into popup/inventory totals. Undefined is treated as excluded.
+   */
+  includeInTotals?: boolean;
   category?: string;
 }
 
@@ -130,6 +136,106 @@ const inferCategory = (item: RawResidueData): string => {
 };
 
 
+/** Read the first present key from a record, supporting both the live JSON's
+ *  Title Case headers (e.g. "LandIQ Crop Name") and the legacy snake_case keys
+ *  (e.g. "landiq_crop_name"). The published resource_info.json switched to Title
+ *  Case headers (see resource_info_header_mapping.json), so reading only one
+ *  naming convention silently drops every field. */
+function pickField(item: Record<string, unknown>, ...keys: string[]): unknown {
+  for (const key of keys) {
+    const value = item[key];
+    if (value !== undefined && value !== null) return value;
+  }
+  return undefined;
+}
+
+/** Parse a TRUE/FALSE flag that may arrive as a real JSON boolean (live JSON) or
+ *  a "TRUE"/"FALSE" string (legacy JSON). Missing/unparseable → false. */
+function parseFlag(value: unknown): boolean {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') return value.trim().toUpperCase() === 'TRUE';
+  return false;
+}
+
+function toStr(value: unknown): string {
+  return value === undefined || value === null ? '' : String(value);
+}
+
+/**
+ * Shared inclusion filter for field-attributable residue totals.
+ *
+ * A residue counts toward map-popup and inventory totals only when the data team
+ * has flagged it `Include In Totals` (the dedup flag that excludes overlapping
+ * sub-categories like "Almond Shells and Hulls mix") AND it is left in the field
+ * rather than collected at a processing facility (`Collected? = false`) — the
+ * field popup/inventory attributes tonnage to crop acreage, so processing waste
+ * (hulls, shells; null per-acre yield) does not belong. Both the popup and the
+ * inventory call this single predicate so they can never diverge.
+ */
+export function shouldIncludeResidueInTotals(
+  factor: Pick<ResidueFactors, 'includeInTotals' | 'collected'>
+): boolean {
+  return factor.includeInTotals === true && factor.collected === false;
+}
+
+/**
+ * Pure parser for the raw resource_info.json array. Reads both Title Case and
+ * legacy snake_case headers. Returns the crop-keyed and resource-keyed indexes.
+ * Exported for unit testing; `fetchResidueData` wires it to the network fetch.
+ */
+export function parseResidueRecords(
+  data: Array<Record<string, unknown>>
+): { byCrop: Record<string, ResidueFactors[]>; byResource: Record<string, ResidueFactors> } {
+  const byCrop: Record<string, ResidueFactors[]> = {};
+  const byResource: Record<string, ResidueFactors> = {};
+
+  data.forEach(item => {
+    const cropName = toStr(pickField(item, 'LandIQ Crop Name', 'landiq_crop_name')).trim();
+    if (!cropName) return;
+
+    const resource = toStr(pickField(item, 'Resource', 'resource'));
+
+    const wetTons = parseFloat(toStr(pickField(item, 'Residue Yield (Wet Ton/Ac)', 'residue_yield_wet_ton_per_ac'))) || 0;
+    const dryTons = parseFloat(toStr(pickField(item, 'Residue Yield (Dry Ton/Ac)', 'residue_yield_dry_ton_per_ac'))) || 0;
+
+    // Parse moisture content "11%" -> 0.11
+    let moisture = 0;
+    const moistureStr = toStr(pickField(item, 'Moisture Content', 'moisture_content')).replace('%', '');
+    if (moistureStr) {
+      moisture = parseFloat(moistureStr) / 100;
+      if (Number.isNaN(moisture)) moisture = 0;
+    }
+
+    const fromMonthStr = toStr(pickField(item, 'From Month', 'from_month'));
+    const toMonthStr = toStr(pickField(item, 'To Month', 'to_month'));
+    const seasonal = parseSeasonalAvailability(fromMonthStr, toMonthStr);
+    const fromMonthNum = parseInt(fromMonthStr, 10);
+    const toMonthNum = parseInt(toMonthStr, 10);
+
+    const factor: ResidueFactors = {
+      resourceName: resource,
+      wetTonsPerAcre: wetTons,
+      dryTonsPerAcre: dryTons,
+      moistureContent: moisture,
+      seasonalAvailability: seasonal,
+      fromMonth: isNaN(fromMonthNum) ? undefined : fromMonthNum,
+      toMonth: isNaN(toMonthNum) ? undefined : toMonthNum,
+      residueType: toStr(pickField(item, 'Residue Type', 'residue_type')),
+      collected: parseFlag(pickField(item, 'Collected?', 'collected')),
+      includeInTotals: parseFlag(pickField(item, 'Include In Totals', 'include_in_totals')),
+    };
+
+    (byCrop[cropName] ??= []).push(factor);
+
+    const resourceKey = resource.trim().toLowerCase();
+    if (resourceKey) {
+      byResource[resourceKey] = factor;
+    }
+  });
+
+  return { byCrop, byResource };
+}
+
 export const fetchResidueData = async (): Promise<void> => {
   if (isDataLoaded) return;
   if (loadPromise) return loadPromise;
@@ -140,63 +246,13 @@ export const fetchResidueData = async (): Promise<void> => {
       if (!response.ok) {
         throw new Error(`Failed to fetch residue data: ${response.statusText}`);
       }
-      const data: RawResidueData[] = await response.json();
-      
-      // Process the data
-      const newProcessedData: Record<string, ResidueFactors[]> = {};
-      const newByResource: Record<string, ResidueFactors> = {};
+      const data: unknown = await response.json();
+      const records = Array.isArray(data) ? (data as Array<Record<string, unknown>>) : [];
 
-      data.forEach(item => {
-        let cropName = item.landiq_crop_name; // This seems to be the key we want to match
-        if (!cropName) return;
-        
-        // Normalize crop name (trim whitespace)
-        cropName = cropName.trim();
+      const { byCrop, byResource } = parseResidueRecords(records);
 
-        // Parse numeric values
-        const wetTons = parseFloat(item.residue_yield_wet_ton_per_ac) || 0;
-        const dryTons = parseFloat(item.residue_yield_dry_ton_per_ac) || 0;
-        
-        // Parse moisture content "11%" -> 0.11
-        let moisture = 0;
-        const moistureStr = item.moisture_content?.replace('%', '');
-        if (moistureStr) {
-          moisture = parseFloat(moistureStr) / 100;
-        }
-
-        const seasonal = parseSeasonalAvailability(item.from_month, item.to_month);
-        
-        const collected = item.collected?.toUpperCase() === 'TRUE';
-
-        const fromMonthNum = parseInt(item.from_month, 10);
-        const toMonthNum   = parseInt(item.to_month,   10);
-
-        const factor: ResidueFactors = {
-          resourceName: item.resource,
-          wetTonsPerAcre: wetTons,
-          dryTonsPerAcre: dryTons,
-          moistureContent: moisture,
-          seasonalAvailability: seasonal,
-          fromMonth: isNaN(fromMonthNum) ? undefined : fromMonthNum,
-          toMonth:   isNaN(toMonthNum)   ? undefined : toMonthNum,
-          residueType: item.residue_type,
-          collected: collected
-          // category: inferCategory(item) // We will handle category assignment when retrieving
-        };
-        
-        if (!newProcessedData[cropName]) {
-          newProcessedData[cropName] = [];
-        }
-        newProcessedData[cropName].push(factor);
-
-        const resourceKey = item.resource?.trim().toLowerCase();
-        if (resourceKey) {
-          newByResource[resourceKey] = factor;
-        }
-      });
-
-      processedResidueData = newProcessedData;
-      processedResidueByResource = newByResource;
+      processedResidueData = byCrop;
+      processedResidueByResource = byResource;
       isDataLoaded = true;
       onLoadedCallbacks.forEach(cb => cb());
       onLoadedCallbacks = [];

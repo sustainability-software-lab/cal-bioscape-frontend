@@ -144,6 +144,14 @@ test('LandIQ crop field popup uses aggregate totals + collapsible sections (issu
   // Evidence: expanded popup showing the multiple almond residue types.
   await popup.screenshot({ path: 'e2e/__artifacts__/feedstock-popup-153-expanded.png' });
 
+  // Regression for issue #164: overlapping sub-categories flagged Include In Totals = false
+  // (e.g. the "Almond Shells and Hulls mix" combo and "Almond stick char") and collected
+  // processing waste must NOT appear in the field popup breakdown, so totals are not
+  // double-counted.
+  const breakdownText = (await breakdown.innerText()).toLowerCase();
+  expect(breakdownText).not.toContain('shells and hulls mix');
+  expect(breakdownText).not.toContain('stick char');
+
   // Sanity: collapsed popup is reasonably short (not a mile tall).
   expect(collapsedBox, 'popup should have a measurable box').not.toBeNull();
   expect(collapsedBox!.height, 'collapsed popup should be compact (< 320px tall)').toBeLessThan(320);
