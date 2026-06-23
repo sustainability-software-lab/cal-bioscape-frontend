@@ -2926,11 +2926,11 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
                     const stats = summarizeLeadComposition(resp);
                     if (!stats.length) return;
                     const resName = compositionResources[i].replace(/\b\w/g, c => c.toUpperCase());
-                    const rows = stats.map(s => `<div style="margin:0;line-height:1.25;">${s.label}: ${fmtStat(s)}</div>`).join('');
+                    const rows = stats.map(s => `<div style="padding:2px 0;border-bottom:1px solid #f0f0f0;line-height:1.3;">${s.label}: ${fmtStat(s)}</div>`).join('');
                     compositionHTML += `
-                      <details style="margin-top:2px;">
-                        <summary style="cursor:pointer;font-weight:bold;color:#2b6cb0;">${resName}</summary>
-                        <div style="padding-left:10px;padding-top:1px;">${rows}</div>
+                      <details open style="margin-top:4px;">
+                        <summary style="cursor:pointer;font-weight:bold;color:#2b6cb0;padding-bottom:2px;">${resName}</summary>
+                        <div style="padding-left:10px;padding-top:2px;">${rows}</div>
                       </details>`;
                   });
                   if (compositionHTML) {
