@@ -1,0 +1,77 @@
+name: Refresh county-stats snapshot (production)
+
+# Mirror of refresh-county-snapshot.yml but targets the PRODUCTION backend
+# (api.calbioscape.org) and commits directly to `main`.
+#
+# Why a separate workflow: staging and production backends carry different
+# subsets of CA county data. Staging may have all 58 counties populated before
+# production does. Each environment should reflect its own backend's data so
+# that the snapshot accurately represents what the live API will return for a
+# cache miss, and so that populating the production DB automatically propagates
+# to the production snapshot within 24 hours.
+#
+# Flow:
+#   1. Staging promotes to main (brings staging snapshot, possibly richer).
+#   2. This workflow fires on schedule and overwrites with production data.
+#   3. Once production DB reaches parity with staging, both snapshots converge.
+#
+# Required repo secrets (same as the main API credentials):
+#   CA_BIOSITE_API_KEY            (preferred), or
+#   CA_BIOSITE_API_USER + CA_BIOSITE_API_PASSWORD  (JWT fallback)
+
+on:
+  schedule:
+    # Daily at 09:30 UTC — 30 min after the staging workflow so they don't
+    # race on the same build queue. Bounds production snapshot staleness to <= 24h.
+    - cron: '30 9 * * *'
+  workflow_dispatch: {}
+
+# Serialize refreshes; never run two snapshot pushes against main at once.
+concurrency:
+  group: refresh-county-snapshot-prod
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    name: Regenerate and publish snapshot (production API)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Regenerate county-stats snapshot
+        env:
+          NEXT_PUBLIC_API_BASE_URL: https://api.calbioscape.org
+          CA_BIOSITE_API_KEY: ${{ secrets.CA_BIOSITE_API_KEY }}
+          CA_BIOSITE_API_USER: ${{ secrets.CA_BIOSITE_API_USER }}
+          CA_BIOSITE_API_PASSWORD: ${{ secrets.CA_BIOSITE_API_PASSWORD }}
+        # The script's guard exits non-zero (failing this job loudly) on a
+        # truncated or all-empty-vs-previous sweep, so a degraded snapshot is
+        # never committed.
+        run: npm run build-county-snapshot
+
+      - name: Commit and push if the snapshot changed
+        run: |
+          if git diff --quiet -- public/data/county-stats-snapshot.json; then
+            echo "Snapshot unchanged — nothing to publish."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/data/county-stats-snapshot.json
+          git commit -m "chore(county): refresh county-stats snapshot from production API [automated]"
+          git push origin HEAD:main
