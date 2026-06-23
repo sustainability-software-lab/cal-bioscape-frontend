@@ -2713,6 +2713,8 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
 
             // Calculate residue yields. Resources-first: use the polygon's own
             // residue names when present, else fall back to the crop-name chain.
+            // The popup is built as a raw HTML string (not React), so collapsible
+            // sections use native <details>/<summary> — no JS, neat nesting.
             let residueSection = '';
             const featureResources = parseFeatureResources(properties);
             const residueResult =
@@ -2722,15 +2724,10 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
             const residueFactorsArray = residueResult?.factors;
 
             if (residueFactorsArray && residueFactorsArray.length > 0) {
-              // Add residue information to the popup
-              residueSection = `
-                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #eaeaea;">
-                  <h5 style="font-size: 0.95em; font-weight: bold; margin: 0 0 5px 0;">Annual Crop Residue Estimates</h5>
-              `;
-
-              // Calculate totals for summary
+              // Accumulate aggregate totals and per-resource detail rows in one pass.
               let totalWet = 0;
               let totalDry = 0;
+              let breakdownRows = '';
 
               residueFactorsArray.forEach((factor, index) => {
                 const dryYield = Math.round(acres * factor.dryTonsPerAcre);
@@ -2739,13 +2736,13 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
                 totalDry += dryYield;
 
                 const name = factor.resourceName || factor.residueType || 'Residue';
-                
+
                 // Add separator between multiple streams
                 if (index > 0) {
-                  residueSection += `<div style="height: 1px; background-color: #f0f0f0; margin: 5px 0;"></div>`;
+                  breakdownRows += `<div style="height: 1px; background-color: #f0f0f0; margin: 5px 0;"></div>`;
                 }
 
-                residueSection += `
+                breakdownRows += `
                   <div style="margin-bottom: 2px; margin-top: 2px;">
                     <div style="font-weight: bold; font-size: 0.9em; color: #555;">${name}</div>
                     <div style="padding-left: 8px;">
@@ -2756,17 +2753,28 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
                 `;
               });
 
-              // Add totals if there are multiple streams
-              if (residueFactorsArray.length > 1) {
-                 residueSection += `
-                  <div style="margin-top: 8px; pt-2; border-top: 1px dashed #ccc; font-weight: bold;">
-                    <div style="margin-bottom: 3px; text-align: left;">Total Wet: ${formatNumberWithCommas(totalWet)} tons/year</div>
-                    <div style="margin-bottom: 3px; text-align: left;">Total Dry: ${formatNumberWithCommas(totalDry)} tons/year</div>
-                  </div>
-                `;
-              }
+              const typeCount = residueFactorsArray.length;
+              const typeLabel = `${typeCount} residue type${typeCount === 1 ? '' : 's'}`;
 
-              residueSection += `</div>`;
+              // Always-visible aggregate summary (collapsed view): totals up top.
+              residueSection = `
+                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #eaeaea;">
+                  <h5 style="font-size: 0.95em; font-weight: bold; margin: 0 0 5px 0;">Annual Crop Residue Estimates</h5>
+                  <div style="font-weight: bold;">
+                    <div style="margin-bottom: 2px; text-align: left;">Total Wet: ${formatNumberWithCommas(totalWet)} tons/year</div>
+                    <div style="margin-bottom: 2px; text-align: left;">Total Dry: ${formatNumberWithCommas(totalDry)} tons/year</div>
+                  </div>
+              `;
+
+              // Per-resource detail lives in a collapsed <details> so the popup
+              // stays compact even for multi-residue crops like almonds.
+              residueSection += `
+                  <details style="margin-top: 6px;">
+                    <summary style="cursor: pointer; font-size: 0.85em; font-weight: bold; color: #2b6cb0; outline: none;">Residue breakdown (${typeLabel})</summary>
+                    <div style="padding: 4px 0 0 8px;">${breakdownRows}</div>
+                  </details>
+                </div>
+              `;
             }
 
             // --- Derive geoid and resource name for API calls ---
@@ -2866,11 +2874,13 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
                   const apiSection = document.getElementById(apiSectionId);
                   if (apiSection) {
                     if (apiHTML) {
+                      // Collapsed by default so live composition/seasonal/USDA data
+                      // doesn't stretch the popup; expand to see the rolled-up values.
                       apiSection.innerHTML = `
-                        <div style="margin-top:10px;padding-top:10px;border-top:1px solid #eaeaea;">
-                          <h5 style="font-size:0.95em;font-weight:bold;margin:0 0 5px 0;">Live Feedstock Data</h5>
-                          <div style="font-size:0.85em;">${apiHTML}</div>
-                        </div>`;
+                        <details style="margin-top:10px;padding-top:10px;border-top:1px solid #eaeaea;">
+                          <summary style="cursor:pointer;font-size:0.9em;font-weight:bold;color:#2b6cb0;outline:none;">Composition &amp; seasonal data</summary>
+                          <div style="font-size:0.85em;padding:4px 0 0 8px;">${apiHTML}</div>
+                        </details>`;
                     } else {
                       apiSection.innerHTML = '';
                     }
