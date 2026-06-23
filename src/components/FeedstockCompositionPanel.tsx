@@ -108,15 +108,16 @@ const METRICS: Array<{ key: keyof CompositionData; config: MetricConfig }> = [
       rate: (v) => v <= 1 ? 'green' : v <= 2 ? 'amber' : 'neutral',
     },
   },
-  {
-    key: 'sulfur',
-    config: {
-      label: 'Sulfur (S)',
-      unit: '%',
-      tooltip: 'Low sulfur reduces SO₂ emissions during combustion.',
-      rate: (v) => v <= 0.2 ? 'green' : v <= 0.5 ? 'amber' : 'red',
-    },
-  },
+  // TODO: Sulfur hidden until unit conversions are resolved
+  // {
+  //   key: 'sulfur',
+  //   config: {
+  //     label: 'Sulfur (S)',
+  //     unit: '%',
+  //     tooltip: 'Low sulfur reduces SO₂ emissions during combustion.',
+  //     rate: (v) => v <= 0.2 ? 'green' : v <= 0.5 ? 'amber' : 'red',
+  //   },
+  // },
   {
     key: 'hhv',
     config: {
