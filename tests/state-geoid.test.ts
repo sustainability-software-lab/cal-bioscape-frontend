@@ -28,6 +28,9 @@ test('analysis/availability call sites no longer hardcode the bare "06" geoid', 
   assert.doesNotMatch(page, /batchFetchCompositionData\('06'\)/, 'page.tsx should not pin composition fetch to "06"');
 
   const map = read('src/components/Map.js');
-  assert.match(map, /getAnalysisByResource\(popupResource, STATE_GEOID\)/, 'Map popup should query analysis at STATE_GEOID');
+  // Composition is now fetched per residue resource (see #163), so the analysis
+  // call site maps over resources — but it must still pass STATE_GEOID, never "06".
+  assert.match(map, /getAnalysisByResource\([A-Za-z]\w*, STATE_GEOID\)/, 'Map popup should query analysis at STATE_GEOID');
+  assert.doesNotMatch(map, /getAnalysisByResource\([^)]*'06'\)/, 'Map popup analysis must not hardcode the bare "06" geoid');
   assert.match(map, /getAvailability\(popupResource, STATE_GEOID\)/, 'Map popup should query availability at STATE_GEOID');
 });

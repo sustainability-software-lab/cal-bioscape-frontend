@@ -15,7 +15,8 @@ import { getAvailability, getAnalysisByResource, getCensusByCrop } from '@/lib/a
 import { getCountyGeoid } from '@/lib/county-lookup';
 import { getApiResource, getUsdaCropName, STATE_GEOID } from '@/lib/resource-mapping';
 import { parseFeatureResources, getResidueFactorsByResourceNames } from '@/lib/resource-residues';
-import { onResidueDataLoaded } from '@/lib/residue-data';
+import { summarizeLeadComposition } from '@/lib/composition-filters';
+import { onResidueDataLoaded, shouldIncludeResidueInTotals } from '@/lib/residue-data';
 import { getCountyAggregateStats } from '@/lib/county-analysis';
 import { formatNumberWithCommas } from '@/lib/utils';
 
@@ -40,6 +41,9 @@ if (MAPBOX_ACCESS_TOKEN && MAPBOX_ACCESS_TOKEN !== 'YOUR_MAPBOX_ACCESS_TOKEN') {
     mapboxgl.accessToken = MAPBOX_ACCESS_TOKEN;
 }
 
+
+const toTitleCase = (str) =>
+  str ? str.replace(/\w\S*/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()) : str;
 
 // Accept props for data and visibility
 const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, onCountySelect, compositionFilters }) => { // Added visibleCrops, croplandOpacity, onGeoidsChange props
@@ -346,9 +350,47 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
       const labelKeys = Object.keys(labels);
 
       if (labelKeys.length > 0) {
+        const isCarbPopup = layerId === CARB_POPUP_LABEL_KEY;
+        const carbQtyRaw = isCarbPopup ? properties.quantities : null;
+        const carbByproductsRaw = isCarbPopup ? properties.byproducts : null;
+        const hasCarbQty = carbQtyRaw != null && !nullValues.includes(String(carbQtyRaw).trim());
+        const hasCarbByproducts = carbByproductsRaw != null && !nullValues.includes(String(carbByproductsRaw).trim());
+
         labelKeys.forEach(key => {
           if (Object.prototype.hasOwnProperty.call(properties, key) &&
               !nullValues.includes(String(properties[key]).trim())) {
+
+            // CARB: absorb byproducts into the quantities section below
+            if (isCarbPopup && key === 'byproducts' && hasCarbQty) {
+              return;
+            }
+
+            // CARB: render quantities as a correlated list paired with byproduct names
+            if (isCarbPopup && key === 'quantities') {
+              const qtyParts = String(carbQtyRaw).split(', ').map(s => s.trim()).filter(Boolean);
+              const byproductParts = hasCarbByproducts
+                ? String(carbByproductsRaw).split(', ').map(s => s.trim()).filter(Boolean)
+                : [];
+
+              if (byproductParts.length > 0 && byproductParts.length === qtyParts.length) {
+                const itemLines = byproductParts.map((item, i) => {
+                  const num = Number(qtyParts[i].replace(/,/g, ''));
+                  if (isNaN(num) || num === 0) return null;
+                  const formattedQty = num >= 1
+                    ? Math.round(num).toLocaleString()
+                    : num.toFixed(2);
+                  const displayItem = item.charAt(0).toUpperCase() + item.slice(1);
+                  return `<div style="margin-left: 12px; margin-bottom: 2px; text-align: left;">- ${displayItem}: ${formattedQty} tons per year</div>`;
+                }).filter(Boolean).join('');
+                if (!itemLines) return;
+                content += `<div style="margin-bottom: 3px; text-align: left;"><strong style="font-weight: bold;">Reported Quantities:</strong>${itemLines}</div>`;
+              } else {
+                // Fallback: lengths mismatch or no byproducts — show as-is with units
+                content += `<div style="margin-bottom: 3px; text-align: left;"><strong style="font-weight: bold;">Reported Quantities:</strong> ${carbQtyRaw} tons per year</div>`;
+              }
+              return;
+            }
+
             content += formatAndBuildLine(key, properties[key]);
           }
         });
@@ -1485,7 +1527,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
           if (!feature) return;
 
           const geoid = feature.properties.GEOID;
-          const name = feature.properties.NAME;
+          const name = toTitleCase(feature.properties.NAME);
           if (!geoid || !name) return;
 
           // Close any existing popup
@@ -1586,7 +1628,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
             }
             return;
           }
-          const countyName = feature.properties.NAME || 'Unknown County';
+          const countyName = toTitleCase(feature.properties.NAME) || 'Unknown County';
           if (!hoverPopupRef.current) {
             hoverPopupRef.current = new mapboxgl.Popup({
               closeButton: false,
@@ -2696,7 +2738,9 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
 
                 // Format specific values
                 if (key === 'acres' && typeof value === 'number') {
-                  value = value.toFixed(2); // Round acres to 2 decimal places
+                  value = value.toFixed(2);
+                } else if (key === 'county' && typeof value === 'string') {
+                  value = toTitleCase(value);
                 }
                 // Add more formatting rules here if needed
 
@@ -2721,7 +2765,10 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
               (featureResources.length > 0
                 ? getResidueFactorsByResourceNames(featureResources)
                 : null) ?? getCropResidueFactors(cropName);
-            const residueFactorsArray = residueResult?.factors;
+            // Shared dedup filter: only residues flagged Include In Totals and
+            // left in the field (Collected? = false) count toward the popup
+            // totals, so overlapping sub-categories are not double-counted.
+            const residueFactorsArray = residueResult?.factors?.filter(shouldIncludeResidueInTotals);
 
             if (residueFactorsArray && residueFactorsArray.length > 0) {
               // Accumulate aggregate totals and per-resource detail rows in one pass.
@@ -2781,13 +2828,20 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
             const countyGeoid = getCountyGeoid(properties.county || '');
             // Notify parent of selected county so it can show the county feedstock panel
             if (onCountySelect && properties.county && countyGeoid) {
-              onCountySelect(properties.county, countyGeoid);
+              onCountySelect(toTitleCase(properties.county), countyGeoid);
             }
             const apiResource = getApiResource(cropName);
             // Resources-first: enrich from this polygon's own residue when present.
             const popupResource = featureResources.length > 0
               ? featureResources[0].trim().toLowerCase()
               : apiResource;
+            // Composition is fetched for EVERY residue resource on this field (not
+            // just the first), so multi-residue crops like almonds surface the
+            // streams that actually carry lab data (shells/hulls), not the empty one.
+            const compositionResources = (featureResources.length > 0
+              ? featureResources.map(r => r.trim().toLowerCase())
+              : (apiResource ? [apiResource] : []))
+              .filter((r, i, arr) => r && arr.indexOf(r) === i);
             const usdaCrop = getUsdaCropName(cropName);
             const apiSectionId = `api-data-${Date.now()}`;
 
@@ -2834,10 +2888,10 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
             if (popupResource || (countyGeoid && usdaCrop)) {
               (async () => {
                 try {
-                  const [availResult, analysisResult, censusResult] = await Promise.allSettled([
+                  const [availResult, censusResult, ...analysisResults] = await Promise.allSettled([
                     popupResource ? getAvailability(popupResource, STATE_GEOID) : Promise.resolve(null),
-                    popupResource ? getAnalysisByResource(popupResource, STATE_GEOID) : Promise.resolve(null),
                     (usdaCrop && countyGeoid) ? getCensusByCrop(usdaCrop, countyGeoid) : Promise.resolve(null),
+                    ...compositionResources.map(r => getAnalysisByResource(r, STATE_GEOID)),
                   ]);
 
                   const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -2851,13 +2905,36 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
                     apiHTML += `<div style="margin-bottom:3px;"><strong>Availability:</strong> ${from}–${to}</div>`;
                   }
 
-                  // Analysis: moisture + heating value
-                  const analysis = analysisResult.status === 'fulfilled' ? analysisResult.value : null;
-                  if (analysis && analysis.data && analysis.data.length > 0) {
-                    analysis.data.forEach(item => {
-                      const label = item.parameter.replace(/_/g, ' ').replace(/\w\S*/g, t => t.charAt(0).toUpperCase() + t.substr(1).toLowerCase());
-                      apiHTML += `<div style="margin-bottom:3px;"><strong>${label}:</strong> ${item.value} ${item.unit}</div>`;
-                    });
+                  // Composition: averaged summary stats per residue resource. Each
+                  // resource carries many lab samples; summarizeLeadComposition rolls
+                  // them into one value per headline parameter (moisture, lignin, ash,
+                  // volatile solids, nitrogen, heating value). Resources with no
+                  // analysis data (e.g. "almond woodchips") are skipped.
+                  const shortenUnit = (u) => (u || '')
+                    .replace(/%\s*total weight/i, '%')
+                    .replace(/%\s*dry weight/i, '% dry')
+                    .replace(/^pc$/i, '%')
+                    .trim();
+                  const fmtStat = (s) => {
+                    const rounded = Math.abs(s.value) >= 100 ? Math.round(s.value) : Math.round(s.value * 10) / 10;
+                    const u = shortenUnit(s.unit);
+                    return u.startsWith('%') ? `${rounded}${u}` : `${rounded} ${u}`.trim();
+                  };
+                  let compositionHTML = '';
+                  analysisResults.forEach((res, i) => {
+                    const resp = res.status === 'fulfilled' ? res.value : null;
+                    const stats = summarizeLeadComposition(resp);
+                    if (!stats.length) return;
+                    const resName = compositionResources[i].replace(/\b\w/g, c => c.toUpperCase());
+                    const rows = stats.map(s => `<div style="margin-bottom:1px;">${s.label}: ${fmtStat(s)}</div>`).join('');
+                    compositionHTML += `
+                      <div style="margin-top:4px;">
+                        <div style="font-weight:bold;color:#555;">${resName}</div>
+                        <div style="padding-left:8px;">${rows}</div>
+                      </div>`;
+                  });
+                  if (compositionHTML) {
+                    apiHTML += `<div style="margin-top:4px;font-weight:bold;">Composition (avg)</div>${compositionHTML}`;
                   }
 
                   // Census: harvested acres for county
