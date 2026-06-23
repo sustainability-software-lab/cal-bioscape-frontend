@@ -402,6 +402,12 @@ export const fetchCountyFeedstockStats = makePromiseCache(fetchCountyFeedstockSt
 export function seedCountyStats(snapshot: Record<string, CountyCropStat[]>): number {
   let seeded = 0;
   for (const [geoid, stats] of Object.entries(snapshot)) {
+    // Skip empty entries: the snapshot may have been built against a DB with partial
+    // data (e.g. only SJV counties populated). Seeding [] would mark the county as
+    // "no data" and block a live fetch that would return real results. Counties absent
+    // from the snapshot or with no stats fall through to a live fetch on click or the
+    // idle prefetch sweep triggered after seeding.
+    if (stats.length === 0) continue;
     if (!fetchCountyFeedstockStats.has(geoid)) {
       fetchCountyFeedstockStats.seed(geoid, stats);
       seeded++;
