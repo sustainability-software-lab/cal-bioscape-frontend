@@ -349,9 +349,42 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
       const labelKeys = Object.keys(labels);
 
       if (labelKeys.length > 0) {
+        const isCarbPopup = layerId === CARB_POPUP_LABEL_KEY;
+        const carbQtyRaw = isCarbPopup ? properties.quantities : null;
+        const carbByproductsRaw = isCarbPopup ? properties.byproducts : null;
+        const hasCarbQty = carbQtyRaw != null && !nullValues.includes(String(carbQtyRaw).trim());
+        const hasCarbByproducts = carbByproductsRaw != null && !nullValues.includes(String(carbByproductsRaw).trim());
+
         labelKeys.forEach(key => {
           if (Object.prototype.hasOwnProperty.call(properties, key) &&
               !nullValues.includes(String(properties[key]).trim())) {
+
+            // CARB: absorb byproducts into the quantities section below
+            if (isCarbPopup && key === 'byproducts' && hasCarbQty) {
+              return;
+            }
+
+            // CARB: render quantities as a correlated list paired with byproduct names
+            if (isCarbPopup && key === 'quantities') {
+              const qtyParts = String(carbQtyRaw).split(', ').map(s => s.trim()).filter(Boolean);
+              const byproductParts = hasCarbByproducts
+                ? String(carbByproductsRaw).split(', ').map(s => s.trim()).filter(Boolean)
+                : [];
+
+              if (byproductParts.length > 0 && byproductParts.length === qtyParts.length) {
+                const itemLines = byproductParts.map((item, i) => {
+                  const num = Number(qtyParts[i].replace(/,/g, ''));
+                  const formattedQty = !isNaN(num) ? num.toLocaleString() : qtyParts[i];
+                  return `<div style="margin-left: 12px; margin-bottom: 2px; text-align: left;">- ${item}: ${formattedQty} tons per year</div>`;
+                }).join('');
+                content += `<div style="margin-bottom: 3px; text-align: left;"><strong style="font-weight: bold;">Reported Quantities:</strong>${itemLines}</div>`;
+              } else {
+                // Fallback: lengths mismatch or no byproducts — show as-is with units
+                content += `<div style="margin-bottom: 3px; text-align: left;"><strong style="font-weight: bold;">Reported Quantities:</strong> ${carbQtyRaw} tons per year</div>`;
+              }
+              return;
+            }
+
             content += formatAndBuildLine(key, properties[key]);
           }
         });
