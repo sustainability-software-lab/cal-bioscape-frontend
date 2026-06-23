@@ -158,12 +158,19 @@ export const DEFAULT_TILESET_REGISTRY: Record<string, TilesetConfig> = {
   },
   
   foodProcessors: {
-    tilesetId: 'tylerhuntington222.4vo6hho9', // TODO: Update to sustainasoft.cal-bioscape-epa-food-processors-YYYY-MM
-    sourceLayer: 'food_manufactureres_and_processors_epa',
+    // CA-constrained EPA "Excess Food Opportunities" food processors, rebuilt from
+    // the authoritative EPA dataset (7,094 CA rows geocoded via the US Census batch
+    // geocoder, dropped to those inside the CA bounding box). Replaces the legacy
+    // national tileset `tylerhuntington222.4vo6hho9`, whose source contained ~496
+    // out-of-state points (issue #116). Built by `npm run geocode-epa-data` ->
+    // `build-epa-data` -> `upload-epa-tileset`. Source layer name is stable across
+    // versions; only the date-suffixed tileset id changes on a data refresh.
+    tilesetId: 'sustainasoft.epa-food-processors-2026-06',
+    sourceLayer: 'epa_food_processors',
     displayName: 'Food Processing Facilities',
     category: 'infrastructure',
-    version: 'current',
-    accountType: 'legacy'
+    version: '2026-06',
+    accountType: 'default'
   },
 
   tomatoProcessors: {

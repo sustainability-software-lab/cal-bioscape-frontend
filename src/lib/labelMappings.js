@@ -164,27 +164,26 @@ export const WASTEWATER_TREATMENT_PLANTS_LABELS = {
   'LONGITUDE': 'Longitude',
 };
 
+// CA-constrained EPA food processors tileset (sustainasoft.epa-food-processors-*,
+// source layer `epa_food_processors`). Property names are clean snake_case set by the
+// build pipeline (src/lib/epa-food-processors-build.ts), so — unlike the legacy
+// `4vo6hho9` tileset — NAICS code and description are no longer swapped.
 export const FOOD_PROCESSORS_LABELS = {
-  'Address': 'Address',
-  'City': 'City',
-  'County': 'County',
-  'Zip_Code': 'ZIP Code',
-  'State': 'State',
-  'ExcessFo_1': 'Excess Food - High Estimate (Tons/Year)',
-  'ExcessFood': 'Excess Food - Low Estimate (Tons/Year)',
-  // NOTE: in the EPA tileset the column contents are swapped relative to their
-  // names - `NAICS_Code` holds the human-readable industry description (e.g.
-  // "Distilleries") and `NAICS_Co_1` holds the numeric NAICS code (e.g. "312140").
-  // Labels are intentionally matched to the actual VALUES so popups read correctly.
-  'NAICS_Code': 'NAICS Description',
-  'NAICS_Co_1': 'NAICS Code',
-  'Name': 'Name',
-  'OBJECTID': 'Object ID',
-  'Phone1': 'Phone',
-  'UniqueID': 'Unique ID',
-  'Website': 'Website',
-  'lat': 'Latitude',
-  'lon': 'Longitude',
+  'name': 'Name',
+  'address': 'Address',
+  'city': 'City',
+  'county': 'County',
+  'zip': 'ZIP Code',
+  'state': 'State',
+  'naics_code': 'NAICS Code',
+  'naics_description': 'NAICS Description',
+  'phone': 'Phone',
+  'website': 'Website',
+  'excess_food_low': 'Excess Food - Low Estimate (Tons/Year)',
+  'excess_food_high': 'Excess Food - High Estimate (Tons/Year)',
+  'data_source': 'Data Source',
+  'latitude': 'Latitude',
+  'longitude': 'Longitude',
 };
 
 export const FOOD_RETAILERS_LABELS = {
