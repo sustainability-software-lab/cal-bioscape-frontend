@@ -375,7 +375,8 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
                   const formattedQty = num >= 1
                     ? Math.round(num).toLocaleString()
                     : num.toFixed(2);
-                  return `<div style="margin-left: 12px; margin-bottom: 2px; text-align: left;">- ${item}: ${formattedQty} tons per year</div>`;
+                  const displayItem = item.charAt(0).toUpperCase() + item.slice(1);
+                  return `<div style="margin-left: 12px; margin-bottom: 2px; text-align: left;">- ${displayItem}: ${formattedQty} tons per year</div>`;
                 }).filter(Boolean).join('');
                 if (!itemLines) return;
                 content += `<div style="margin-bottom: 3px; text-align: left;"><strong style="font-weight: bold;">Reported Quantities:</strong>${itemLines}</div>`;
