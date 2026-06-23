@@ -35,6 +35,16 @@ test('LandIQ crop field popup uses aggregate totals + collapsible sections (issu
 }) => {
   test.setTimeout(120_000);
 
+  // The residue breakdown is built synchronously at click time from the async-loaded
+  // resource_info.json. Listen for its load signal BEFORE navigating so a fast click
+  // doesn't beat the data and silently drop the residue section (a real flake).
+  const residueDataReady = page
+    .waitForEvent('console', {
+      predicate: (m) => /Residue data loaded successfully/i.test(m.text()),
+      timeout: 60_000,
+    })
+    .catch(() => undefined);
+
   await page.goto('http://localhost:3100/');
 
   // Wait for the map + feedstock layer to be registered in the style.
@@ -42,6 +52,9 @@ test('LandIQ crop field popup uses aggregate totals + collapsible sections (issu
     () => !!window.mapboxMap && !!window.mapboxMap.getLayer('feedstock-vector-layer'),
     { timeout: 60_000 }
   );
+
+  // ...and for residue factor data to be loaded before we click.
+  await residueDataReady;
 
   // Drive the map to an almond field and dispatch a click on it. Returns diagnostics.
   const result = await page.evaluate(async () => {
@@ -138,8 +151,10 @@ test('LandIQ crop field popup uses aggregate totals + collapsible sections (issu
   await breakdown.locator('summary').click();
   await expect(breakdown).toContainText(/wet:/i);
   const wetRows = await breakdown.locator(':scope :text("Wet:")').count();
-  // Almonds have several residue resources; at least 2 distinct streams expected.
-  expect(wetRows, 'almond residue breakdown should list multiple residue types').toBeGreaterThanOrEqual(2);
+  // At least one residue stream renders with Wet/Dry. (Not >=2: issue #164 filters
+  // out overlapping "Include In Totals = false" sub-categories, so a given almond
+  // field may legitimately have a single includable residue stream.)
+  expect(wetRows, 'residue breakdown should list at least one residue stream').toBeGreaterThanOrEqual(1);
 
   // Evidence: expanded popup showing the multiple almond residue types.
   await popup.screenshot({ path: 'e2e/__artifacts__/feedstock-popup-153-expanded.png' });
@@ -155,4 +170,16 @@ test('LandIQ crop field popup uses aggregate totals + collapsible sections (issu
   // Sanity: collapsed popup is reasonably short (not a mile tall).
   expect(collapsedBox, 'popup should have a measurable box').not.toBeNull();
   expect(collapsedBox!.height, 'collapsed popup should be compact (< 320px tall)').toBeLessThan(320);
+
+  // Issue #163: the "Composition & seasonal data" section must surface AVERAGED
+  // composition stats for the resources that have lab data (almond shells/hulls),
+  // not come up empty because only the first (data-less) resource was queried.
+  const composition = popup.locator('details', { hasText: 'Composition' });
+  await expect(composition).toHaveCount(1);
+  await composition.locator('summary').click();
+  // Composition is fetched + rendered async after the click; wait for it.
+  await expect(composition).toContainText('Composition (avg)', { timeout: 15_000 });
+  await expect(composition).toContainText(/Moisture:/i);
+  await expect(composition).toContainText(/Lignin:/i);
+  await popup.screenshot({ path: 'e2e/__artifacts__/feedstock-popup-163-composition.png' });
 });

@@ -113,6 +113,50 @@ export function parseCompositionData(response: AnalysisListResponse | null): Com
   };
 }
 
+/** A single averaged composition parameter, ready for display. */
+export interface CompositionStat {
+  key: string;
+  label: string;
+  value: number;
+  unit: string;
+  /** Number of underlying lab samples averaged into `value`. */
+  n: number;
+}
+
+// The headline composition parameters surfaced in the map popup, in display
+// order. Matching is loose (lowercased substring / prefix) so it catches the
+// real API names — e.g. "ash solids" and "volatile solids" — which the exact
+// findParam() lookups above intentionally do not.
+const LEAD_COMPOSITION_PARAMS: Array<{ key: string; label: string; match: (p: string) => boolean }> = [
+  { key: 'moisture',       label: 'Moisture',        match: p => p.startsWith('moisture') },
+  { key: 'lignin',         label: 'Lignin',          match: p => p.includes('lignin') },
+  { key: 'ash',            label: 'Ash',             match: p => p.startsWith('ash') },
+  { key: 'volatileSolids', label: 'Volatile solids', match: p => p.includes('volatile') },
+  { key: 'nitrogen',       label: 'Nitrogen',        match: p => p.startsWith('nitrogen') },
+  { key: 'hhv',            label: 'Heating value',   match: p => p.includes('hhv') || p.includes('heating') },
+];
+
+/**
+ * Roll an analysis response (which holds many individual lab samples per
+ * parameter) up into averaged summary stats for the headline composition
+ * parameters. Returns an empty array when the resource has no analysis data.
+ */
+export function summarizeLeadComposition(response: AnalysisListResponse | null): CompositionStat[] {
+  const data = response?.data;
+  if (!data || !data.length) return [];
+
+  const stats: CompositionStat[] = [];
+  for (const spec of LEAD_COMPOSITION_PARAMS) {
+    const samples = data.filter(
+      d => spec.match(d.parameter.toLowerCase()) && d.value != null && !Number.isNaN(Number(d.value))
+    );
+    if (!samples.length) continue;
+    const avg = samples.reduce((sum, d) => sum + Number(d.value), 0) / samples.length;
+    stats.push({ key: spec.key, label: spec.label, value: avg, unit: samples[0].unit ?? '', n: samples.length });
+  }
+  return stats;
+}
+
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
