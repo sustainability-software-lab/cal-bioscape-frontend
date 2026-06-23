@@ -371,9 +371,13 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
               if (byproductParts.length > 0 && byproductParts.length === qtyParts.length) {
                 const itemLines = byproductParts.map((item, i) => {
                   const num = Number(qtyParts[i].replace(/,/g, ''));
-                  const formattedQty = !isNaN(num) ? num.toLocaleString() : qtyParts[i];
+                  if (isNaN(num) || num === 0) return null;
+                  const formattedQty = num >= 1
+                    ? Math.round(num).toLocaleString()
+                    : num.toFixed(2);
                   return `<div style="margin-left: 12px; margin-bottom: 2px; text-align: left;">- ${item}: ${formattedQty} tons per year</div>`;
-                }).join('');
+                }).filter(Boolean).join('');
+                if (!itemLines) return;
                 content += `<div style="margin-bottom: 3px; text-align: left;"><strong style="font-weight: bold;">Reported Quantities:</strong>${itemLines}</div>`;
               } else {
                 // Fallback: lengths mismatch or no byproducts — show as-is with units
