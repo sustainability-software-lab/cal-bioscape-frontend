@@ -43,6 +43,7 @@ function factor(
   fromMonth: number,
   toMonth: number,
   collected = false,
+  includeInTotals = true,
 ): ResidueFactors {
   return {
     resourceName,
@@ -54,6 +55,7 @@ function factor(
     fromMonth,
     toMonth,
     collected,
+    includeInTotals,
   };
 }
 

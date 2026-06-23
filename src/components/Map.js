@@ -15,7 +15,7 @@ import { getAvailability, getAnalysisByResource, getCensusByCrop } from '@/lib/a
 import { getCountyGeoid } from '@/lib/county-lookup';
 import { getApiResource, getUsdaCropName, STATE_GEOID } from '@/lib/resource-mapping';
 import { parseFeatureResources, getResidueFactorsByResourceNames } from '@/lib/resource-residues';
-import { onResidueDataLoaded } from '@/lib/residue-data';
+import { onResidueDataLoaded, shouldIncludeResidueInTotals } from '@/lib/residue-data';
 import { getCountyAggregateStats } from '@/lib/county-analysis';
 import { formatNumberWithCommas } from '@/lib/utils';
 
@@ -2764,7 +2764,10 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
               (featureResources.length > 0
                 ? getResidueFactorsByResourceNames(featureResources)
                 : null) ?? getCropResidueFactors(cropName);
-            const residueFactorsArray = residueResult?.factors;
+            // Shared dedup filter: only residues flagged Include In Totals and
+            // left in the field (Collected? = false) count toward the popup
+            // totals, so overlapping sub-categories are not double-counted.
+            const residueFactorsArray = residueResult?.factors?.filter(shouldIncludeResidueInTotals);
 
             if (residueFactorsArray && residueFactorsArray.length > 0) {
               // Accumulate aggregate totals and per-resource detail rows in one pass.

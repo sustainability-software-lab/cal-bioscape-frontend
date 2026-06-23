@@ -940,16 +940,18 @@ Async loader for the live `resource_info.json` from GitHub Pages.
 
 **Data source:** `https://sustainability-software-lab.github.io/ca-biositing/resource_info.json`
 
-**Raw JSON fields per record:** `resource`, `resource_code`, `landiq_crop_name`, `residue_type`, `collected`, `from_month`, `to_month`, `residue_yield_wet_ton_per_ac`, `moisture_content`, `residue_yield_dry_ton_per_ac`
+**Raw JSON fields per record (GOTCHA — Title Case headers):** the published JSON uses Title Case column headers, not snake_case: `Resource`, `Resource Code`, `LandIQ Crop Name`, `Residue Type`, `Collected?`, `Include In Totals`, `From Month`, `To Month`, `Residue Yield (Wet Ton/Ac)`, `Moisture Content`, `Residue Yield (Dry Ton/Ac)` (a side-car `resource_info_header_mapping.json` documents the snake_case↔Title Case mapping). `Collected?` and `Include In Totals` are real JSON booleans (legacy was `"TRUE"`/`"FALSE"` strings). `parseResidueRecords` reads **both** conventions via a `pickField` helper, so reading only snake_case (the historical bug fixed in #164) silently drops every field. When adding/renaming a JSON column, update the `pickField` calls in `residue-data.ts`.
 
 **Exports:**
 
 | Export | Description |
 |---|---|
-| `fetchResidueData()` | Fetches and caches the JSON. Idempotent. |
+| `fetchResidueData()` | Fetches and caches the JSON. Idempotent. Delegates parsing to `parseResidueRecords`. |
+| `parseResidueRecords(rawArray)` | Pure parser → `{ byCrop, byResource }`. Reads Title Case and legacy snake_case headers. Exported for unit testing. |
 | `getResidueData(standardizedCropName)` | Returns `ResidueFactors[]` for a crop (empty array if not found). Synchronous after load. |
+| `shouldIncludeResidueInTotals(factor)` | **Shared dedup filter** for popup + inventory: `includeInTotals === true && collected === false`. Excludes overlapping sub-categories (`Include In Totals = false`, e.g. "Almond Shells and Hulls mix") and processing waste (`Collected? = true`, e.g. hulls/shells) so field totals are not double-counted. Both `Map.js` popups and `SitingInventory.tsx` call this single predicate so they cannot diverge. |
 | `onResidueDataLoaded(callback)` | Subscribe to load completion. Fires immediately if already loaded. |
-| `ResidueFactors` | `{ resourceName, wetTonsPerAcre, moistureContent, dryTonsPerAcre, seasonalAvailability, fromMonth?, toMonth?, residueType, collected, category? }` |
+| `ResidueFactors` | `{ resourceName, wetTonsPerAcre, moistureContent, dryTonsPerAcre, seasonalAvailability, fromMonth?, toMonth?, residueType, collected, includeInTotals?, category? }` |
 
 ---
 
