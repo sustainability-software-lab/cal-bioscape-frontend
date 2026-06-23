@@ -15,6 +15,7 @@ import { getAvailability, getAnalysisByResource, getCensusByCrop } from '@/lib/a
 import { getCountyGeoid } from '@/lib/county-lookup';
 import { getApiResource, getUsdaCropName, STATE_GEOID } from '@/lib/resource-mapping';
 import { parseFeatureResources, getResidueFactorsByResourceNames } from '@/lib/resource-residues';
+import { summarizeLeadComposition } from '@/lib/composition-filters';
 import { onResidueDataLoaded, shouldIncludeResidueInTotals } from '@/lib/residue-data';
 import { getCountyAggregateStats } from '@/lib/county-analysis';
 import { formatNumberWithCommas } from '@/lib/utils';
@@ -2834,6 +2835,13 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
             const popupResource = featureResources.length > 0
               ? featureResources[0].trim().toLowerCase()
               : apiResource;
+            // Composition is fetched for EVERY residue resource on this field (not
+            // just the first), so multi-residue crops like almonds surface the
+            // streams that actually carry lab data (shells/hulls), not the empty one.
+            const compositionResources = (featureResources.length > 0
+              ? featureResources.map(r => r.trim().toLowerCase())
+              : (apiResource ? [apiResource] : []))
+              .filter((r, i, arr) => r && arr.indexOf(r) === i);
             const usdaCrop = getUsdaCropName(cropName);
             const apiSectionId = `api-data-${Date.now()}`;
 
@@ -2880,10 +2888,10 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
             if (popupResource || (countyGeoid && usdaCrop)) {
               (async () => {
                 try {
-                  const [availResult, analysisResult, censusResult] = await Promise.allSettled([
+                  const [availResult, censusResult, ...analysisResults] = await Promise.allSettled([
                     popupResource ? getAvailability(popupResource, STATE_GEOID) : Promise.resolve(null),
-                    popupResource ? getAnalysisByResource(popupResource, STATE_GEOID) : Promise.resolve(null),
                     (usdaCrop && countyGeoid) ? getCensusByCrop(usdaCrop, countyGeoid) : Promise.resolve(null),
+                    ...compositionResources.map(r => getAnalysisByResource(r, STATE_GEOID)),
                   ]);
 
                   const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -2897,13 +2905,36 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
                     apiHTML += `<div style="margin-bottom:3px;"><strong>Availability:</strong> ${from}–${to}</div>`;
                   }
 
-                  // Analysis: moisture + heating value
-                  const analysis = analysisResult.status === 'fulfilled' ? analysisResult.value : null;
-                  if (analysis && analysis.data && analysis.data.length > 0) {
-                    analysis.data.forEach(item => {
-                      const label = item.parameter.replace(/_/g, ' ').replace(/\w\S*/g, t => t.charAt(0).toUpperCase() + t.substr(1).toLowerCase());
-                      apiHTML += `<div style="margin-bottom:3px;"><strong>${label}:</strong> ${item.value} ${item.unit}</div>`;
-                    });
+                  // Composition: averaged summary stats per residue resource. Each
+                  // resource carries many lab samples; summarizeLeadComposition rolls
+                  // them into one value per headline parameter (moisture, lignin, ash,
+                  // volatile solids, nitrogen, heating value). Resources with no
+                  // analysis data (e.g. "almond woodchips") are skipped.
+                  const shortenUnit = (u) => (u || '')
+                    .replace(/%\s*total weight/i, '%')
+                    .replace(/%\s*dry weight/i, '% dry')
+                    .replace(/^pc$/i, '%')
+                    .trim();
+                  const fmtStat = (s) => {
+                    const rounded = Math.abs(s.value) >= 100 ? Math.round(s.value) : Math.round(s.value * 10) / 10;
+                    const u = shortenUnit(s.unit);
+                    return u.startsWith('%') ? `${rounded}${u}` : `${rounded} ${u}`.trim();
+                  };
+                  let compositionHTML = '';
+                  analysisResults.forEach((res, i) => {
+                    const resp = res.status === 'fulfilled' ? res.value : null;
+                    const stats = summarizeLeadComposition(resp);
+                    if (!stats.length) return;
+                    const resName = compositionResources[i].replace(/\b\w/g, c => c.toUpperCase());
+                    const rows = stats.map(s => `<div style="margin-bottom:1px;">${s.label}: ${fmtStat(s)}</div>`).join('');
+                    compositionHTML += `
+                      <div style="margin-top:4px;">
+                        <div style="font-weight:bold;color:#555;">${resName}</div>
+                        <div style="padding-left:8px;">${rows}</div>
+                      </div>`;
+                  });
+                  if (compositionHTML) {
+                    apiHTML += `<div style="margin-top:4px;font-weight:bold;">Composition (avg)</div>${compositionHTML}`;
                   }
 
                   // Census: harvested acres for county
