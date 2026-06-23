@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Card } from "@/components/ui/card";
 import {
   Accordion,
@@ -179,6 +179,12 @@ const LayerControls: React.FC<LayerControlsProps> = ({
   
   // Function to check if a crop is available in the selected month range
   const isCropAvailableInRange = (cropName: string, range: [number, number]): boolean => {
+    // Full-year range is the default "no seasonal filter" state — every crop is
+    // available across a whole year, so never hide one here. This guards against
+    // crops whose residue data has missing/odd seasonalAvailability being dropped
+    // at the default range; they only get filtered once the user narrows the months.
+    if (range[0] === 0 && range[1] === 11) return true;
+
     // Use the helper to get factors which now includes seasonal availability from the dynamic source
     const result = getCropResidueFactors(cropName);
     const factorsArray = result?.factors;
@@ -243,46 +249,6 @@ const LayerControls: React.FC<LayerControlsProps> = ({
     return true; // Crop matches all filter criteria
   }, [monthRange, selectedFeedstockCategories, compositionLookup, compositionFilters]);
   
-  // Function to apply seasonal filter based on month range
-  const applySeasonalFilter = (range: [number, number]) => {
-    setCropVisibility(prev => {
-      const newState = { ...prev };
-      
-      // Update visibility for each crop based on seasonal availability
-      allCropNames.forEach(cropName => {
-        newState[cropName] = isCropAvailableInRange(cropName, range);
-      });
-      
-      // Get visible crops after applying seasonal filter
-      const visibleCrops = Object.keys(newState).filter(name => newState[name]);
-      
-      // Try to directly update the map filter for crop visibility
-      const mapInstance = getMapInstance();
-      if (mapInstance && mapInstance.getLayer('feedstock-vector-layer')) {
-        try {
-          // Make sure the layer is visible if the feedstock layer is enabled and there are visible crops
-          if (visibleCrops.length > 0 && localLayerVisibility.feedstock) {
-            mapInstance.setLayoutProperty('feedstock-vector-layer', 'visibility', 'visible');
-          }
-          
-          // Create a filter that shows only visible crops
-          const visibleCropFilter = visibleCrops.length > 0
-            ? ['match', ['get', 'main_crop_name'], visibleCrops, true, false]
-            : ['==', ['get', 'main_crop_name'], '___NO_MATCH___']; // Hide all
-          // Combine with the existing base filter that excludes 'U' code
-          const combinedFilter = ['all', ['!=', ['get', 'main_crop_code'], 'U'], visibleCropFilter];
-          
-          // Apply the filter directly to the map
-          mapInstance.setFilter('feedstock-vector-layer', combinedFilter);
-          console.log(`Directly updated crop filter based on seasonal availability (${visibleCrops.length} crops visible)`);
-        } catch (err) {
-          console.error('Error directly updating crop filter:', err);
-        }
-      }
-      
-      return newState;
-    });
-  };
   
   // Comprehensive function to apply all filters (seasonal + characteristics)
   const applyAllFilters = useCallback(() => {
@@ -388,20 +354,42 @@ const LayerControls: React.FC<LayerControlsProps> = ({
     onCropFilterChange(visibleCrops);
   }, [allCropNames, cropVisibility, onCropFilterChange]); // Added missing dependencies
   
-  // Apply seasonal filter when component mounts
+  // Keep a ref to the latest applyAllFilters so the effect below can call it
+  // WITHOUT depending on it. Depending on applyAllFilters would re-run filtering
+  // whenever compositionLookup loads asynchronously, or the feedstock layer's
+  // visibility changes (e.g. entering siting/analysis mode) — which would
+  // spontaneously uncheck crop boxes. We only want filtering to re-apply when a
+  // user actually moves a filter control.
+  const applyAllFiltersRef = useRef(applyAllFilters);
+  applyAllFiltersRef.current = applyAllFilters;
+
+  // Re-apply crop filtering ONLY in response to a real user action on a filter
+  // control: the seasonal month range, the feedstock-category checkboxes, or the
+  // composition sliders. These three pieces of state change exclusively on user
+  // interaction. We deliberately do NOT depend on compositionLookup (async data
+  // load) or layer visibility, so page load, zoom, and siting/analysis mode can
+  // no longer auto-uncheck crop boxes — those toggle on user action only.
+  const prevFilterInputsRef = useRef({ monthRange, selectedFeedstockCategories, compositionFilters });
   useEffect(() => {
-    applySeasonalFilter(monthRange);
-  }, []);
-  
-  // Apply all filters when any filter state changes
-  useEffect(() => {
-    // Wait a bit for the map to be ready on initial load
+    const prev = prevFilterInputsRef.current;
+    const userChangedFilter =
+      prev.monthRange !== monthRange ||
+      prev.selectedFeedstockCategories !== selectedFeedstockCategories ||
+      prev.compositionFilters !== compositionFilters;
+    prevFilterInputsRef.current = { monthRange, selectedFeedstockCategories, compositionFilters };
+
+    // Skip the initial mount run (and any re-run where the inputs are identical,
+    // e.g. React StrictMode's double-invoke) so crops start — and stay — visible
+    // until the user touches a filter.
+    if (!userChangedFilter) return;
+
+    // Small delay so the map instance is ready when applying the derived filter.
     const timeoutId = setTimeout(() => {
-      applyAllFilters();
+      applyAllFiltersRef.current();
     }, 100);
-    
+
     return () => clearTimeout(timeoutId);
-  }, [applyAllFilters]);
+  }, [monthRange, selectedFeedstockCategories, compositionFilters]);
   
   // Store a reference to the map instance when it becomes available
   useEffect(() => {
