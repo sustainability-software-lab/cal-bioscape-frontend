@@ -199,7 +199,7 @@ Create `.env.local` for local development. Never commit secrets.
 | `GITHUB_REPO_NAME` | No | GitHub repo name, e.g. `cal-bioscape-frontend` |
 | `GITHUB_ISSUE_CREATE_ENABLED` | No | Must be `"true"` to activate GitHub issue creation |
 | `GITHUB_BASE_URL` | No | Override for GitHub Enterprise API, e.g. `https://lbl.github.com/api/v3` |
-| `MAPBOX_SECRET_TOKEN` | CLI only | sustainasoft `sk.*` Mapbox token with `tilesets:write` and `tilesets:read` scopes; used by `npm run upload-carb-tileset` to publish the CARB food processors tileset; never `NEXT_PUBLIC_`; stored in GCP Secret Manager as `mapbox-secret-token` (project biocirv-470318); fetch with `export MAPBOX_SECRET_TOKEN=$(gcloud secrets versions access latest --secret=mapbox-secret-token --project=biocirv-470318)` |
+| `MAPBOX_SECRET_TOKEN` | CLI only | sustainasoft `sk.*` Mapbox token with `tilesets:write` and `tilesets:read` scopes; used by `npm run upload-carb-tileset` and `npm run upload-epa-tileset` to publish the CARB and EPA food processors tilesets; never `NEXT_PUBLIC_`; stored in GCP Secret Manager as `mapbox-secret-token` (project biocirv-470318); fetch with `export MAPBOX_SECRET_TOKEN=$(gcloud secrets versions access latest --secret=mapbox-secret-token --project=biocirv-470318)` |
 
 **Auth mode selection**: Deployed staging and production services should set `CA_BIOSITE_API_KEY`. If it is set, the proxy sends `X-API-Key: <key>` and never retries on 401. If only username/password are set, the proxy uses the legacy OAuth2 JWT fallback with one retry on 401.
 
@@ -1327,6 +1327,8 @@ Total: 25 registry entries (1 feedstock + 18 infrastructure + 6 transportation).
 
 **Source layer names are stable across versions.** Only the tileset ID (which includes a `YYYY-MM` date suffix) changes when data is updated. Update `tilesetId` in the registry without changing any other code.
 
+**Food processors (`foodProcessors`) is now a CA-constrained EPA tileset** (`sustainasoft.epa-food-processors-2026-06`, source layer `epa_food_processors`), rebuilt from the authoritative EPA "Excess Food Opportunities" dataset. It replaced the legacy national `tylerhuntington222.4vo6hho9`, which rendered ~496 out-of-state points (issue #116). The pipeline is: `npm run geocode-epa-data` (geocode the CA subset via the US Census batch geocoder) → `build-epa-data` (GeoJSON-LD with a CA bounding-box guard in `src/lib/epa-food-processors-build.ts`) → `upload-epa-tileset`. **Census geocoder gotcha:** the batch endpoint requires the multipart field to be named exactly `addressFile` (a `file` field returns HTTP 400). Coordinates are double-guarded against out-of-state points (geocoder drops + build-time CA bbox drop), mirroring the CARB clean-source lesson.
+
 Infrastructure tilesets: anaerobic digesters, biorefineries, SAF plants, renewable diesel plants, material recovery facilities, cement plants, biodiesel plants, landfills (LFG), wastewater treatment plants, waste-to-energy, combustion plants, district energy systems, food processors (general), tomato processors (separate tileset), food banks, farmers markets, food retailers, power plants.
 
 Transportation tilesets: rail lines, freight terminals, freight routes, petroleum pipelines, crude oil pipelines, natural gas pipelines.
@@ -1409,6 +1411,9 @@ The Cloud Run service runs under a **dedicated service account** (not the Comput
 | `npm run lint` | `next lint` | Configured script, but currently invalid under Next.js 16 because `next lint` was removed |
 | `npm run fetch-data` | `tsx scripts/fetch-tomato-processor-facilities.ts` | Refresh tomato processor GeoJSON |
 | `npm run merge-data` | `tsx scripts/data-manipulation.ts` | **Broken** — `scripts/data-manipulation.ts` does not exist |
+| `npm run geocode-epa-data` | `tsx scripts/geocode-epa-food-processors.ts` | Geocode the CA subset of the EPA food-processors dataset via the US Census batch geocoder; writes `src/data/epa_food_processors_ca.csv` |
+| `npm run build-epa-data` | `tsx scripts/build-epa-food-processors.ts` | Build `src/data/epa-food-processor-facilities.geojson.ld` from the geocoded CA CSV (CA bounding-box guard) |
+| `npm run upload-epa-tileset` | `tsx scripts/upload-epa-tileset.ts` | Publish the CA-constrained EPA food-processors tileset `sustainasoft.epa-food-processors-2026-06` (needs `MAPBOX_SECRET_TOKEN`) |
 | `npm audit` | `npm audit --audit-level=high` | Security audit (high severity) |
 
 ---

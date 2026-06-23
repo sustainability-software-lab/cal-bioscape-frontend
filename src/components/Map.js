@@ -2408,7 +2408,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
               'visibility': layerVisibility?.foodProcessors ? 'visible' : 'none'
             }
           });
-          console.log("Added food processors layer with correct source layer 'food_manufactureres_and_processors_epa'");
+          console.log(`Added food processors layer with source layer '${TILESET_REGISTRY.foodProcessors.sourceLayer}'`);
         } catch (error) {
           console.error("Failed to add food processors layer:", error);
         }
