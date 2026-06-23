@@ -188,6 +188,9 @@ const SitingInventory: React.FC<SitingInventoryProps> = ({
       for (const factor of residueResult.factors) {
         // Skip entries with no yield data (e.g. "Missing" values that parsed to 0)
         if (!factor.dryTonsPerAcre && !factor.wetTonsPerAcre) continue;
+        // Exclude processor waste (collected===true means hulls, shells, etc. removed
+        // at a processing facility -- not attributable to field acreage).
+        if (factor.collected) continue;
         // Resources-tier rows key composition off the residue's own name;
         // crop-tier rows fall back to the crop's primary resource.
         const apiResource = perResidue
