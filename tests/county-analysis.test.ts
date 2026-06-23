@@ -546,11 +546,12 @@ test('seedCountyStats seeds the shared cache so fetchCountyFeedstockStats serves
   assert.deepEqual(result, seededStats, 'cache returns the seeded snapshot value (no live fetch)');
 });
 
-test('seedCountyStats skips empty-array entries so counties with partial-DB snapshots fall through to live fetch', async () => {
-  // Simulates a snapshot built when only some counties had DB data.
-  // The empty-array entries must NOT be seeded — if they were, clicking those
-  // counties would return [] immediately instead of fetching from a DB that now
-  // has real data.
+test('seedCountyStats seeds empty-array entries so no-data counties open instantly without a live fetch', async () => {
+  // A committed empty array is an authoritative "no USDA cropland reported": the
+  // builder aborts on any fetch error and the guard rejects a degraded sweep, so
+  // an empty entry is never a transient miss. Seeding it is what makes EVERY
+  // county instant — a no-data county must resolve to [] from cache rather than
+  // firing ~36 live queries (~16s p90) that return nothing.
   const emptyGeoid = '06888';
   const dataGeoid = '06889';
   const dataStats: CountyCropStat[] = [{
@@ -562,22 +563,14 @@ test('seedCountyStats skips empty-array entries so counties with partial-DB snap
     [dataGeoid]: dataStats,
   };
 
-  // Use a fresh cache so there are no stale entries from other tests.
-  const { makePromiseCache } = await import('../src/lib/county-analysis.js');
-  const freshCache = makePromiseCache<CountyCropStat[]>(async () => []);
-  const freshSeed = (snap: Record<string, CountyCropStat[]>) => {
-    let n = 0;
-    for (const [geoid, stats] of Object.entries(snap)) {
-      if (stats.length === 0) continue;
-      if (!freshCache.has(geoid)) { freshCache.seed(geoid, stats); n++; }
-    }
-    return n;
-  };
+  const n = seedCountyStats(snapshot);
+  assert.equal(n, 2, 'both the empty and the non-empty county are seeded');
+  assert.equal(fetchCountyFeedstockStats.has(emptyGeoid), true, 'empty county IS in cache — served instantly');
+  assert.equal(fetchCountyFeedstockStats.has(dataGeoid), true, 'non-empty county IS in cache');
 
-  const n = freshSeed(snapshot);
-  assert.equal(n, 1, 'only the non-empty county is seeded');
-  assert.equal(freshCache.has(emptyGeoid), false, 'empty county NOT in cache — allows live fallback');
-  assert.equal(freshCache.has(dataGeoid), true, 'non-empty county IS in cache');
+  // The empty county resolves to [] from memory with no live fetch.
+  assert.deepEqual(await fetchCountyFeedstockStats(emptyGeoid), [], 'empty county returns [] from cache');
+  assert.deepEqual(await fetchCountyFeedstockStats(dataGeoid), dataStats, 'data county returns seeded stats from cache');
 });
 
 test('warmPromiseCache swallows per-key failures without aborting the sweep', async () => {
