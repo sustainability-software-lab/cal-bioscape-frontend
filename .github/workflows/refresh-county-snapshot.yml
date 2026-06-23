@@ -1,4 +1,4 @@
-name: Refresh county-stats snapshot
+name: Refresh county-stats snapshot (staging)
 
 # Keeps the client-side county-stats lookup table
 # (public/data/county-stats-snapshot.json) fresh with the backend USDA data
@@ -6,13 +6,16 @@ name: Refresh county-stats snapshot
 # ever putting the slow (~16s-p90) backend on a user's request path. The sweep
 # runs here, offline; users keep reading one small static asset.
 #
-# Required repo/org secrets (one auth path):
-#   CA_BIOSITE_API_KEY                       (preferred), or
-#   CA_BIOSITE_API_USER + CA_BIOSITE_API_PASSWORD
-# Optional repo variable:
-#   CA_BIOSITE_API_BASE_URL  (defaults to the prod base below)
+# This workflow builds against the STAGING backend (api-staging.calbioscape.org),
+# which carries the full set of CA county data. The companion workflow
+# `refresh-county-snapshot-prod.yml` does the same against production.
 #
-# Publishes to `staging`; prod picks it up on the next staging -> main promotion.
+# Required repo secret:
+#   CA_BIOSITE_API_KEY_STAGING   (preferred), or
+#   CA_BIOSITE_API_USER + CA_BIOSITE_API_PASSWORD  (JWT fallback)
+#
+# Publishes to `staging`; prod picks it up on the next staging -> main promotion,
+# then `refresh-county-snapshot-prod.yml` overwrites with production data.
 
 on:
   schedule:
@@ -22,7 +25,7 @@ on:
 
 # Serialize refreshes; never run two snapshot pushes against staging at once.
 concurrency:
-  group: refresh-county-snapshot
+  group: refresh-county-snapshot-staging
   cancel-in-progress: false
 
 permissions:
@@ -30,7 +33,7 @@ permissions:
 
 jobs:
   refresh:
-    name: Regenerate and publish snapshot
+    name: Regenerate and publish snapshot (staging API)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout staging
@@ -49,11 +52,8 @@ jobs:
 
       - name: Regenerate county-stats snapshot
         env:
-          # `|| 'prod'` so an unset repo variable falls back to prod rather than
-          # passing an empty string (the script uses `?? prod`, which an empty
-          # string would not trigger).
-          NEXT_PUBLIC_API_BASE_URL: ${{ vars.CA_BIOSITE_API_BASE_URL || 'https://api.calbioscape.org' }}
-          CA_BIOSITE_API_KEY: ${{ secrets.CA_BIOSITE_API_KEY }}
+          NEXT_PUBLIC_API_BASE_URL: https://api-staging.calbioscape.org
+          CA_BIOSITE_API_KEY: ${{ secrets.CA_BIOSITE_API_KEY_STAGING }}
           CA_BIOSITE_API_USER: ${{ secrets.CA_BIOSITE_API_USER }}
           CA_BIOSITE_API_PASSWORD: ${{ secrets.CA_BIOSITE_API_PASSWORD }}
         # The script's guard exits non-zero (failing this job loudly) on a
@@ -70,5 +70,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add public/data/county-stats-snapshot.json
-          git commit -m "chore(county): refresh county-stats snapshot [automated]"
+          git commit -m "chore(county): refresh county-stats snapshot from staging API [automated]"
           git push origin HEAD:staging
