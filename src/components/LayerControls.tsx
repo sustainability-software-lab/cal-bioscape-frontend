@@ -179,6 +179,12 @@ const LayerControls: React.FC<LayerControlsProps> = ({
   
   // Function to check if a crop is available in the selected month range
   const isCropAvailableInRange = (cropName: string, range: [number, number]): boolean => {
+    // Full-year range is the default "no seasonal filter" state — every crop is
+    // available across a whole year, so never hide one here. This guards against
+    // crops whose residue data has missing/odd seasonalAvailability being dropped
+    // at the default range; they only get filtered once the user narrows the months.
+    if (range[0] === 0 && range[1] === 11) return true;
+
     // Use the helper to get factors which now includes seasonal availability from the dynamic source
     const result = getCropResidueFactors(cropName);
     const factorsArray = result?.factors;
