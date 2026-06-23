@@ -53,10 +53,14 @@ export interface CompositionFilters {
 }
 
 /** Full-range bounds for each metric — at these values, no crops are hidden. */
+// Upper bounds are chosen to cover the full range of the real residue data so
+// the sliders can reach every crop's value. Lignin in particular goes to 55
+// because woody shells (walnut ≈54, pistachio ≈50) are highly ligneous; a lower
+// cap would make those crops unreachable once the user touches the lignin slider.
 export const COMPOSITION_FILTER_BOUNDS: CompositionFilters = {
   moisture: [0, 80],
   cellulose: [0, 60],
-  lignin: [0, 40],
+  lignin: [0, 55],
   ash: [0, 15],
   hhv: [8, 22],
 };
@@ -64,7 +68,7 @@ export const COMPOSITION_FILTER_BOUNDS: CompositionFilters = {
 export const DEFAULT_COMPOSITION_FILTERS: CompositionFilters = {
   moisture: [0, 80],
   cellulose: [0, 60],
-  lignin: [0, 40],
+  lignin: [0, 55],
   ash: [0, 15],
   hhv: [8, 22],
 };
@@ -160,6 +164,12 @@ export function cropPassesCompositionFilters(
   lookup: CompositionLookup,
   filters: CompositionFilters
 ): boolean {
+  // When the composition filter is at its full-range default it must never hide
+  // a crop — not even one whose measured value sits outside the nominal bounds
+  // (e.g. walnut/pistachio shells with lignin above the slider max). Crops are
+  // only excluded once the user actively narrows a slider.
+  if (!isCompositionFiltersActive(filters)) return true;
+
   // Use API data first, then literature fallback, then pass-through
   const apiComp = lookup[landiqCropName];
   const comp: Partial<CompositionData> | undefined =
