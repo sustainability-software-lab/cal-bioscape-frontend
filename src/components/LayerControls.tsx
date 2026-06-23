@@ -812,7 +812,7 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                         const infrastructureLayers = [
                           'anaerobicDigester', 'biodieselPlants', 'biorefineries', 'safPlants',
                           'renewableDiesel', 'mrf', 'cementPlants', 'landfillLfg',
-                          'wastewaterTreatment', 'wasteToEnergy', 'combustionPlants', 'districtEnergySystems', 'foodProcessors', 'tomatoProcessors', ...CARB_PRODUCT_KEYS, 'foodRetailers',
+                          'wastewaterTreatment', 'wasteToEnergy', 'combustionPlants', 'districtEnergySystems', 'foodProcessors', ...CARB_PRODUCT_KEYS, 'foodRetailers',
                           'powerPlants', 'foodBanks', 'farmersMarkets'
                         ];
 
@@ -1215,16 +1215,15 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                           <Checkbox
                             id="foodProcessorsMaster"
                             checked={
-                              (localLayerVisibility?.foodProcessors && localLayerVisibility?.tomatoProcessors && CARB_PRODUCT_KEYS.every((k) => localLayerVisibility?.[k]))
+                              (localLayerVisibility?.foodProcessors && CARB_PRODUCT_KEYS.every((k) => localLayerVisibility?.[k]))
                                 ? true
-                                : (localLayerVisibility?.foodProcessors || localLayerVisibility?.tomatoProcessors || CARB_PRODUCT_KEYS.some((k) => localLayerVisibility?.[k]))
+                                : (localLayerVisibility?.foodProcessors || CARB_PRODUCT_KEYS.some((k) => localLayerVisibility?.[k]))
                                   ? 'indeterminate'
                                   : false
                             }
                             onCheckedChange={(checked: boolean | 'indeterminate') => {
                               const isChecked = checked === true;
                               directLayerToggle('foodProcessors', isChecked, true);
-                              directLayerToggle('tomatoProcessors', isChecked, true);
                               CARB_PRODUCT_KEYS.forEach((k) => directLayerToggle(k, isChecked, true));
                             }}
                           />
@@ -1243,28 +1242,13 @@ const LayerControls: React.FC<LayerControlsProps> = ({
                       {/* Subtypes - Only show when not collapsed */}
                       {!isFoodProcessorsCollapsed && (
                         <div className="space-y-1">
-                          {/* Tomato Processors Layer Toggle - Subtype */}
-                          <div className="flex items-center space-x-2 pl-6">
-                             <Checkbox
-                              id="tomatoProcessorsLayer"
-                              checked={localLayerVisibility?.tomatoProcessors ?? false}
-                              onCheckedChange={(checked: boolean | 'indeterminate') => directLayerToggle('tomatoProcessors', !!checked)}
-                            />
-                            <Label htmlFor="tomatoProcessorsLayer" className="flex items-center text-xs">
-                              <span
-                                style={{
-                                  display: 'inline-block',
-                                  width: '10px',
-                                  height: '10px',
-                                  backgroundColor: '#FF6347', // Tomato color
-                                  borderRadius: '50%',
-                                  marginRight: '2px',
-                                  flexShrink: 0,
-                                }}
-                              ></span>
-                              Tomato
-                            </Label>
-                          </div>
+                          {/* NOTE: The legacy "Tomato" subtype (tomatoProcessors /
+                              tomato-processors-layer, from Maryam Touhin's sparse tileset) is
+                              intentionally hidden from the legend — its richer replacement is
+                              the CARB "Tomatoes" entry below. The tileset, source, and Mapbox
+                              layer are kept in Map.js so the two datasets can be merged later;
+                              only the legend entry and bulk toggles are removed so the layer
+                              never renders for now. */}
 
                           {/* CARB Food Processors - disaggregated by primary_ag_product (issue #98).
                               One independently-toggleable, color-coded legend entry per product. */}

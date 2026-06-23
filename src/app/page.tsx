@@ -142,7 +142,6 @@ export default function Home() {
            layerVisibility.combustionPlants ||
            layerVisibility.districtEnergySystems ||
            layerVisibility.foodProcessors ||
-           layerVisibility.tomatoProcessors ||
            CARB_PRODUCT_KEYS.some((k) => layerVisibility[k]) ||
            layerVisibility.foodRetailers ||
            layerVisibility.powerPlants ||
@@ -163,7 +162,6 @@ export default function Home() {
     layerVisibility.combustionPlants,
     layerVisibility.districtEnergySystems,
     layerVisibility.foodProcessors,
-    layerVisibility.tomatoProcessors,
     ...CARB_PRODUCT_KEYS.map((k) => layerVisibility[k]),
     layerVisibility.foodRetailers,
     layerVisibility.powerPlants,
@@ -249,7 +247,6 @@ export default function Home() {
       combustionPlants: isVisible,
       districtEnergySystems: isVisible,
       foodProcessors: isVisible,
-      tomatoProcessors: isVisible,
       ...Object.fromEntries(CARB_PRODUCT_KEYS.map((k) => [k, isVisible])),
       foodRetailers: isVisible,
       powerPlants: isVisible,
@@ -289,6 +286,10 @@ export default function Home() {
       for (const key in newVisibility) {
         newVisibility[key] = true;
       }
+      // The legacy "Tomato" processors layer (tomatoProcessors) is hidden from the
+      // legend for now (its richer replacement is the CARB "Tomatoes" entry), so it
+      // must stay off even when the user shows all layers.
+      newVisibility.tomatoProcessors = false;
       return newVisibility;
     });
   };
