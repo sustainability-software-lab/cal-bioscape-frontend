@@ -101,10 +101,11 @@ export default function Home() {
         if (cancelled) return;
         const seeded = seedCountyStats(snapshot);
         console.log(`[county] seeded ${seeded} counties from snapshot (instant popups)`);
-        // Always run the idle prefetch after seeding. The cache dedup skips counties
-        // already seeded; this covers counties the snapshot left empty (built against a
-        // partial DB) so they get live-fetched in the background rather than showing
-        // "no data" until the user clicks them.
+        // Run the idle prefetch as defense-in-depth. seedCountyStats seeds every
+        // snapshot entry — including no-data counties (as authoritative `[]`) — so
+        // for a complete snapshot the cache dedup makes this a no-op (no request
+        // storm). It only does real work for any clickable geoid the snapshot
+        // somehow failed to cover.
         liveFallback();
       })
       .catch(err => {

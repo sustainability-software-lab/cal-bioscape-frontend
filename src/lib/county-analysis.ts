@@ -398,16 +398,22 @@ export const fetchCountyFeedstockStats = makePromiseCache(fetchCountyFeedstockSt
  * underlying data changes, which is at most annual. Returns the number of
  * counties seeded. Geoids absent from the snapshot still fall back to a live
  * fetch via fetchCountyFeedstockStats.
+ *
+ * Seeds EVERY entry, including counties with no crop data (`[]`). A committed
+ * empty array is an authoritative "no USDA cropland reported", not a transient
+ * miss: the snapshot builder sweeps all 58 counties and aborts the whole build
+ * if any county fetch throws, and the snapshot guard rejects an all-empty or
+ * sharply data-regressed sweep (see county-snapshot-guard.ts). Seeding the
+ * empties is what makes EVERY county — not just the few with data — open its
+ * popup instantly: a no-data county resolves to `[]` from memory instead of
+ * falling through to ~36 live queries (~16s p90) that return nothing anyway.
+ * It also makes the post-seed idle prefetch a no-op for snapshot-covered
+ * counties, eliminating the page-load request storm that warming all 58
+ * counties live would otherwise cause.
  */
 export function seedCountyStats(snapshot: Record<string, CountyCropStat[]>): number {
   let seeded = 0;
   for (const [geoid, stats] of Object.entries(snapshot)) {
-    // Skip empty entries: the snapshot may have been built against a DB with partial
-    // data (e.g. only SJV counties populated). Seeding [] would mark the county as
-    // "no data" and block a live fetch that would return real results. Counties absent
-    // from the snapshot or with no stats fall through to a live fetch on click or the
-    // idle prefetch sweep triggered after seeding.
-    if (stats.length === 0) continue;
     if (!fetchCountyFeedstockStats.has(geoid)) {
       fetchCountyFeedstockStats.seed(geoid, stats);
       seeded++;

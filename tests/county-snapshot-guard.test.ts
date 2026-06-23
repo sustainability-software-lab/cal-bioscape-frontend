@@ -6,6 +6,7 @@ import {
   countCountiesWithData,
   serializeCountySnapshot,
   EXPECTED_COUNTY_COUNT,
+  MIN_DATA_COVERAGE_RATIO,
   type CountySnapshot,
 } from '../src/lib/county-snapshot-guard';
 import type { CountyCropStat } from '../src/lib/county-analysis';
@@ -52,6 +53,29 @@ test('accepts an all-empty snapshot when there is no previous snapshot (first bu
 test('accepts an all-empty snapshot when the previous was also all-empty', () => {
   const result = validateCountySnapshot(snapshotOf(0), snapshotOf(0));
   assert.equal(result.ok, true, result.reason);
+});
+
+test('rejects a snapshot whose data coverage collapses below the retention floor (partial sweep)', () => {
+  // 40 -> 10 is a 75% drop, below the 50% retention floor. Because the client now
+  // ships empty entries as authoritative "no data", this degraded sweep must be
+  // caught here rather than silently marking 30 real counties as no-data.
+  const result = validateCountySnapshot(snapshotOf(10), snapshotOf(40));
+  assert.equal(result.ok, false);
+  assert.match(result.reason ?? '', /collapsed from 40 to 10/);
+});
+
+test('accepts a minor data-coverage fluctuation above the retention floor', () => {
+  const result = validateCountySnapshot(snapshotOf(38), snapshotOf(40));
+  assert.equal(result.ok, true, result.reason);
+});
+
+test('retention floor: 3 -> 2 accepted, 3 -> 1 rejected', () => {
+  assert.equal(validateCountySnapshot(snapshotOf(2), snapshotOf(3)).ok, true);
+  assert.equal(validateCountySnapshot(snapshotOf(1), snapshotOf(3)).ok, false);
+});
+
+test('MIN_DATA_COVERAGE_RATIO is a fraction in (0, 1]', () => {
+  assert.ok(MIN_DATA_COVERAGE_RATIO > 0 && MIN_DATA_COVERAGE_RATIO <= 1);
 });
 
 test('countCountiesWithData counts only counties with at least one crop row', () => {
