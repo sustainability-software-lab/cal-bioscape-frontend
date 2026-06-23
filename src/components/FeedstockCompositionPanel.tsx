@@ -7,7 +7,7 @@ import { CompositionData } from '@/lib/composition-filters';
 // Metric display config
 // ---------------------------------------------------------------------------
 
-type RatingColor = 'green' | 'amber' | 'red' | 'neutral';
+type RatingColor = 'green' | 'amber' | 'red' | 'neutral' | 'blue';
 
 interface MetricConfig {
   label: string;
@@ -42,7 +42,7 @@ const METRICS: Array<{ key: keyof CompositionData; config: MetricConfig }> = [
       label: 'Lignin',
       unit: '%',
       tooltip: 'Low lignin benefits biochemical conversion; high lignin suits gasification/pyrolysis.',
-      rate: (v) => v <= 15 ? 'green' : v <= 25 ? 'amber' : 'red',
+      rate: (_v) => 'green',
     },
   },
   {
@@ -60,7 +60,7 @@ const METRICS: Array<{ key: keyof CompositionData; config: MetricConfig }> = [
       label: 'Moisture',
       unit: '%',
       tooltip: 'Low moisture is ideal for thermal processes; high moisture suits anaerobic digestion.',
-      rate: (v) => v <= 15 ? 'green' : v <= 30 ? 'amber' : 'neutral',
+      rate: (_v) => 'blue',
     },
   },
   {
@@ -134,6 +134,7 @@ const COLOR_CLASSES: Record<RatingColor, string> = {
   amber:   'bg-amber-50 text-amber-800 border-amber-200',
   red:     'bg-red-50 text-red-800 border-red-200',
   neutral: 'bg-gray-50 text-gray-700 border-gray-200',
+  blue:    'bg-blue-50 text-blue-800 border-blue-200',
 };
 
 // ---------------------------------------------------------------------------
