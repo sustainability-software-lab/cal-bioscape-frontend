@@ -183,16 +183,13 @@ export const DEFAULT_TILESET_REGISTRY: Record<string, TilesetConfig> = {
   },
 
   carbFoodProcessors: {
-    // 2026-06c is a clean-slate re-version. The earlier publishes (2026-06 / 2026-06b)
-    // had a polluted tileset source (POST appended old pre-CA coordinates), so their tile
-    // endpoints served — and Mapbox's CDN cached — out-of-state ghost points. 2026-06c is
-    // published exactly once, from the corrected source, so its tiles have never contained
-    // bad data and no stale cache exists anywhere. Source layer name is unchanged (stable).
-    tilesetId: 'sustainasoft.carb-food-processors-2026-06c',
+    // 2026-06d: refreshed dataset (updated general_source_info field values) and
+    // removes "(CARB)" from the popup title. Source layer name is unchanged (stable).
+    tilesetId: 'sustainasoft.carb-food-processors-2026-06d',
     sourceLayer: 'carb_food_processors',
     displayName: 'Food Processing Facilities (CARB)',
     category: 'infrastructure',
-    version: '2026-06c',
+    version: '2026-06d',
     accountType: 'default'
   },
   
