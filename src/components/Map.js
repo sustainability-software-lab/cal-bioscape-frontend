@@ -41,6 +41,9 @@ if (MAPBOX_ACCESS_TOKEN && MAPBOX_ACCESS_TOKEN !== 'YOUR_MAPBOX_ACCESS_TOKEN') {
 }
 
 
+const toTitleCase = (str) =>
+  str ? str.replace(/\w\S*/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()) : str;
+
 // Accept props for data and visibility
 const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, onCountySelect, compositionFilters }) => { // Added visibleCrops, croplandOpacity, onGeoidsChange props
   
@@ -1485,7 +1488,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
           if (!feature) return;
 
           const geoid = feature.properties.GEOID;
-          const name = feature.properties.NAME;
+          const name = toTitleCase(feature.properties.NAME);
           if (!geoid || !name) return;
 
           // Close any existing popup
@@ -1586,7 +1589,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
             }
             return;
           }
-          const countyName = feature.properties.NAME || 'Unknown County';
+          const countyName = toTitleCase(feature.properties.NAME) || 'Unknown County';
           if (!hoverPopupRef.current) {
             hoverPopupRef.current = new mapboxgl.Popup({
               closeButton: false,
@@ -2696,7 +2699,9 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
 
                 // Format specific values
                 if (key === 'acres' && typeof value === 'number') {
-                  value = value.toFixed(2); // Round acres to 2 decimal places
+                  value = value.toFixed(2);
+                } else if (key === 'county' && typeof value === 'string') {
+                  value = toTitleCase(value);
                 }
                 // Add more formatting rules here if needed
 
@@ -2773,7 +2778,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
             const countyGeoid = getCountyGeoid(properties.county || '');
             // Notify parent of selected county so it can show the county feedstock panel
             if (onCountySelect && properties.county && countyGeoid) {
-              onCountySelect(properties.county, countyGeoid);
+              onCountySelect(toTitleCase(properties.county), countyGeoid);
             }
             const apiResource = getApiResource(cropName);
             // Resources-first: enrich from this polygon's own residue when present.
