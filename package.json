@@ -14,6 +14,9 @@
     "test": "tsx --test tests/*.test.ts",
     "build-carb-data": "tsx scripts/build-carb-food-processors.ts",
     "build-county-snapshot": "tsx scripts/build-county-stats-snapshot.ts",
+    "geocode-epa-data": "tsx scripts/geocode-epa-food-processors.ts",
+    "build-epa-data": "tsx scripts/build-epa-food-processors.ts",
+    "upload-epa-tileset": "tsx scripts/upload-epa-tileset.ts",
     "upload-carb-tileset": "tsx scripts/upload-carb-tileset.ts",
     "upload-landiq-tileset": "tsx scripts/upload-landiq-tileset.ts"
   },
