@@ -2936,7 +2936,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
         // and shares the canonical CARB label mapping + popup title.
         CARB_PRODUCT_CATEGORIES.forEach((category) => {
           if (map.current.getLayer(category.mapboxLayerId)) {
-            addLayerInteractivity(category.mapboxLayerId, 'Food Processor (CARB) Details', CARB_POPUP_LABEL_KEY);
+            addLayerInteractivity(category.mapboxLayerId, 'Food Processor Details', CARB_POPUP_LABEL_KEY);
           }
         });
 
