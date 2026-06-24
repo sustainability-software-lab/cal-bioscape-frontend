@@ -2852,8 +2852,8 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
 
             // Increase right padding for close button spacing, remove table
             const popupHTML = `
-              <div style="padding: 5px 15px 5px 5px; font-size: 0.9em;">
-                <h4 style="font-size: 1.1em; font-weight: bold; margin: 0 0 8px 0; padding: 0; text-align: left;">Crop Field Details</h4>
+              <div style="padding: 5px 10px 5px 5px; font-size: 0.9em;">
+                <h4 style="font-size: 1.1em; font-weight: bold; margin: 0 0 8px 0; padding: 4px 0; text-align: left; position: sticky; top: -10px; background: #fff; z-index: 1;">Crop Field Details</h4>
                 ${contentLines}
                 ${residueSection}
                 ${apiLoadingHTML}

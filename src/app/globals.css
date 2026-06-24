@@ -151,8 +151,9 @@
   /* border-radius: 50%; */
 }
 
-/* Facility / LandIQ popup — cap height and enable scroll */
-.facility-popup .mapboxgl-popup-content {
+/* All map popups — cap height and enable scroll */
+.facility-popup .mapboxgl-popup-content,
+.crop-residue-popup .mapboxgl-popup-content {
   max-height: 50vh !important;
   overflow-y: auto !important;
   overflow-x: hidden !important;
