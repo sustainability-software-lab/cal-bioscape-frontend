@@ -410,8 +410,8 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
     }
 
     const popupHTML = `
-      <div style="padding: 5px 15px 5px 5px; font-size: 0.9em;">
-        <h4 style="font-size: 1.1em; font-weight: bold; margin: 0 0 8px 0; padding: 0; text-align: left;">${popupTitle}</h4>
+      <div style="padding: 5px 15px 5px 5px; font-size: 0.9em; max-height: 50vh; overflow-y: auto; overflow-x: hidden;">
+        <h4 style="font-size: 1.1em; font-weight: bold; margin: 0 0 8px 0; padding: 0; text-align: left; position: sticky; top: 0; background: #fff; z-index: 1;">${popupTitle}</h4>
         ${content}
       </div>
     `;
