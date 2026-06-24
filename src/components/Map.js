@@ -2902,7 +2902,7 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
                   if (avail && avail.from_month && avail.to_month) {
                     const from = MONTH_NAMES[avail.from_month - 1] || avail.from_month;
                     const to   = MONTH_NAMES[avail.to_month   - 1] || avail.to_month;
-                    apiHTML += `<div style="margin-bottom:3px;"><strong>Availability:</strong> ${from}–${to}</div>`;
+                    apiHTML += `<div style="margin-bottom:2px;"><strong>Availability:</strong> ${from}–${to}</div>`;
                   }
 
                   // Composition: averaged summary stats per residue resource. Each
@@ -2926,15 +2926,15 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
                     const stats = summarizeLeadComposition(resp);
                     if (!stats.length) return;
                     const resName = compositionResources[i].replace(/\b\w/g, c => c.toUpperCase());
-                    const rows = stats.map(s => `<div style="margin-bottom:1px;">${s.label}: ${fmtStat(s)}</div>`).join('');
+                    const rows = stats.map(s => `<div style="padding:2px 0;border-bottom:1px solid #f0f0f0;line-height:1.3;">${s.label}: ${fmtStat(s)}</div>`).join('');
                     compositionHTML += `
-                      <div style="margin-top:4px;">
-                        <div style="font-weight:bold;color:#555;">${resName}</div>
-                        <div style="padding-left:8px;">${rows}</div>
-                      </div>`;
+                      <details open style="margin-top:4px;">
+                        <summary style="cursor:pointer;font-weight:bold;color:#2b6cb0;padding-bottom:2px;">${resName}</summary>
+                        <div style="padding-left:10px;padding-top:2px;">${rows}</div>
+                      </details>`;
                   });
                   if (compositionHTML) {
-                    apiHTML += `<div style="margin-top:4px;font-weight:bold;">Composition (avg)</div>${compositionHTML}`;
+                    apiHTML += `<div style="margin-top:2px;font-weight:bold;font-size:0.9em;">Composition (avg)</div>${compositionHTML}`;
                   }
 
                   // Census: harvested acres for county
@@ -2954,9 +2954,9 @@ const Map = ({ layerVisibility, visibleCrops, croplandOpacity, onGeoidsChange, o
                       // Collapsed by default so live composition/seasonal/USDA data
                       // doesn't stretch the popup; expand to see the rolled-up values.
                       apiSection.innerHTML = `
-                        <details style="margin-top:10px;padding-top:10px;border-top:1px solid #eaeaea;">
+                        <details style="margin-top:8px;padding-top:8px;border-top:1px solid #eaeaea;">
                           <summary style="cursor:pointer;font-size:0.9em;font-weight:bold;color:#2b6cb0;outline:none;">Composition &amp; seasonal data</summary>
-                          <div style="font-size:0.85em;padding:4px 0 0 8px;">${apiHTML}</div>
+                          <div style="font-size:0.85em;padding:3px 0 0 6px;">${apiHTML}</div>
                         </details>`;
                     } else {
                       apiSection.innerHTML = '';
