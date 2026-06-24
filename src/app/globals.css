@@ -151,6 +151,14 @@
   /* border-radius: 50%; */
 }
 
+/* Facility / LandIQ popup — cap height and enable scroll */
+.facility-popup .mapboxgl-popup-content {
+  max-height: 50vh !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding: 10px !important;
+}
+
 /* County-name hover tooltip */
 .county-hover-popup {
   pointer-events: none;
