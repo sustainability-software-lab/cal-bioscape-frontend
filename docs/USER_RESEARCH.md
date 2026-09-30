@@ -1,6 +1,6 @@
 # Review Cal BioScape user feedback
 
-Use the private admin page to review voluntary responses about visitors' roles, affiliations, and intended uses of Cal BioScape. Staging and production keep separate responses and credentials.
+Use the private admin page to review responses about visitors' roles, affiliations, and intended uses of Cal BioScape. Staging and production keep separate responses and credentials.
 
 ## Sign in and export responses
 
@@ -24,14 +24,16 @@ Admin sessions expire after eight hours. The session cookie is HttpOnly, uses `S
 
 ## Understand the collected data
 
-The prompt is optional and does not open a dialog automatically. Visitors can dismiss it or choose to answer:
+The dialog opens automatically on a first map visit, with the title **Help us improve CalBioScape.** Visitors select a role before entering the map. There is no banner, close button, or outside-click/Escape dismissal. The form collects:
 
-- Their role, including an **Other** option with a write-in field.
+- Their role (required), including an **Other** option with an optional write-in field.
 - Their affiliation, optionally.
-- What they hope to accomplish with the tool.
-- Whether the team may follow up. Email is requested only after they opt in.
+- What they hope to accomplish with the tool, optionally.
+- An optional email address, visible by default. A valid email reveals separate checkboxes for tool updates and a follow-up conversation. Clearing or invalidating the email resets both choices. Update interest and follow-up permission are recorded separately, and no messages are sent automatically by this feature.
 
-The server stores a submission identifier and timestamp with each validated response. A stable submission identifier lets the browser retry a submission without creating another response. Response objects do not include IP addresses or user-agent strings. Answers and contact information are not persisted in browser local storage. The browser remembers only the pending identifier and whether the prompt was dismissed or submitted; suppression lasts until that browser storage is cleared.
+The **Explore the tool** button is disabled until a role is selected. It saves the response and opens the map directly; all other fields are optional. After submission, the dialog stays closed on later visits in the same browser. The Contact page lets visitors reopen it.
+
+The server stores a submission identifier and timestamp with each validated response. A stable submission identifier lets the browser retry a submission without creating another response. Response objects do not include IP addresses or user-agent strings. Answers and contact information are not persisted in browser local storage. The browser remembers only the pending identifier and whether the response was submitted; suppression lasts until that browser storage is cleared.
 
 There is no automated response deletion policy or delete control in the admin page. Responses remain in their environment's bucket until an authorized operator removes them. Bucket soft delete retains deleted objects for seven days; it does not expire active responses. Review retention needs as the collection grows. Follow-up permission applies to the stated research conversation, not to a mailing list.
 

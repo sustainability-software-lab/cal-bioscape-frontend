@@ -1448,10 +1448,10 @@ npm run dev
 
 ## 18. Conventions Agents Must Follow
 
-### Optional user research and team admin
+### User research and team admin
 
-- The map includes an optional, dismissible user-research invitation. It never opens a dialog automatically or blocks map use. `UserResearchPoll` owns its local form/dismissal state; reuse the existing Tailwind/Radix visual language.
-- `POST /api/user-research` validates and persists role, optional affiliation, intended task, and explicitly opted-in contact email. Responses are private GCS JSON objects, separated between staging and production. The application cannot overwrite or delete records.
+- The map opens a first-visit user-research dialog. Role is the only required field; the Explore the tool button stays disabled until a role is selected. No X, outside-click, or Escape dismissal is provided. Successful submission closes the modal and remembers completion. `UserResearchPoll` owns its local form/completion state; reuse the existing Tailwind/Radix visual language.
+- `POST /api/user-research` validates and persists role, optional affiliation/task/email, and separate tool-update and follow-up consent. The email input is optional and always visible; separate tool-update and follow-up checkboxes appear only for a valid email. Responses are private GCS JSON objects, separated between staging and production. The application cannot overwrite or delete records.
 - `/admin` provides the team login and paginated response review. Every admin list/export request authenticates on the server; hiding UI is not access control. CSV exports contain only the current page (up to 50 responses).
 - Server-only `USER_RESEARCH_BUCKET`, `USER_RESEARCH_ORIGIN`, `USER_RESEARCH_ADMIN_USERNAME`, `USER_RESEARCH_ADMIN_PASSWORD`, and `USER_RESEARCH_SESSION_SECRET` configure this feature. Passwords and signing secrets come from Secret Manager, never public environment variables or build arguments.
 - Do not store user responses in the existing general application-data buckets, which allow public reads. Use only the dedicated private feedback buckets with public access prevention enforced.

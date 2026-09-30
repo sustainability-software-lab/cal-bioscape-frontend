@@ -155,8 +155,12 @@ export default function ResearchAdmin() {
                     <div className="min-w-0"><h2 className="break-words text-sm font-semibold">{response.role === 'other' ? response.otherRole || 'Other' : roleLabels[response.role]}</h2>{response.affiliation && <p className="mt-1 break-words text-sm text-gray-600">{response.affiliation}</p>}</div>
                     <time dateTime={response.createdAt} className="text-xs leading-5 text-gray-500">{new Date(response.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</time>
                   </div>
-                  <p className="mt-4 whitespace-pre-wrap break-words text-sm leading-6 text-gray-800">{response.goal}</p>
-                  {response.allowFollowUp && response.email && <p className="mt-4 break-words border-t border-gray-100 pt-3 text-xs text-gray-600">Open to follow-up: <a href={`mailto:${encodeURIComponent(response.email)}`} className="text-blue-700 underline underline-offset-2">{response.email}</a></p>}
+                  {response.goal && <p className="mt-4 whitespace-pre-wrap break-words text-sm leading-6 text-gray-800">{response.goal}</p>}
+                  <div className="mt-4 break-words border-t border-gray-100 pt-3 text-xs text-gray-600">
+                    {response.email && <p>Email: <a href={`mailto:${encodeURIComponent(response.email)}`} className="text-blue-700 underline underline-offset-2">{response.email}</a></p>}
+                    <p className="mt-1">{response.allowUpdates ? 'Tool updates: opted in' : 'Tool updates: not opted in'}{response.allowUpdates && !response.email ? ' (no email provided)' : ''}</p>
+                    <p className="mt-1">{response.allowFollowUp ? 'Follow-up: opted in' : 'Follow-up: not opted in'}</p>
+                  </div>
                 </article>
               ))}
             </div>

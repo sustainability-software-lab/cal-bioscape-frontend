@@ -89,8 +89,9 @@ export interface UserResearchSubmission {
   role: UserResearchRole;
   otherRole?: string | null;
   affiliation?: string | null;
-  goal: string;
+  goal?: string | null;
   email?: string | null;
+  allowUpdates?: boolean;
   allowFollowUp?: boolean;
   website?: string;
 }
@@ -104,6 +105,7 @@ export interface UserResearchResponse {
   affiliation: string | null;
   goal: string;
   email: string | null;
+  allowUpdates: boolean;
   allowFollowUp: boolean;
 }
 

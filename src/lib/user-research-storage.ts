@@ -25,7 +25,9 @@ function status(error: unknown) {
 function storedResponse(value: unknown, expectedId?: string): UserResearchResponse {
   const row = value as UserResearchResponse
   if (!row || typeof row !== 'object' || row.version !== 1 || typeof row.id !== 'string' || (expectedId && row.id !== expectedId) || typeof row.createdAt !== 'string' || !Number.isFinite(Date.parse(row.createdAt)) || typeof row.goal !== 'string' || typeof row.role !== 'string' || typeof row.allowFollowUp !== 'boolean') throw new Error('Invalid stored response')
-  return row
+  if (row.allowUpdates !== undefined && typeof row.allowUpdates !== 'boolean') throw new Error('Invalid stored updates preference')
+  // Version 1 responses collected before updates consent was added never opted in.
+  return { ...row, allowUpdates: row.allowUpdates ?? false }
 }
 
 export function createGcsResearchStore(bucket: string | undefined, request: StorageTransport = authenticatedRequest): ResearchStore {
