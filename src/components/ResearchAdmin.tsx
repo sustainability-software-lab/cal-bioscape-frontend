@@ -120,7 +120,7 @@ export default function ResearchAdmin() {
   if (mode === 'loading') return <p role="status" className="py-16 text-center text-sm text-gray-600">Checking your session…</p>;
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 py-8 text-gray-900 sm:px-6 sm:py-12">
+    <main className="mx-auto w-full max-w-7xl px-4 py-8 text-gray-900 sm:px-6 sm:py-12">
       {mode === 'login' ? (
         <div className="mx-auto max-w-sm rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
           <h1 className="text-xl font-semibold">Team sign in</h1>
@@ -148,21 +148,32 @@ export default function ResearchAdmin() {
           </div>
           {error && <p role="alert" className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</p>}
           {responses.length === 0 ? <div className="rounded-lg border border-gray-200 bg-white p-8 text-center mt-6"><h2 className="font-medium">No feedback yet</h2><p className="mt-2 text-sm text-gray-600">Responses will appear here after someone shares their input.</p></div> : (
-            <div className="mt-6 space-y-4">
-              {responses.map(response => (
-                <article key={response.id} className="min-w-0 rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div className="min-w-0"><h2 className="break-words text-sm font-semibold">{response.role === 'other' ? response.otherRole || 'Other' : roleLabels[response.role]}</h2>{response.affiliation && <p className="mt-1 break-words text-sm text-gray-600">{response.affiliation}</p>}</div>
-                    <time dateTime={response.createdAt} className="text-xs leading-5 text-gray-500">{new Date(response.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</time>
-                  </div>
-                  {response.goal && <p className="mt-4 whitespace-pre-wrap break-words text-sm leading-6 text-gray-800">{response.goal}</p>}
-                  <div className="mt-4 break-words border-t border-gray-100 pt-3 text-xs text-gray-600">
-                    {response.email && <p>Email: <a href={`mailto:${encodeURIComponent(response.email)}`} className="text-blue-700 underline underline-offset-2">{response.email}</a></p>}
-                    <p className="mt-1">{response.allowUpdates ? 'Tool updates: opted in' : 'Tool updates: not opted in'}{response.allowUpdates && !response.email ? ' (no email provided)' : ''}</p>
-                    <p className="mt-1">{response.allowFollowUp ? 'Follow-up: opted in' : 'Follow-up: not opted in'}</p>
-                  </div>
-                </article>
-              ))}
+            <div role="region" aria-label="User feedback table" tabIndex={0} className="mt-6 overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
+              <table className="w-full min-w-[1040px] table-fixed text-left text-sm">
+                <caption className="sr-only">User feedback responses</caption>
+                <thead className="border-b border-gray-200 bg-gray-50 text-xs text-gray-500">
+                  <tr>
+                    <th scope="col" className="w-[16%] px-4 py-3 font-medium">Institution/Affiliation</th>
+                    <th scope="col" className="w-[16%] px-4 py-3 font-medium">Role</th>
+                    <th scope="col" className="w-[25%] px-4 py-3 font-medium">Intended use</th>
+                    <th scope="col" className="w-[18%] px-4 py-3 font-medium">Email</th>
+                    <th scope="col" className="w-[11%] px-4 py-3 font-medium">Tool updates</th>
+                    <th scope="col" className="w-[14%] px-4 py-3 font-medium">Submitted</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {responses.map(response => (
+                    <tr key={response.id} className="align-top hover:bg-gray-50/70">
+                      <td className="break-words px-4 py-4 font-medium text-gray-900">{response.affiliation || '—'}</td>
+                      <td className="break-words px-4 py-4 text-gray-700">{response.role === 'other' ? response.otherRole || 'Other' : roleLabels[response.role]}</td>
+                      <td className="whitespace-pre-wrap break-words px-4 py-4 leading-6 text-gray-700">{response.goal || '—'}</td>
+                      <td className="break-words px-4 py-4">{response.email ? <a href={`mailto:${encodeURIComponent(response.email)}`} className="text-blue-700 underline underline-offset-2">{response.email}</a> : <span className="text-gray-500">—</span>}</td>
+                      <td className="px-4 py-4 text-gray-700">{response.allowUpdates ? 'Opted in' : 'Not opted in'}{response.allowUpdates && !response.email && <span className="mt-1 block text-xs text-gray-500">(no email provided)</span>}</td>
+                      <td className="px-4 py-4 text-xs leading-5 text-gray-500"><time dateTime={response.createdAt}>{new Date(response.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</time></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
           <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
