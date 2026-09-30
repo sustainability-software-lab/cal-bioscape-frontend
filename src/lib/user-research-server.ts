@@ -76,7 +76,7 @@ function parseSubmission(body: Record<string, unknown>, now: number): UserResear
   const role = field(body, 'role', 32, true) as UserResearchRole
   if (!ROLES.has(role)) throw new HttpError(400, 'Please select a role.')
   const otherRole = field(body, 'otherRole', 120)
-  const affiliation = field(body, 'affiliation', 200)
+  const affiliation = field(body, 'affiliation', 200, true)!
   const goal = field(body, 'goal', 2000) || ''
   if (body.allowUpdates !== undefined && typeof body.allowUpdates !== 'boolean') throw new HttpError(400, 'Please check your updates preference.')
   const allowUpdates = body.allowUpdates === true

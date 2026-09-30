@@ -34,6 +34,10 @@ See [TILESET_SPECIFICATIONS.md](./TILESET_SPECIFICATIONS.md) for complete detail
 ### Data and Factors
 - **[CROP_RESIDUE_FACTORS.md](./CROP_RESIDUE_FACTORS.md)** - Crop residue factors and `feedstock_definitions.json` template
 
+### User Research and Administration
+
+- **[USER_RESEARCH.md](./USER_RESEARCH.md)** - Developer access to the admin portal, Secret Manager credentials, private response storage, exports, credential rotation, retention, and troubleshooting.
+
 ### Deployment and Infrastructure
 - **[DEPLOYMENT_ARCHITECTURE.md](./DEPLOYMENT_ARCHITECTURE.md)** - Project deployment architecture documentation
 - **[CLOUDBUILD.md](./CLOUDBUILD.md)** - Cloud Build configuration and setup documentation

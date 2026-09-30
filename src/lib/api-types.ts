@@ -88,7 +88,7 @@ export interface UserResearchSubmission {
   submissionId: string;
   role: UserResearchRole;
   otherRole?: string | null;
-  affiliation?: string | null;
+  affiliation: string;
   goal?: string | null;
   email?: string | null;
   allowUpdates?: boolean;

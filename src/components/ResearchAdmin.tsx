@@ -9,8 +9,8 @@ import { ApiAuthError, exportUserResearch, getUserResearch, signInResearchAdmin,
 import type { UserResearchResponse, UserResearchRole } from '@/lib/api-types';
 
 const roleLabels: Record<UserResearchRole, string> = {
-  researcher: 'Researcher / student', consultant: 'Consultant', grower: 'Farmer / grower',
-  processor: 'Processor / facility operator', developer: 'Project / technology developer', software: 'Software / data professional', policy: 'Policy professional', other: 'Other',
+  researcher: 'Researcher / Student', consultant: 'Consultant', grower: 'Farmer / Grower',
+  processor: 'Processor / Facility operator', developer: 'Project / Technology developer', software: 'Software / Data professional', policy: 'Policy professional', other: 'Other',
 };
 const buttonClass = 'inline-flex items-center justify-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50';
 const fieldClass = 'mt-2 border-gray-300 bg-white text-base text-gray-900 focus-visible:border-blue-500 focus-visible:ring-blue-500/20 sm:text-sm';

@@ -57,22 +57,33 @@ test('invalid fields and follow-up without a valid email never reach storage', a
   assert.equal([...rows.values()][0].email, 'a@example.com')
 })
 
-test('role-only feedback normalizes omitted and blank optional text for safe retries', async () => {
+test('role and affiliation feedback normalizes omitted and blank optional text for safe retries', async () => {
   const { handlers, rows } = fixture()
-  const minimal = { submissionId: valid.submissionId, role: 'researcher' }
+  const minimal = { submissionId: valid.submissionId, role: 'researcher', affiliation: 'LBNL' }
   assert.equal((await handlers.submit(request('/api/user-research', minimal))).status, 201)
-  assert.equal((await handlers.submit(request('/api/user-research', { ...minimal, goal: '  ', affiliation: '', email: '' }))).status, 201)
+  assert.equal((await handlers.submit(request('/api/user-research', { ...minimal, goal: '  ', affiliation: ' LBNL ', email: '' }))).status, 201)
   assert.equal(rows.size, 1)
   const row = [...rows.values()][0]
   assert.equal(row.goal, '')
-  assert.equal(row.affiliation, null)
+  assert.equal(row.affiliation, 'LBNL')
   assert.equal(row.email, null)
   assert.equal(row.allowFollowUp, false)
 })
 
+test('affiliation is required, nonblank text with a 200-character maximum', async () => {
+  for (const affiliation of [undefined, null, '', ' \t\n ', 42, 'a'.repeat(201)]) {
+    const { handlers, rows } = fixture()
+    assert.equal((await handlers.submit(request('/api/user-research', { ...valid, affiliation }))).status, 400)
+    assert.equal(rows.size, 0)
+  }
+  const { handlers, rows } = fixture()
+  assert.equal((await handlers.submit(request('/api/user-research', { ...valid, affiliation: 'a'.repeat(200) }))).status, 201)
+  assert.equal([...rows.values()][0].affiliation, 'a'.repeat(200))
+})
+
 test('Other role needs no write-in and optional descriptions retain their length bound', async () => {
   const { handlers, rows } = fixture()
-  const minimal = { submissionId: valid.submissionId, role: 'other' }
+  const minimal = { submissionId: valid.submissionId, role: 'other', affiliation: 'LBNL' }
   assert.equal((await handlers.submit(request('/api/user-research', minimal))).status, 201)
   assert.equal((await handlers.submit(request('/api/user-research', { ...minimal, otherRole: '  ' }))).status, 201)
   assert.equal(rows.size, 1)
@@ -99,7 +110,7 @@ test('optional email is stored independently of follow-up consent without implyi
 
 test('updates consent is optional, independent, immutable on retry, and exported separately', async () => {
   const { handlers, rows } = fixture()
-  const submission = { submissionId: valid.submissionId, role: 'researcher', allowUpdates: true }
+  const submission = { submissionId: valid.submissionId, role: 'researcher', affiliation: 'LBNL', allowUpdates: true }
   assert.equal((await handlers.submit(request('/api/user-research', submission))).status, 201)
   assert.equal((await handlers.submit(request('/api/user-research', submission))).status, 201)
   const row = [...rows.values()][0]

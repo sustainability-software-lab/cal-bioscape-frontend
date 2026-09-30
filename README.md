@@ -6,6 +6,12 @@ This is the frontend for the Cal BioScape Siting Tool, a web-based application f
 
 The staging site for this project can be found at [staging.calbioscape.org](https://staging.calbioscape.org).
 
+## User research admin
+
+Developers can review collected responses at [production admin](https://calbioscape.org/admin) or [staging admin](https://staging.calbioscape.org/admin). The username is `admin`; each environment has its own password in Google Secret Manager in project `biocirv-470318`.
+
+See [the admin access and storage guide](docs/USER_RESEARCH.md) for the exact password-retrieval command, required access, private response bucket locations, CSV export, credential rotation, and troubleshooting.
+
 ## Getting Started
 
 First, install the dependencies:

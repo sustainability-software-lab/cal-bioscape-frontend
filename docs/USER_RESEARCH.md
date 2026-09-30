@@ -5,12 +5,12 @@ Use the private admin page to review responses about visitors' roles, affiliatio
 ## Sign in and export responses
 
 1. Open [production admin](https://calbioscape.org/admin) or [staging admin](https://staging.calbioscape.org/admin). The Contact page also has a **Team admin** link.
-2. Sign in with username `admin` and the matching environment's password from Secret Manager. You need Secret Manager access in project `biocirv-470318` to retrieve it.
+2. Sign in with username `admin` and the matching environment's password from Secret Manager. Your Google Cloud account needs `roles/secretmanager.secretAccessor` on that environment's admin-password secret in project `biocirv-470318`. Repository access alone does not grant access to the portal password; ask a project owner for access to this secret if needed.
 3. Review the responses and use the page controls to read additional entries. **Export this page** downloads only the currently displayed page, with at most 50 responses. It is not an export of the entire collection.
 
 Pages follow stable object-name order, not chronological order across the collection. Use the displayed submission dates when comparing responses from different pages.
 
-To copy the production password to the macOS clipboard without displaying it in terminal output, run this command from any directory:
+Use Google Cloud CLI authenticated to your authorized developer account. To copy the production password to the macOS clipboard without displaying it in terminal output, run this command from any directory:
 
 ```bash
 gcloud secrets versions access latest \
@@ -18,20 +18,20 @@ gcloud secrets versions access latest \
   --project=biocirv-470318 | pbcopy
 ```
 
-For staging, replace `production` with `staging` in the secret name. Paste the password into the login form. A successful login opens the response list, which may be empty. Keep exported files within the project team: they can contain affiliations, free-text answers, and contact information.
+For staging, replace `production` with `staging` in the secret name. You can also open the [production password in Secret Manager](https://console.cloud.google.com/security/secret-manager/secret/calbioscape-production-feedback-admin-password/versions?project=biocirv-470318) or the [staging password](https://console.cloud.google.com/security/secret-manager/secret/calbioscape-staging-feedback-admin-password/versions?project=biocirv-470318) using an account with the same secret-access permission. Paste the password into the login form. A successful login opens the response list, which may be empty. Keep exported files within the project team: they can contain affiliations, free-text answers, and contact information.
 
 Admin sessions expire after eight hours. The session cookie is HttpOnly, uses `SameSite=Strict`, and is Secure in production builds. Signing out clears the browser's cookie. A password or signing-secret change invalidates sessions once the updated credentials are loaded by the serving revision.
 
 ## Understand the collected data
 
-The dialog opens automatically on a first map visit, with the title **Help us improve Cal BioScape** Visitors select a role before entering the map. There is no banner, close button, or outside-click/Escape dismissal. The form collects:
+The dialog opens automatically on a first map visit, with the title **Help us improve Cal BioScape**. Visitors enter an affiliation and select a role before entering the map. There is no banner, close button, or outside-click/Escape dismissal. The form collects:
 
+- Their affiliation (required), shown first as **Institution/Affiliation**.
 - Their role (required), including an **Other** option with an optional write-in field.
-- Their affiliation, optionally.
 - What they hope to accomplish with the tool, optionally.
 - An optional email address, visible by default. A valid email reveals a checkbox to stay informed about tool updates. Clearing or invalidating the email resets this choice. Entering an email alone does not opt the visitor into updates, and no messages are sent automatically by this feature.
 
-The **Explore the tool** button is disabled until a role is selected. It saves the response and opens the map directly; all other fields are optional. After submission, the dialog stays closed on later visits in the same browser. The Contact page lets visitors reopen it.
+The **Explore the tool** button is disabled until a nonblank affiliation and a role are supplied. It saves the response and opens the map directly; all other fields are optional. After submission, the dialog stays closed on later visits in the same browser. The Contact page lets visitors reopen it.
 
 The server stores a submission identifier and timestamp with each validated response. A stable submission identifier lets the browser retry a submission without creating another response. Response objects do not include IP addresses or user-agent strings. Answers and contact information are not persisted in browser local storage. The browser remembers only the pending identifier and whether the response was submitted; suppression lasts until that browser storage is cleared.
 
@@ -39,7 +39,7 @@ There is no automated response deletion policy or delete control in the admin pa
 
 ## Locate storage and runtime configuration
 
-Each response is a separate private JSON object in Cloud Storage. The Next.js server accesses the bucket with its Cloud Run service account through Application Default Credentials. Credentials and bucket access stay on the server.
+Each response is a separate private JSON object at `responses/<submission-id>.json` in the environment's Cloud Storage bucket. Records include the submission ID/time, affiliation, role, optional intended task/email, and contact preference flags. The portal reads these objects directly through authenticated server routes; responses are not stored in the Git repository or a public data directory. The Next.js server accesses the bucket with its Cloud Run service account through Application Default Credentials. Credentials and bucket access stay on the server.
 
 | Environment | Bucket | Runtime service account |
 | --- | --- | --- |
