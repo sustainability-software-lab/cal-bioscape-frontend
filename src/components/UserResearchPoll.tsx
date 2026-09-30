@@ -144,7 +144,7 @@ export default function UserResearchPoll({ variant = 'invitation' }: { variant?:
           </div>}
           <div>
             <Label htmlFor="research-goal" className="block leading-5">What are you hoping to accomplish with Cal BioScape?</Label>
-            <textarea id="research-goal" value={goal} onChange={event => setGoal(event.target.value)} placeholder="e.g., compare feedstock availability mixes near potential bio-refinery sites." rows={3} maxLength={2000} disabled={busy} className={`${fieldClass} resize-y`} />
+            <textarea id="research-goal" value={goal} onChange={event => setGoal(event.target.value)} placeholder="Compare feedstock availability near potential biorefinery sites." rows={3} maxLength={2000} disabled={busy} className={`${fieldClass} resize-y`} />
           </div>
           <div>
             <Label htmlFor="research-email">Email address</Label>

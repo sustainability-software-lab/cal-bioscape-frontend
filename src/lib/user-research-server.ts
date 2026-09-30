@@ -199,7 +199,7 @@ export function createUserResearchHandlers({ store, config, now = Date.now }: { 
     exportCsv: handled(async request => {
       authenticated(request)
       const result = await store.list(cursor(request))
-      const keys = ['id', 'createdAt', 'role', 'otherRole', 'affiliation', 'goal', 'allowUpdates', 'allowFollowUp', 'email'] as const
+      const keys = ['id', 'createdAt', 'role', 'otherRole', 'affiliation', 'goal', 'allowUpdates', 'email'] as const
       const csv = [keys.map(csvCell).join(','), ...result.responses.map(row => keys.map(key => csvCell(row[key])).join(','))].join('\r\n')
       return new Response(`\uFEFF${csv}\r\n`, { headers: { ...NO_CACHE, 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="cal-bioscape-responses-page.csv"' } })
     }),

@@ -6,7 +6,7 @@ Use the private admin page to review responses about visitors' roles, affiliatio
 
 1. Open [production admin](https://calbioscape.org/admin) or [staging admin](https://staging.calbioscape.org/admin). The Contact page also has a **Team admin** link.
 2. Sign in with username `admin` and the matching environment's password from Secret Manager. Your Google Cloud account needs `roles/secretmanager.secretAccessor` on that environment's admin-password secret in project `biocirv-470318`. Repository access alone does not grant access to the portal password; ask a project owner for access to this secret if needed.
-3. Review the responses and use the page controls to read additional entries. **Export this page** downloads only the currently displayed page, with at most 50 responses. It is not an export of the entire collection.
+3. Review the response table and use the page controls to read additional entries. The table shows each response's date, affiliation, role, intended use, email, and tool-update preference. **Export this page** downloads only the currently displayed page, with at most 50 responses. The CSV includes those fields and the submission identifier; it is not an export of the entire collection.
 
 Pages follow stable object-name order, not chronological order across the collection. Use the displayed submission dates when comparing responses from different pages.
 
@@ -18,7 +18,7 @@ gcloud secrets versions access latest \
   --project=biocirv-470318 | pbcopy
 ```
 
-For staging, replace `production` with `staging` in the secret name. You can also open the [production password in Secret Manager](https://console.cloud.google.com/security/secret-manager/secret/calbioscape-production-feedback-admin-password/versions?project=biocirv-470318) or the [staging password](https://console.cloud.google.com/security/secret-manager/secret/calbioscape-staging-feedback-admin-password/versions?project=biocirv-470318) using an account with the same secret-access permission. Paste the password into the login form. A successful login opens the response list, which may be empty. Keep exported files within the project team: they can contain affiliations, free-text answers, and contact information.
+For staging, replace `production` with `staging` in the secret name. You can also open the [production password in Secret Manager](https://console.cloud.google.com/security/secret-manager/secret/calbioscape-production-feedback-admin-password/versions?project=biocirv-470318) or the [staging password](https://console.cloud.google.com/security/secret-manager/secret/calbioscape-staging-feedback-admin-password/versions?project=biocirv-470318) using an account with the same secret-access permission. Paste the password into the login form. A successful login opens the response table, which may be empty. Keep exported files within the project team: they can contain affiliations, free-text answers, and contact information.
 
 Admin sessions expire after eight hours. The session cookie is HttpOnly, uses `SameSite=Strict`, and is Secure in production builds. Signing out clears the browser's cookie. A password or signing-secret change invalidates sessions once the updated credentials are loaded by the serving revision.
 
@@ -35,7 +35,9 @@ The **Explore the tool** button is disabled until a nonblank affiliation and a r
 
 The server stores a submission identifier and timestamp with each validated response. A stable submission identifier lets the browser retry a submission without creating another response. Response objects do not include IP addresses or user-agent strings. Answers and contact information are not persisted in browser local storage. The browser remembers only the pending identifier and whether the response was submitted; suppression lasts until that browser storage is cleared.
 
-There is no automated response deletion policy or delete control in the admin page. Responses remain in their environment's bucket until an authorized operator removes them. Bucket soft delete retains deleted objects for seven days; it does not expire active responses. Review retention needs as the collection grows. Tool-update permission does not grant permission for research interviews. The API and admin view retain a separate follow-up flag for previously collected responses; the current form does not request it.
+There is no automated response deletion policy or delete control in the admin page. Responses remain in their environment's bucket until an authorized operator removes them. Bucket soft delete retains deleted objects for seven days; it does not expire active responses. Review retention needs as the collection grows.
+
+The admin table and CSV show only the tool-update preference collected by the current form. Tool-update permission does not grant permission for research interviews. The stored schema and API retain the legacy `allowFollowUp` flag for compatibility, but the current form does not request it and it is neither displayed nor exported. Existing records remain unchanged; no data migration is needed.
 
 ## Locate storage and runtime configuration
 
