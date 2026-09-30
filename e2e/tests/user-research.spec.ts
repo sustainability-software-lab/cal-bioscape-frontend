@@ -279,21 +279,30 @@ test('team view requires login, supports pagination and page export, and clears 
     const url = new URL(route.request().url());
     if (url.pathname.endsWith('/export')) return route.fulfill({ contentType: 'text/csv', body: 'role,goal\nresearcher,Find feedstock\n' });
     return route.fulfill({ json: url.searchParams.has('cursor')
-      ? { responses: [{ ...responses[0], id: 'test-2', role: 'grower', affiliation: 'Example farm', goal: '', allowFollowUp: true }], nextCursor: null }
+      ? { responses: [{ ...responses[0], id: 'test-2', role: 'grower', affiliation: 'Example farm', goal: '', allowUpdates: false, allowFollowUp: true }], nextCursor: null }
       : { responses, nextCursor: 'next-page' } });
   });
   await page.goto('/admin');
   await page.getByLabel('Username').fill('team');
   await page.getByLabel('Password').fill('example-password');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await expect(page.getByText('Example university', { exact: true })).toBeVisible();
+  const table = page.getByRole('table', { name: 'User feedback responses' });
+  await expect(table).toBeVisible();
+  await expect(table.getByRole('columnheader')).toHaveText(['Institution/Affiliation', 'Role', 'Intended use', 'Email', 'Tool updates', 'Submitted']);
+  await expect(table.getByRole('row')).toHaveCount(2);
+  await expect(table.getByRole('cell', { name: 'Example university', exact: true })).toBeVisible();
   await expect(page.getByText('example@example.org', { exact: true })).toBeVisible();
-  await expect(page.getByText('Follow-up: not opted in', { exact: true })).toBeVisible();
-  await expect(page.getByText('Tool updates: opted in', { exact: true })).toBeVisible();
+  await expect(page.getByText(/Follow-up:/)).toHaveCount(0);
+  await expect(table.getByRole('cell', { name: 'Opted in', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Next page' }).click();
   await expect(page.getByText('Example farm', { exact: true })).toBeVisible();
-  await expect(page.getByText('Follow-up: opted in', { exact: true })).toBeVisible();
+  await expect(page.getByText(/Follow-up:/)).toHaveCount(0);
+  await expect(table.getByRole('cell', { name: 'Not opted in', exact: true })).toBeVisible();
   await expect(page.getByText('Example university', { exact: true })).toHaveCount(0);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const tableRegion = page.getByRole('region', { name: 'User feedback table' });
+  expect(await tableRegion.evaluate(element => element.scrollWidth > element.clientWidth)).toBe(true);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   const download = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Export this page' }).click();
   await expect((await download).suggestedFilename()).toMatch(/user-research.*\.csv$/);

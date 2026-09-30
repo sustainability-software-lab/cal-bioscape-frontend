@@ -108,7 +108,7 @@ test('optional email is stored independently of follow-up consent without implyi
   assert.equal(row.allowFollowUp, false)
 })
 
-test('updates consent is optional, independent, immutable on retry, and exported separately', async () => {
+test('updates consent is optional, independent, immutable on retry, and exported', async () => {
   const { handlers, rows } = fixture()
   const submission = { submissionId: valid.submissionId, role: 'researcher', affiliation: 'LBNL', allowUpdates: true }
   assert.equal((await handlers.submit(request('/api/user-research', submission))).status, 201)
@@ -121,8 +121,8 @@ test('updates consent is optional, independent, immutable on retry, and exported
   const cookie = await login(handlers)
   const exported = await handlers.exportCsv(request('/api/admin/user-research/export', undefined, cookie))
   const lines = (await exported.text()).trim().split('\r\n')
-  assert.match(lines[0], /"allowUpdates","allowFollowUp","email"$/)
-  assert.match(lines[1], /"true","false",""$/)
+  assert.match(lines[0], /"allowUpdates","email"$/)
+  assert.match(lines[1], /"true",""$/)
   const legacy = fixture()
   assert.equal((await legacy.handlers.submit(request('/api/user-research', valid))).status, 201)
   assert.equal([...legacy.rows.values()][0].allowUpdates, false)
@@ -131,6 +131,21 @@ test('updates consent is optional, independent, immutable on retry, and exported
     assert.equal((await invalid.handlers.submit(request('/api/user-research', { ...valid, allowUpdates }))).status, 400)
     assert.equal(invalid.rows.size, 0)
   }
+})
+
+test('CSV omits legacy follow-up flags while preserving stored records and API compatibility', async () => {
+  const { handlers, rows } = fixture()
+  assert.equal((await handlers.submit(request('/api/user-research', { ...valid, email: 'legacy@example.org', allowFollowUp: true }))).status, 201)
+  const original = structuredClone([...rows.values()])
+  const cookie = await login(handlers)
+  const csvResponse = await handlers.exportCsv(request('/api/admin/user-research/export', undefined, cookie))
+  const csv = await csvResponse.text()
+  assert.equal(csv.includes('allowFollowUp'), false)
+  assert.match(csv, /"allowUpdates","email"\r\n/)
+  assert.match(csv, /"false","legacy@example.org"\r\n$/)
+  assert.deepEqual([...rows.values()], original)
+  const listed = await handlers.list(request('/api/admin/user-research', undefined, cookie))
+  assert.equal((await listed.json()).responses[0].allowFollowUp, true)
 })
 
 test('same-origin checks, honeypot, bounded body and storage errors fail safely', async () => {
