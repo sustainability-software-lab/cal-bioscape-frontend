@@ -131,7 +131,7 @@ export default function UserResearchPoll({ variant = 'invitation' }: { variant?:
               <DialogTitle className="leading-6">Thanks for sharing your perspective.</DialogTitle>
               <DialogDescription className="pt-2 leading-6">Your feedback helps our team decide what to improve next.</DialogDescription>
             </DialogHeader>
-            <button type="button" onClick={() => setOpen(false)} className={`${buttonClass} mt-6 bg-blue-600 text-white hover:bg-blue-700`}>Back to the map</button>
+            <button type="button" onClick={() => setOpen(false)} className={`${buttonClass} mt-6 bg-blue-600 text-white hover:bg-blue-700`}>{variant === 'link' ? 'Done' : 'Back to the map'}</button>
           </div>
         ) : (
           <>
