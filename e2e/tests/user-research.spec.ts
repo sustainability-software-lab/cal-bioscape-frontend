@@ -9,7 +9,7 @@ test('first visit requires only a role and cannot be dismissed before saving', a
   await page.goto('/');
   await expect(page.getByRole('dialog')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Help us improve CalBioScape.', exact: true })).toBeFocused();
-  await expect(page.getByText('We will not share your data.', { exact: true })).toBeVisible();
+  await expect(page.getByText('Your responses will only be shared with the Cal BioScape development team for improving the tool.', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Share your input' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Close', exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Maybe later' })).toHaveCount(0);

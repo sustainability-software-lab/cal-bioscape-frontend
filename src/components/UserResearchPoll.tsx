@@ -162,7 +162,7 @@ export default function UserResearchPoll({ variant = 'invitation' }: { variant?:
             <label htmlFor="research-website">Leave this field empty</label>
             <input id="research-website" name="website" value={website} onChange={event => setWebsite(event.target.value)} tabIndex={-1} autoComplete="off" />
           </div>
-          <p className="text-xs leading-5 text-gray-500">Responses are private to the Cal BioScape team and used to improve the tool.<span className="block">We will not share your data.</span></p>
+          <p className="text-xs leading-5 text-gray-500">Your responses will only be shared with the Cal BioScape development team for improving the tool.</p>
           {error && <p role="alert" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm leading-5 text-red-800">{error}</p>}
           <div className="flex justify-end gap-2 border-t border-gray-100 pt-4">
             <span title={!role ? 'Please select your role to continue.' : undefined} className="inline-flex">
