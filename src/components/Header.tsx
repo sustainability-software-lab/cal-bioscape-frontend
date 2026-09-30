@@ -19,7 +19,7 @@ export default function Header() {
   return (
     <header className="bg-white shadow-sm border-b border-gray-200 py-1 flex-shrink-0 w-full">
       <div className="w-full px-4 lg:px-6">
-        <div className="flex items-center justify-between h-10 ml-10">
+        <div className="flex flex-col items-center justify-between gap-1 sm:h-10 sm:flex-row sm:gap-0 lg:ml-10">
           {/* Logo and Site Name */}
           <div className="flex items-center">
             <button 
@@ -41,7 +41,7 @@ export default function Header() {
           </div>
 
           {/* Navigation */}
-          <nav className="ml-auto flex items-center space-x-12 mr-8">
+          <nav className="flex items-center space-x-6 sm:ml-auto sm:space-x-5 lg:mr-8 lg:space-x-12">
             <Link
               href="/"
               className={`text-sm font-medium ${pathname === '/' ? 'text-blue-600' : 'text-gray-600 hover:text-gray-900'} transition-colors duration-200`}
@@ -68,6 +68,7 @@ export default function Header() {
             </Link>
             <button
               onClick={() => setIsBugModalOpen(true)}
+              aria-label="Report Bug"
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-amber-400/60 bg-amber-50 text-amber-700 text-sm font-medium hover:bg-amber-100 transition-colors duration-200"
             >
               <Bug className="h-3.5 w-3.5" />

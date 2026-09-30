@@ -80,3 +80,38 @@ export interface AvailabilityResponse {
 export interface ApiErrorResponse {
   detail: string;
 }
+
+export type UserResearchRole = 'researcher' | 'consultant' | 'grower' | 'processor' | 'developer' | 'software' | 'policy' | 'other';
+
+export interface UserResearchSubmission {
+  version?: 1;
+  submissionId: string;
+  role: UserResearchRole;
+  otherRole?: string | null;
+  affiliation?: string | null;
+  goal: string;
+  email?: string | null;
+  allowFollowUp?: boolean;
+  website?: string;
+}
+
+export interface UserResearchResponse {
+  id: string;
+  createdAt: string;
+  version: 1;
+  role: UserResearchRole;
+  otherRole: string | null;
+  affiliation: string | null;
+  goal: string;
+  email: string | null;
+  allowFollowUp: boolean;
+}
+
+export interface UserResearchListResponse {
+  responses: UserResearchResponse[];
+  nextCursor: string | null;
+}
+
+export interface UserResearchSuccessResponse {
+  success: true;
+}

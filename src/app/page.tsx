@@ -19,6 +19,7 @@ import CountyFeedstockPanel from '@/components/CountyFeedstockPanel';
 const Map = dynamic(() => import('@/components/Map'), { ssr: false });
 import LayerControls from '@/components/LayerControls'; // Import the new LayerControls component
 import Header from '@/components/Header'; // Import the Header component
+import UserResearchPoll from '@/components/UserResearchPoll';
 import { ChevronLeft, ChevronRight, Layers, Filter } from 'lucide-react';
 
 // Removed fetcher function
@@ -353,6 +354,7 @@ export default function Home() {
     <div className="h-screen w-screen flex flex-col overflow-hidden no-scroll">
       {/* Header with Logo */}
       <Header />
+      <UserResearchPoll />
       
       {/* Main Content */}
       <main className="flex flex-1 relative w-full h-full overflow-hidden">

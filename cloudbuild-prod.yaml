@@ -50,12 +50,14 @@ steps:
       - '--allow-unauthenticated'
       - '--service-account'
       - 'biocirv-prod-cr-frontend@biocirv-470318.iam.gserviceaccount.com'
-      - '--set-env-vars'
-      - 'ENVIRONMENT=${_ENVIRONMENT},NEXT_PUBLIC_API_BASE_URL=https://api.calbioscape.org,GITHUB_ISSUE_CREATE_ENABLED=true,GITHUB_REPO_OWNER=sustainability-software-lab,GITHUB_REPO_NAME=cal-bioscape-frontend'
+      - '--project'
+      - '$PROJECT_ID'
+      - '--update-env-vars'
+      - 'ENVIRONMENT=${_ENVIRONMENT},NEXT_PUBLIC_API_BASE_URL=https://api.calbioscape.org,GITHUB_ISSUE_CREATE_ENABLED=true,GITHUB_REPO_OWNER=sustainability-software-lab,GITHUB_REPO_NAME=cal-bioscape-frontend,USER_RESEARCH_BUCKET=biocirv-470318-calbioscape-feedback-production,USER_RESEARCH_ORIGIN=https://calbioscape.org,USER_RESEARCH_ADMIN_USERNAME=admin'
       - '--remove-secrets'
       - 'CA_BIOSITE_API_USER,CA_BIOSITE_API_PASSWORD'
       - '--update-secrets'
-      - 'CA_BIOSITE_API_KEY=biocirv-production-frontend-api-key:latest,GITHUB_TOKEN=github-issue-token:latest'
+      - 'CA_BIOSITE_API_KEY=biocirv-production-frontend-api-key:latest,GITHUB_TOKEN=github-issue-token:latest,USER_RESEARCH_ADMIN_PASSWORD=calbioscape-production-feedback-admin-password:latest,USER_RESEARCH_SESSION_SECRET=calbioscape-production-feedback-session-secret:latest'
 
   # Ensure 100% traffic goes to the latest revision
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:460.0.0'
@@ -68,6 +70,8 @@ steps:
       - '--to-latest'
       - '--region'
       - '${_REGION}'
+      - '--project'
+      - '$PROJECT_ID'
 
 images:
   - 'gcr.io/$PROJECT_ID/${_SERVICE_NAME}:$SHORT_SHA'
