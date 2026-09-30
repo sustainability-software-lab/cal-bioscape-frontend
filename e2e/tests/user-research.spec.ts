@@ -2,9 +2,12 @@ import { test, expect } from '../fixtures/index';
 import type { Page } from '@playwright/test';
 
 async function selectRole(page: Page, label: string) {
-  // Wait for the dialog's initial focus before opening its nested select.
+  // Wait for the opening transition and focus before opening the nested select.
   await expect(page.getByRole('heading', { name: 'Help us improve Cal BioScape', exact: true })).toBeFocused();
-  await page.getByRole('combobox', { name: 'Your role' }).click();
+  await page.getByRole('dialog').evaluate(async dialog => {
+    await Promise.all(dialog.getAnimations().map(animation => animation.finished));
+  });
+  await page.getByRole('combobox', { name: 'Your role' }).press('Enter');
   await page.getByRole('option', { name: label, exact: true }).click();
 }
 

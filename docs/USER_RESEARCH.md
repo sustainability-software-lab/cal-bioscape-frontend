@@ -62,6 +62,20 @@ The environment's Cloud Build file supplies these server-only settings:
 
 Cloud Run references the `latest` version of each secret. Passwords and session secrets are independent for the two environments. Never add them to `NEXT_PUBLIC_*` variables, build arguments, source files, or issue comments.
 
+## Run the survey locally
+
+The first-visit form requires a working response store before it opens the map. For local development, use the staging bucket with Application Default Credentials for an authorized developer account. That account needs object creator and viewer access on the staging feedback bucket.
+
+After authenticating with `gcloud auth application-default login`, start the app from the repository root:
+
+```bash
+USER_RESEARCH_BUCKET=biocirv-470318-calbioscape-feedback-staging \
+USER_RESEARCH_ORIGIN=http://localhost:3000 \
+npm run dev
+```
+
+Use the exact configured origin in the browser; if changing ports, change `USER_RESEARCH_ORIGIN` as well. These submissions are real staging records, so label development responses clearly and keep production storage out of local configuration. Review them through the hosted staging admin portal. To use `/admin` locally, also supply the three server-only admin username/password/session-secret variables listed above through an uncommitted local environment or process environment.
+
 ## Rotate admin access
 
 Changing a Secret Manager version alone does not replace credentials held by running instances. Rotate the password and session secret, then deploy a new revision through the repository's normal deployment path. Changing the session secret invalidates cookies when requests reach the new revision.
