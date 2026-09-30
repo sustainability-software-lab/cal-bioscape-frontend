@@ -34,7 +34,6 @@ export default function UserResearchPoll({ variant = 'invitation' }: { variant?:
   const [otherRole, setOtherRole] = useState('');
   const [affiliation, setAffiliation] = useState('');
   const [goal, setGoal] = useState('');
-  const [allowFollowUp, setAllowFollowUp] = useState(false);
   const [allowUpdates, setAllowUpdates] = useState(false);
   const [email, setEmail] = useState('');
   const [validEmail, setValidEmail] = useState(false);
@@ -74,7 +73,7 @@ export default function UserResearchPoll({ variant = 'invitation' }: { variant?:
         otherRole: role === 'other' ? otherRole.trim() : null,
         affiliation: affiliation.trim() || null,
         goal: goal.trim(),
-        allowFollowUp,
+        allowFollowUp: false,
         allowUpdates,
         email: email.trim() || null,
         website,
@@ -106,7 +105,7 @@ export default function UserResearchPoll({ variant = 'invitation' }: { variant?:
       {variant === 'link' && <DialogTrigger asChild><button type="button" className="rounded text-sm font-medium text-blue-700 underline underline-offset-4 hover:text-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">Share your input</button></DialogTrigger>}
       <DialogContent showCloseButton={false} onEscapeKeyDown={event => event.preventDefault()} onPointerDownOutside={event => event.preventDefault()} onInteractOutside={event => event.preventDefault()} onOpenAutoFocus={event => { event.preventDefault(); titleRef.current?.focus(); }} className="max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] overflow-y-auto p-5 text-gray-900 sm:p-6">
         <DialogHeader>
-          <DialogTitle ref={titleRef} tabIndex={-1} className="px-5 text-center leading-6 focus:outline-none">Help us improve CalBioScape.</DialogTitle>
+          <DialogTitle ref={titleRef} tabIndex={-1} className="px-5 text-center leading-6 focus:outline-none">Help us improve CalBioScape</DialogTitle>
           <DialogDescription className="sr-only">Select your role to explore the map. All other fields are optional.</DialogDescription>
         </DialogHeader>
         <form onSubmit={sendFeedback} className="mt-5 space-y-4">
@@ -145,16 +144,12 @@ export default function UserResearchPoll({ variant = 'invitation' }: { variant?:
               const valid = event.currentTarget.value.trim() !== '' && event.currentTarget.validity.valid;
               setEmail(event.target.value);
               setValidEmail(valid);
-              if (!valid) { setAllowFollowUp(false); setAllowUpdates(false); }
+              if (!valid) setAllowUpdates(false);
             }} maxLength={254} pattern="[^@\s]+@[^@\s]+\.[^@\s]+" title="Enter a complete email address, such as name@example.org." disabled={busy} className={fieldClass} />
-            {validEmail && <div className="mt-3 space-y-3">
+            {validEmail && <div className="mt-3">
               <label className="flex cursor-pointer items-start gap-2.5 text-sm leading-5 text-gray-700">
                 <input type="checkbox" checked={allowUpdates} onChange={event => setAllowUpdates(event.target.checked)} disabled={busy} className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 accent-blue-600 focus-visible:outline-2 focus-visible:outline-blue-500" />
                 <span>I&apos;d like to stay informed about tool updates.</span>
-              </label>
-              <label className="flex cursor-pointer items-start gap-2.5 text-sm leading-5 text-gray-700">
-                <input type="checkbox" checked={allowFollowUp} onChange={event => setAllowFollowUp(event.target.checked)} disabled={busy} className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 accent-blue-600 focus-visible:outline-2 focus-visible:outline-blue-500" />
-                <span>I’m open to a follow-up conversation <span className="text-gray-500">(optional)</span></span>
               </label>
             </div>}
           </div>

@@ -8,7 +8,7 @@ test.beforeEach(async ({ page }) => {
 test('first visit requires only a role and cannot be dismissed before saving', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('dialog')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Help us improve CalBioScape.', exact: true })).toBeFocused();
+  await expect(page.getByRole('heading', { name: 'Help us improve CalBioScape', exact: true })).toBeFocused();
   await expect(page.getByText('Your responses will only be shared with the Cal BioScape development team for improving the tool.', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Share your input' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Close', exact: true })).toHaveCount(0);
@@ -53,7 +53,7 @@ test('failed submission retains answers and retry identity, and success suppress
   await expect(page.getByRole('dialog')).toHaveCount(0);
 });
 
-test('Other role and follow-up are explicit choices and the form fits a narrow screen', async ({ page }) => {
+test('Other role and updates are explicit choices and the form fits a narrow screen', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   let submitted: Record<string, unknown> | null = null;
   await page.route('**/api/user-research', async route => {
@@ -75,10 +75,11 @@ test('Other role and follow-up are explicit choices and the form fits a narrow s
   await expect(page.getByLabel('I’m open to a follow-up conversation')).toHaveCount(0);
   await page.getByLabel('Email address').fill('example@example.org');
   await page.getByLabel("I'd like to stay informed about tool updates.").check();
-  await page.getByLabel('I’m open to a follow-up conversation').check();
+  await expect(page.getByLabel('I’m open to a follow-up conversation')).toHaveCount(0);
+  await expect(page.getByRole('dialog').getByRole('checkbox')).toHaveCount(1);
   await page.getByRole('button', { name: 'Explore the tool' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  expect(submitted).toMatchObject({ role: 'other', otherRole: 'Community organizer', allowUpdates: true, allowFollowUp: true, email: 'example@example.org' });
+  expect(submitted).toMatchObject({ role: 'other', otherRole: 'Community organizer', allowUpdates: true, allowFollowUp: false, email: 'example@example.org' });
 });
 
 test('blocked browser storage still allows saving and suppresses the modal for this visit', async ({ page }) => {
@@ -135,7 +136,7 @@ test('optional email is saved independently and consent resets when the address 
   await expect(consent).toHaveCount(0);
   await email.fill('one@example.org');
   await updates.check();
-  await consent.check();
+  await expect(consent).toHaveCount(0);
   await email.fill('invalid');
   await expect(consent).toHaveCount(0);
   await expect(updates).toHaveCount(0);
@@ -143,18 +144,18 @@ test('optional email is saved independently and consent resets when the address 
   expect(await email.evaluate(input => (input as HTMLInputElement).validity.valid)).toBe(false);
   expect(submissions).toHaveLength(0);
   await email.fill('two@example.org');
-  await expect(consent).not.toBeChecked();
+  await expect(consent).toHaveCount(0);
   await expect(updates).not.toBeChecked();
   await updates.check();
-  await consent.check();
+  await expect(consent).toHaveCount(0);
   await updates.uncheck();
   await expect(email).toHaveValue('two@example.org');
-  await expect(consent).toBeChecked();
+  await expect(consent).toHaveCount(0);
   await email.fill('');
   await expect(consent).toHaveCount(0);
   await expect(updates).toHaveCount(0);
   await email.fill('two@example.org');
-  await expect(consent).not.toBeChecked();
+  await expect(consent).toHaveCount(0);
   await expect(updates).not.toBeChecked();
   await page.getByRole('button', { name: 'Explore the tool' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -174,7 +175,7 @@ test('completed users can reopen from Contact and save an Other role without ext
   await page.getByRole('link', { name: 'Contact', exact: true }).click();
   await expect(page.getByRole('link', { name: 'Team admin' })).toHaveAttribute('href', '/admin');
   await page.getByRole('button', { name: 'Share your input' }).click();
-  await expect(page.getByRole('heading', { name: 'Help us improve CalBioScape.', exact: true })).toBeFocused();
+  await expect(page.getByRole('heading', { name: 'Help us improve CalBioScape', exact: true })).toBeFocused();
   await page.getByLabel('Your role').selectOption('other');
   await page.getByRole('button', { name: 'Explore the tool' }).click();
   await expect(page).toHaveURL('/');
