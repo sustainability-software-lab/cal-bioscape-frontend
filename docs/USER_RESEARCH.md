@@ -24,7 +24,7 @@ Admin sessions expire after eight hours. The session cookie is HttpOnly, uses `S
 
 ## Understand the collected data
 
-The dialog opens automatically on a first map visit, with the title **Help us improve CalBioScape** Visitors select a role before entering the map. There is no banner, close button, or outside-click/Escape dismissal. The form collects:
+The dialog opens automatically on a first map visit, with the title **Help us improve Cal BioScape** Visitors select a role before entering the map. There is no banner, close button, or outside-click/Escape dismissal. The form collects:
 
 - Their role (required), including an **Other** option with an optional write-in field.
 - Their affiliation, optionally.

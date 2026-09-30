@@ -1,4 +1,10 @@
 import { test, expect } from '../fixtures/index';
+import type { Page } from '@playwright/test';
+
+async function selectRole(page: Page, label: string) {
+  await page.getByRole('combobox', { name: 'Your role' }).click();
+  await page.getByRole('option', { name: label, exact: true }).click();
+}
 
 test.beforeEach(async ({ page }) => {
   // These journeys exercise the poll independently of live backend data.
@@ -8,22 +14,50 @@ test.beforeEach(async ({ page }) => {
 test('first visit requires only a role and cannot be dismissed before saving', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('dialog')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Help us improve CalBioScape', exact: true })).toBeFocused();
-  await expect(page.getByText('Your responses will only be shared with the Cal BioScape development team for improving the tool.', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Help us improve Cal BioScape', exact: true })).toBeFocused();
+  await expect(page.getByText('Your responses will only be shared with the Cal BioScape development team.', { exact: true })).toBeVisible();
+  await expect(page.getByText('Thank you for helping us improve the tool.', { exact: true })).toBeVisible();
+  await expect(page.getByRole('dialog').getByText('(optional)', { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel('Institutional Affiliation', { exact: true })).toHaveAttribute('placeholder', 'e.g., UC Berkeley, USDA, etc.');
   await expect(page.getByRole('button', { name: 'Share your input' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Close', exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Maybe later' })).toHaveCount(0);
   await expect(page.getByText('What brings you here?', { exact: false })).toHaveCount(0);
   const explore = page.getByRole('button', { name: 'Explore the tool' });
   await expect(explore).toBeDisabled();
-  await expect(explore.locator('..')).toHaveAttribute('title', 'Please select your role to continue.');
+  await explore.locator('..').hover();
+  await expect(page.getByRole('tooltip')).toHaveText('Please select your role to use the tool.');
+  await expect(explore.locator('..')).not.toHaveAttribute('title', 'Please select your role to use the tool.');
+  await page.mouse.move(5, 5);
+  await expect(page.getByRole('tooltip')).toHaveCount(0);
+  await explore.locator('..').focus();
+  await expect(page.getByRole('tooltip')).toHaveText('Please select your role to use the tool.');
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toBeVisible();
   await page.mouse.click(5, 5);
   await expect(page.getByRole('dialog')).toBeVisible();
-  await page.getByLabel('Your role').selectOption('researcher');
+  const roleSelect = page.getByRole('combobox', { name: 'Your role' });
+  await expect(roleSelect).toHaveText('Please select the closest fit');
+  await roleSelect.click();
+  await expect(page.getByRole('listbox')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+  await expect.poll(async () => {
+    const trigger = (await page.locator('#research-role').boundingBox())!;
+    const menu = (await page.getByRole('listbox').boundingBox())!;
+    return Math.min(Math.abs(menu.y - trigger.y - trigger.height), Math.abs(trigger.y - menu.y - menu.height));
+  }).toBeLessThanOrEqual(1);
+  await expect(page.getByRole('option', { name: 'Policy professional', exact: true })).toBeVisible();
+  await expect(page.getByRole('option', { name: 'Farmer / grower', exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('listbox')).toHaveCount(0);
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await roleSelect.press('Enter');
+  await expect(page.getByRole('option', { name: 'Researcher / student', exact: true })).toBeFocused();
+  await page.keyboard.type('Policy', { delay: 50 });
+  await expect(page.getByRole('option', { name: 'Policy professional', exact: true })).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(roleSelect).toHaveText('Policy professional');
   await expect(explore).toBeEnabled();
-  await expect(explore.locator('..')).not.toHaveAttribute('title', 'Please select your role to continue.');
+  await expect(page.getByRole('tooltip')).toHaveCount(0);
 });
 
 test('failed submission retains answers and retry identity, and success suppresses the modal', async ({ page }) => {
@@ -37,7 +71,7 @@ test('failed submission retains answers and retry identity, and success suppress
   });
   await page.goto('/');
   await expect(page.getByRole('dialog')).toBeVisible();
-  await page.getByLabel('Your role').selectOption('researcher');
+  await selectRole(page, 'Researcher / student');
   await page.getByLabel('Affiliation').fill('Example university');
   await page.getByLabel('What are you hoping to accomplish with Cal BioScape?').fill('Compare agricultural residues near a potential facility.');
   await page.getByRole('button', { name: 'Explore the tool' }).click();
@@ -67,7 +101,7 @@ test('Other role and updates are explicit choices and the form fits a narrow scr
   expect(bounds).not.toBeNull();
   expect(bounds!.x).toBeGreaterThanOrEqual(0);
   expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(390);
-  await page.getByLabel('Your role').selectOption('other');
+  await selectRole(page, 'Other');
   await page.getByLabel('Describe your role').fill('Community organizer');
   await page.getByLabel('What are you hoping to accomplish with Cal BioScape?').fill('Understand local opportunities.');
   await expect(page.getByLabel('Email address')).toBeVisible();
@@ -89,7 +123,7 @@ test('blocked browser storage still allows saving and suppresses the modal for t
   await page.route('**/api/user-research', route => route.fulfill({ status: 201, json: { success: true } }));
   await page.goto('/');
   await expect(page.getByRole('dialog')).toBeVisible();
-  await page.getByLabel('Your role').selectOption('grower');
+  await selectRole(page, 'Farmer / grower');
   await page.getByLabel('What are you hoping to accomplish with Cal BioScape?').fill('Find nearby processors.');
   await page.getByRole('button', { name: 'Explore the tool' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -113,7 +147,7 @@ test('a role-only response saves without optional answers and returns directly t
     await route.fulfill({ status: 201, json: { success: true } });
   });
   await page.goto('/');
-  await page.getByLabel('Your role').selectOption('researcher');
+  await selectRole(page, 'Researcher / student');
   await page.getByRole('button', { name: 'Explore the tool' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   expect(submitted).toMatchObject({ role: 'researcher', goal: '', email: null, allowUpdates: false, allowFollowUp: false });
@@ -127,7 +161,7 @@ test('optional email is saved independently and consent resets when the address 
     await route.fulfill({ status: 201, json: { success: true } });
   });
   await page.goto('/');
-  await page.getByLabel('Your role').selectOption('consultant');
+  await selectRole(page, 'Consultant');
   const email = page.getByLabel('Email address');
   const consent = page.getByLabel('I’m open to a follow-up conversation');
   const updates = page.getByLabel("I'd like to stay informed about tool updates.");
@@ -175,8 +209,8 @@ test('completed users can reopen from Contact and save an Other role without ext
   await page.getByRole('link', { name: 'Contact', exact: true }).click();
   await expect(page.getByRole('link', { name: 'Team admin' })).toHaveAttribute('href', '/admin');
   await page.getByRole('button', { name: 'Share your input' }).click();
-  await expect(page.getByRole('heading', { name: 'Help us improve CalBioScape', exact: true })).toBeFocused();
-  await page.getByLabel('Your role').selectOption('other');
+  await expect(page.getByRole('heading', { name: 'Help us improve Cal BioScape', exact: true })).toBeFocused();
+  await selectRole(page, 'Other');
   await page.getByRole('button', { name: 'Explore the tool' }).click();
   await expect(page).toHaveURL('/');
   await expect(page.getByRole('dialog')).toHaveCount(0);
@@ -191,7 +225,7 @@ test('a saved response conflict requires an explicit choice before making a new 
   });
   await page.goto('/');
   await expect(page.getByRole('dialog')).toBeVisible();
-  await page.getByLabel('Your role').selectOption('software');
+  await selectRole(page, 'Software / data professional');
   await page.getByLabel('What are you hoping to accomplish with Cal BioScape?').fill('Build a resource data integration.');
   await page.getByRole('button', { name: 'Explore the tool' }).click();
   await expect(page.getByRole('alert')).toContainText('earlier response was saved');
