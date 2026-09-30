@@ -1,4 +1,4 @@
-import { test, expect } from '../fixtures/index';
+import { returningUserTest as test, expect } from '../fixtures/index';
 
 // Regression test for issue #153: the LandIQ "Crop Field Details" popup must show
 // compact AGGREGATE residue totals up top plus collapsible <details> sections, rather

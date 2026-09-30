@@ -75,18 +75,20 @@ function parseSubmission(body: Record<string, unknown>, now: number): UserResear
   if (!UUID.test(id)) throw new HttpError(400, 'Please reload the form and try again.')
   const role = field(body, 'role', 32, true) as UserResearchRole
   if (!ROLES.has(role)) throw new HttpError(400, 'Please select a role.')
-  const otherRole = field(body, 'otherRole', 200, role === 'other')
-  const affiliation = field(body, 'affiliation', 200)
-  const goal = field(body, 'goal', 2000, true)!
+  const otherRole = field(body, 'otherRole', 120)
+  const affiliation = field(body, 'affiliation', 200, true)!
+  const goal = field(body, 'goal', 2000) || ''
+  if (body.allowUpdates !== undefined && typeof body.allowUpdates !== 'boolean') throw new HttpError(400, 'Please check your updates preference.')
+  const allowUpdates = body.allowUpdates === true
   if (body.allowFollowUp !== undefined && typeof body.allowFollowUp !== 'boolean') throw new HttpError(400, 'Please check your follow-up preference.')
   const allowFollowUp = body.allowFollowUp === true
   const email = field(body, 'email', 254, allowFollowUp)
-  if (email && (!allowFollowUp || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) throw new HttpError(400, 'Please provide a valid email and opt in to follow-up.')
-  return { id: id.toLowerCase(), createdAt: new Date(now).toISOString(), version: 1, role, otherRole: role === 'other' ? otherRole : null, affiliation, goal, email, allowFollowUp }
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new HttpError(400, 'Please provide a valid email.')
+  return { id: id.toLowerCase(), createdAt: new Date(now).toISOString(), version: 1, role, otherRole: role === 'other' ? otherRole : null, affiliation, goal, email, allowUpdates, allowFollowUp }
 }
 
 function sameSubmission(a: UserResearchResponse, b: UserResearchResponse) {
-  return (['id', 'version', 'role', 'otherRole', 'affiliation', 'goal', 'email', 'allowFollowUp'] as const).every(key => a[key] === b[key])
+  return (['id', 'version', 'role', 'otherRole', 'affiliation', 'goal', 'email', 'allowUpdates', 'allowFollowUp'] as const).every(key => a[key] === b[key])
 }
 
 function csvCell(value: unknown) {
@@ -197,7 +199,7 @@ export function createUserResearchHandlers({ store, config, now = Date.now }: { 
     exportCsv: handled(async request => {
       authenticated(request)
       const result = await store.list(cursor(request))
-      const keys = ['id', 'createdAt', 'role', 'otherRole', 'affiliation', 'goal', 'allowFollowUp', 'email'] as const
+      const keys = ['id', 'createdAt', 'role', 'otherRole', 'affiliation', 'goal', 'allowUpdates', 'allowFollowUp', 'email'] as const
       const csv = [keys.map(csvCell).join(','), ...result.responses.map(row => keys.map(key => csvCell(row[key])).join(','))].join('\r\n')
       return new Response(`\uFEFF${csv}\r\n`, { headers: { ...NO_CACHE, 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="cal-bioscape-responses-page.csv"' } })
     }),

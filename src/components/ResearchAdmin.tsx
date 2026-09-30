@@ -9,8 +9,8 @@ import { ApiAuthError, exportUserResearch, getUserResearch, signInResearchAdmin,
 import type { UserResearchResponse, UserResearchRole } from '@/lib/api-types';
 
 const roleLabels: Record<UserResearchRole, string> = {
-  researcher: 'Researcher / student', consultant: 'Consultant', grower: 'Grower / farmer',
-  processor: 'Processor / facility operator', developer: 'Project / technology developer', software: 'Software / data professional', policy: 'Policy / public agency', other: 'Other',
+  researcher: 'Researcher / Student', consultant: 'Consultant', grower: 'Farmer / Grower',
+  processor: 'Processor / Facility operator', developer: 'Project / Technology developer', software: 'Software / Data professional', policy: 'Policy professional', other: 'Other',
 };
 const buttonClass = 'inline-flex items-center justify-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50';
 const fieldClass = 'mt-2 border-gray-300 bg-white text-base text-gray-900 focus-visible:border-blue-500 focus-visible:ring-blue-500/20 sm:text-sm';
@@ -155,8 +155,12 @@ export default function ResearchAdmin() {
                     <div className="min-w-0"><h2 className="break-words text-sm font-semibold">{response.role === 'other' ? response.otherRole || 'Other' : roleLabels[response.role]}</h2>{response.affiliation && <p className="mt-1 break-words text-sm text-gray-600">{response.affiliation}</p>}</div>
                     <time dateTime={response.createdAt} className="text-xs leading-5 text-gray-500">{new Date(response.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</time>
                   </div>
-                  <p className="mt-4 whitespace-pre-wrap break-words text-sm leading-6 text-gray-800">{response.goal}</p>
-                  {response.allowFollowUp && response.email && <p className="mt-4 break-words border-t border-gray-100 pt-3 text-xs text-gray-600">Open to follow-up: <a href={`mailto:${encodeURIComponent(response.email)}`} className="text-blue-700 underline underline-offset-2">{response.email}</a></p>}
+                  {response.goal && <p className="mt-4 whitespace-pre-wrap break-words text-sm leading-6 text-gray-800">{response.goal}</p>}
+                  <div className="mt-4 break-words border-t border-gray-100 pt-3 text-xs text-gray-600">
+                    {response.email && <p>Email: <a href={`mailto:${encodeURIComponent(response.email)}`} className="text-blue-700 underline underline-offset-2">{response.email}</a></p>}
+                    <p className="mt-1">{response.allowUpdates ? 'Tool updates: opted in' : 'Tool updates: not opted in'}{response.allowUpdates && !response.email ? ' (no email provided)' : ''}</p>
+                    <p className="mt-1">{response.allowFollowUp ? 'Follow-up: opted in' : 'Follow-up: not opted in'}</p>
+                  </div>
                 </article>
               ))}
             </div>

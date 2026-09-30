@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import { createGcsResearchStore, type StorageRequest } from '../src/lib/user-research-storage'
 import type { UserResearchResponse } from '../src/lib/api-types'
 
-const row: UserResearchResponse = { id: '59e3b392-c956-4e7c-9015-d5b9b0926ac3', createdAt: '2026-09-30T02:00:00.000Z', version: 1, role: 'researcher', otherRole: null, affiliation: null, goal: 'Plan a site', email: null, allowFollowUp: false }
+const row: UserResearchResponse = { id: '59e3b392-c956-4e7c-9015-d5b9b0926ac3', createdAt: '2026-09-30T02:00:00.000Z', version: 1, role: 'researcher', otherRole: null, affiliation: null, goal: 'Plan a site', email: null, allowUpdates: false, allowFollowUp: false }
 
 test('GCS writes private JSON with an atomic no-overwrite precondition and bounded requests', async () => {
   const requests: StorageRequest[] = []
@@ -61,4 +61,15 @@ test('missing bucket fails before any storage request', async () => {
   await assert.rejects(store.create(row))
   await assert.rejects(store.list())
   assert.equal(calls, 0)
+})
+
+test('legacy records without updates consent read as false without modifying the stored object', async () => {
+  const { allowUpdates: _unused, ...legacy } = row
+  const store = createGcsResearchStore('private-bucket', async options => {
+    if (options.method === 'POST') throw { response: { status: 412 } }
+    return options.params?.alt === 'media' ? legacy : { items: [{ name: `responses/${row.id}.json` }] }
+  })
+  assert.deepEqual(await store.list(), { responses: [row], nextCursor: null })
+  assert.deepEqual(await store.create(row), row)
+  assert.equal('allowUpdates' in legacy, false)
 })
