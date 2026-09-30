@@ -12,6 +12,9 @@ import {
   AnalysisListResponse,
   AnalysisDataResponse,
   AvailabilityResponse,
+  UserResearchSubmission,
+  UserResearchListResponse,
+  UserResearchSuccessResponse,
 } from './api-types';
 
 export interface ApiFetchOptions {
@@ -196,4 +199,61 @@ export async function getAvailability(
   return apiFetch<AvailabilityResponse>(
     `/v1/feedstocks/availability/resources/${encodeURIComponent(resource)}/geoid/${encodeURIComponent(geoid)}`
   );
+}
+
+// First-party feedback stays on the frontend server, separate from the data proxy.
+// Never log payloads: they may contain contact information or private feedback.
+export class UserResearchConflictError extends Error {
+  constructor() {
+    super('An earlier response was already saved for this submission.');
+    this.name = 'UserResearchConflictError';
+  }
+}
+
+async function researchRequest<T>(path: string, init?: RequestInit, requireSession = false): Promise<T | null> {
+  try {
+    const response = await fetch(path, {
+      ...init,
+      cache: 'no-store',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', ...init?.headers },
+    });
+    if (requireSession && response.status === 401) throw new ApiAuthError(401, path);
+    if (path === '/api/user-research' && response.status === 409) throw new UserResearchConflictError();
+    if (!response.ok) return null;
+    return await response.json() as T;
+  } catch (error) {
+    if (error instanceof ApiAuthError || error instanceof UserResearchConflictError) throw error;
+    return null;
+  }
+}
+
+export function submitUserResearch(submission: UserResearchSubmission): Promise<UserResearchSuccessResponse | null> {
+  return researchRequest('/api/user-research', { method: 'POST', body: JSON.stringify(submission) });
+}
+
+export function signInResearchAdmin(username: string, password: string): Promise<UserResearchSuccessResponse | null> {
+  return researchRequest('/api/admin/login', { method: 'POST', body: JSON.stringify({ username, password }) });
+}
+
+export function signOutResearchAdmin(): Promise<UserResearchSuccessResponse | null> {
+  return researchRequest('/api/admin/logout', { method: 'POST', body: '{}' }, true);
+}
+
+export function getUserResearch(cursor: string | null = null): Promise<UserResearchListResponse | null> {
+  const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : '';
+  return researchRequest(`/api/admin/user-research${query}`, undefined, true);
+}
+
+export async function exportUserResearch(cursor: string | null = null): Promise<Blob | null> {
+  const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : '';
+  const path = `/api/admin/user-research/export${query}`;
+  try {
+    const response = await fetch(path, { cache: 'no-store', credentials: 'same-origin' });
+    if (response.status === 401) throw new ApiAuthError(401, path);
+    return response.ok ? await response.blob() : null;
+  } catch (error) {
+    if (error instanceof ApiAuthError) throw error;
+    return null;
+  }
 }

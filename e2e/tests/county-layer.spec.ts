@@ -1,4 +1,4 @@
-import { test, expect } from '../fixtures/index';
+import { returningUserTest as test, expect } from '../fixtures/index';
 
 // Popup-content assertion (clicking a WebGL county polygon) is left to manual
 // Verification due to flakiness of canvas interactions in CI.

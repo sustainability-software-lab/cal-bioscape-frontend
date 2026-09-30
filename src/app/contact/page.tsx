@@ -1,4 +1,6 @@
 import Header from '@/components/Header';
+import Link from 'next/link';
+import UserResearchPoll from '@/components/UserResearchPoll';
 
 export default function ContactPage() {
   return (
@@ -65,6 +67,11 @@ export default function ContactPage() {
                   We strive to respond to all inquiries within 2-3 business days. For urgent matters, please indicate so in your 
                   email subject line.
                 </p>
+                <div className="border-t border-gray-200 pt-5">
+                  <h3 className="mb-2 text-lg font-semibold text-gray-700">Help shape Cal BioScape</h3>
+                  <p className="mb-3 text-sm text-gray-600">Tell us about your work and what you hope to accomplish with the tool.</p>
+                  <UserResearchPoll variant="link" />
+                </div>
               </div>
             </div>
           </div>
@@ -76,6 +83,9 @@ export default function ContactPage() {
           <p className="text-sm mr-2">&copy; {new Date().getFullYear()} Cal BioScape</p>
           <span className="text-gray-400 mx-1">|</span>
           <p className="text-xs text-gray-500">A collaborative effort to transform agricultural waste into sustainable resources</p>
+        </div>
+        <div className="mt-2 text-center">
+          <Link href="/admin" className="rounded text-xs text-gray-500 hover:text-gray-800 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">Team admin</Link>
         </div>
       </footer>
     </div>
