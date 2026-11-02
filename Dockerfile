@@ -1,5 +1,5 @@
-# Use an official Node.js runtime as a parent image
-FROM node:20.20.0-slim
+# Node 24.22.2 includes the CVE-2026-111497 fix and its follow-up regression fix.
+FROM node:24.22.2-slim@sha256:c86ecead9e55a5210ac1727de38a4ca840bf03dcaf34dc9749addbf383b1920c
 
 # Set the working directory in the container
 WORKDIR /app
@@ -7,8 +7,12 @@ WORKDIR /app
 # Copy package.json and package-lock.json (or npm-shrinkwrap.json)
 COPY package*.json ./
 
-# Install dependencies
-RUN npm install
+# Install exactly the dependencies verified by the security audit.
+RUN npm ci
+
+# Keep a non-secret runtime receipt in the build log for deployment verification.
+# Brotli fixes can be backported without changing process.versions.brotli.
+RUN node -e 'console.log(JSON.stringify({node:process.version,brotli:process.versions.brotli,next:require("next/package.json").version,sharp:require("sharp").versions.sharp}))'
 
 # Copy the rest of the application code
 COPY . .
