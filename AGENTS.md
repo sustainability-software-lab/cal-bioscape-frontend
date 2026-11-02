@@ -49,7 +49,7 @@ Authoritative reference for AI agents working in this repository. Read this file
 
 | Category | Package | Version |
 |---|---|---|
-| Framework | next | ^16.0.10 |
+| Framework | next | ^16.4.4 |
 | UI library | react, react-dom | ^19.2.3 |
 | Language | typescript | ^5 |
 | Styling | tailwindcss | ^4 |
@@ -1341,13 +1341,15 @@ Transportation tilesets: rail lines, freight terminals, freight routes, petroleu
 
 ### Docker
 
-`Dockerfile` uses `node:20.20.0-slim` as the base image:
-1. `npm install` — installs dependencies
+`Dockerfile` uses the official `node:24.22.2-slim` image pinned by SHA-256 digest. This supported LTS runtime includes the CVE-2026-111497 Brotli decoder fix and the subsequent Node 24.22.2 regression fix. `.nvmrc` pins the same version for local development and all active GitHub workflows. When updating Node, keep these pins aligned and run `tests/runtime-security.test.ts`.
+1. `npm ci` — installs the audited lockfile without resolving new dependency versions; logs non-secret Node/Brotli/Next/Sharp versions for release verification
 2. Verifies `NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN` is non-empty (exits 1 if missing) — prevents silent broken builds
 3. `npm run build` — produces the Next.js production bundle
 4. Exposes port 3000, starts with `npm start`
 
 Mapbox tokens are passed as `--build-arg` at build time (baked into the client bundle).
+
+`.dockerignore` excludes local credentials, `.context`, host dependencies and generated build/test files. After a runtime security update, match the build's runtime receipt and image digest to the Ready Cloud Run revision serving traffic. A Brotli fix may be backported without changing its reported library version, so verify the patched Node release rather than relying on Brotli's version alone. Rolling back to a pre-patch image restores the vulnerable runtime; prefer rebuilding prior application code on the patched base.
 
 ### Google Cloud Run
 

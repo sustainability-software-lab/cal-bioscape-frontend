@@ -45,7 +45,7 @@ test('LandIQ crop field popup uses aggregate totals + collapsible sections (issu
     })
     .catch(() => undefined);
 
-  await page.goto('http://localhost:3100/');
+  await page.goto('/');
 
   // Wait for the map + feedstock layer to be registered in the style.
   await page.waitForFunction(
